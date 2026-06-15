@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import html
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -13,28 +14,69 @@ def main():
         shutil.rmtree(out)
     out.mkdir(parents=True, exist_ok=True)
 
-    if not src.is_dir():
+    if src.is_dir():
+        shutil.copytree(src, out, dirs_exist_ok=True)
+        pages = sorted(
+            p.relative_to(src).as_posix()
+            for p in src.rglob("*.html")
+            if p.name.lower() != "index.html"
+        )
+    else:
         print(f"Source folder '{src}' does not exist -- publishing an empty site.")
-        (out / ".nojekyll").write_text("", encoding="utf-8")
-        (out / "index.html").write_text(render_index([]), encoding="utf-8")
-        return
-
-    shutil.copytree(src, out, dirs_exist_ok=True)
+        pages = []
 
     (out / ".nojekyll").write_text("", encoding="utf-8")
 
-    pages = sorted(
-        p.relative_to(out).as_posix()
-        for p in out.rglob("*.html")
-        if p.name.lower() != "index.html"
-    )
-
     if (out / "index.html").exists():
-        print("Found your own index.html in the folder -- keeping it.")
-        return
+        print("Found your own index.html -- keeping it for the live site.")
+    else:
+        (out / "index.html").write_text(render_index(pages), encoding="utf-8")
+        print(f"Generated _site/index.html listing {len(pages)} page(s).")
 
-    (out / "index.html").write_text(render_index(pages), encoding="utf-8")
-    print(f"Generated index.html listing {len(pages)} page(s).")
+    base = site_base_url()
+    Path("README.md").write_text(render_readme(pages, base), encoding="utf-8")
+    print(f"Wrote README.md listing {len(pages)} page(s). Base URL: {base or '(relative)'}")
+
+
+def site_base_url():
+    """Absolute base URL of the live site, ending with '/'. May be '' locally."""
+    explicit = os.environ.get("SITE_BASE_URL")
+    if explicit:
+        return explicit.rstrip("/") + "/"
+
+    repo = os.environ.get("GITHUB_REPOSITORY", "")  # "owner/name"
+    if "/" in repo:
+        owner, name = repo.split("/", 1)
+        owner_l = owner.lower()
+        if name.lower() == f"{owner_l}.github.io":
+            return f"https://{owner_l}.github.io/"
+        return f"https://{owner_l}.github.io/{name}/"
+    return ""  # local run with no env -> relative links
+
+
+def render_readme(pages, base):
+    if pages:
+        rows = []
+        for p in pages:
+            label = p[:-5] if p.lower().endswith(".html") else p  # drop ".html"
+            url = (base + p) if base else p
+            rows.append(f"- [{label}]({url})")
+        body = "\n".join(rows)
+    else:
+        body = "_No pages yet — drop an `.html` file into the `html_files/` folder and push._"
+
+    home = base or "./"
+    count = len(pages)
+    return f"""<!-- AUTO-GENERATED on every push. Do not edit by hand --
+     add or remove .html files in the html_files/ folder instead. -->
+# My pages
+
+🌐 **Live site:** {home}
+
+**{count}** page{'' if count == 1 else 's'}:
+
+{body}
+"""
 
 
 def render_index(pages):
