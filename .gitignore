@@ -1,0 +1,8 @@
+# Local build output (only created if you run the build script by hand;
+# the live site is built fresh by GitHub Actions on every push).
+_site/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+desktop.ini
