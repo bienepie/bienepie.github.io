@@ -27,15 +27,23 @@ def main():
 
     (out / ".nojekyll").write_text("", encoding="utf-8")
 
+    links = []
+    for p in pages:
+        stem = p[:-5]  # drop ".html"
+        clean = out / stem / "index.html"
+        clean.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(out / p, clean)
+        links.append(stem)
+
     if (out / "index.html").exists():
         print("Found your own index.html -- keeping it for the live site.")
     else:
-        (out / "index.html").write_text(render_index(pages), encoding="utf-8")
-        print(f"Generated _site/index.html listing {len(pages)} page(s).")
+        (out / "index.html").write_text(render_index(links), encoding="utf-8")
+        print(f"Generated _site/index.html listing {len(links)} page(s).")
 
     base = site_base_url()
-    Path("README.md").write_text(render_readme(pages, base), encoding="utf-8")
-    print(f"Wrote README.md listing {len(pages)} page(s). Base URL: {base or '(relative)'}")
+    Path("README.md").write_text(render_readme(links, base), encoding="utf-8")
+    print(f"Wrote README.md listing {len(links)} page(s). Base URL: {base or '(relative)'}")
 
 
 def site_base_url():
@@ -54,19 +62,18 @@ def site_base_url():
     return ""  # local run with no env -> relative links
 
 
-def render_readme(pages, base):
-    if pages:
+def render_readme(links, base):
+    if links:
         rows = []
-        for p in pages:
-            label = p[:-5] if p.lower().endswith(".html") else p  # drop ".html"
-            url = (base + p) if base else p
-            rows.append(f"- [{label}]({url})")
+        for stem in links:
+            url = (base + stem + "/") if base else (stem + "/")
+            rows.append(f"- [{stem}]({url})")
         body = "\n".join(rows)
     else:
         body = "_No pages yet — drop an `.html` file into the `html_files/` folder and push._"
 
     home = base or "./"
-    count = len(pages)
+    count = len(links)
     return f"""<!-- AUTO-GENERATED on every push. Do not edit by hand --
      add or remove .html files in the html_files/ folder instead. -->
 # My pages
@@ -79,15 +86,16 @@ def render_readme(pages, base):
 """
 
 
-def render_index(pages):
-    if pages:
+def render_index(links):
+    if links:
         items = "\n".join(
-            f'        <li><a href="{html.escape(p)}">{html.escape(p)}</a></li>'
-            for p in pages
+            f'        <li><a href="{html.escape(stem)}/">{html.escape(stem)}</a></li>'
+            for stem in links
         )
     else:
-        items = '        <li class="empty">No HTML files yet &mdash; drop some into the folder and push.</li>'
+        items = '        <li class="empty">No pages yet &mdash; drop an HTML file into the folder and push.</li>'
 
+    n = len(links)
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -95,9 +103,10 @@ def render_index(pages):
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BienePie's S3cr4t3 P4g3s</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
   *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    font-family: 'Space Grotesk', sans-serif;
     background: #0d0f14;
     color: #e8eaf0;
     min-height: 100vh;
@@ -106,8 +115,8 @@ def render_index(pages):
     padding: 48px 20px;
   }}
   main {{ width: 100%; max-width: 640px; }}
-  h1 {{ font-size: 1.6rem; margin-bottom: 4px; }}
-  p.sub {{ color: #8b93a7; margin-bottom: 28px; font-size: 0.95rem; }}
+  h1 {{ font-size: 1.8rem; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 4px; }}
+  p.sub {{ font-family: 'Space Mono', monospace; color: #8b93a7; margin-bottom: 28px; font-size: 0.9rem; }}
   ul {{ list-style: none; display: flex; flex-direction: column; gap: 10px; }}
   li a {{
     display: block;
@@ -118,16 +127,17 @@ def render_index(pages):
     color: #e8eaf0;
     text-decoration: none;
     font-size: 1.05rem;
+    font-weight: 500;
     transition: border-color .15s, transform .15s;
   }}
   li a:hover {{ border-color: #5b8cff; transform: translateX(3px); }}
-  li.empty {{ color: #8b93a7; padding: 14px 0; }}
+  li.empty {{ font-family: 'Space Mono', monospace; color: #8b93a7; padding: 14px 0; }}
 </style>
 </head>
 <body>
   <main>
     <h1>BienePie's S3cr4t3 P4g3s</h1>
-    <p class="sub">{len(pages)} page{'' if len(pages) == 1 else 's'} &middot; click to open</p>
+    <p class="sub">{n} page{'' if n == 1 else 's'} &middot; click to open</p>
     <ul>
 {items}
     </ul>
