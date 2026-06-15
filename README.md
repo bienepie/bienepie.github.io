@@ -6,5 +6,5 @@
 
 **2** pages:
 
-- [PuzzelDrop](https://bienepie.github.io/PuzzelDrop.html)
-- [Ta3reesometer](https://bienepie.github.io/Ta3reesometer.html)
+- [PuzzelDrop](https://bienepie.github.io/PuzzelDrop/)
+- [Ta3reesometer](https://bienepie.github.io/Ta3reesometer/)
