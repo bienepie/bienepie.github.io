@@ -93,7 +93,7 @@ def render_index(pages):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My HTML files</title>
+<title>BienePie's S3cr4t3 P4g3s</title>
 <style>
   *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{
@@ -126,7 +126,7 @@ def render_index(pages):
 </head>
 <body>
   <main>
-    <h1>My HTML files</h1>
+    <h1>BienePie's S3cr4t3 P4g3s</h1>
     <p class="sub">{len(pages)} page{'' if len(pages) == 1 else 's'} &middot; click to open</p>
     <ul>
 {items}
