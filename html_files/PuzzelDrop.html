@@ -53,23 +53,28 @@
   /* ── SETUP SCREEN ── */
   #setup-screen {
     flex: 1; display: flex; flex-direction: column; align-items: center;
-    padding: 24px 20px 40px; gap: 24px; width: 100%; max-width: 800px; margin: 0 auto; overflow-y: auto;
-    
-    /* Hide scrollbars while retaining scroll functionality */
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    padding: 24px 20px 40px; gap: 24px; width: 100%; overflow-y: auto;
+    -ms-overflow-style: none; scrollbar-width: none;
   }
-  #setup-screen::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Opera */
-  }
+  #setup-screen::-webkit-scrollbar { display: none; }
 
   .setup-title { text-align: center; }
   .setup-title h1 { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 700; letter-spacing: -1px; line-height: 1.1; }
   .setup-title p { color: var(--muted); margin-top: 8px; font-size: 1rem; }
 
+  /* Input Tabs */
+  .input-tabs-wrap { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 16px; align-items: center; }
+  .tabs-header { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 4px; width: 100%; gap: 4px; }
+  .tab-btn { flex: 1; text-align: center; padding: 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border-radius: 6px; color: var(--muted); transition: 0.2s; user-select: none; }
+  .tab-btn.active { background: var(--surface2); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+  .tab-btn:hover:not(.active) { color: var(--text); background: rgba(255,255,255,0.05); }
+
+  .tab-content { width: 100%; display: none; flex-direction: column; gap: 12px; }
+  .tab-content.active { display: flex; }
+
   /* Upload zone */
   .upload-zone {
-    width: 100%; max-width: 600px; border: 2px dashed var(--border); border-radius: var(--radius);
+    width: 100%; border: 2px dashed var(--border); border-radius: var(--radius);
     padding: 40px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px;
     cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative; background: var(--surface);
   }
@@ -78,16 +83,30 @@
   .upload-icon { font-size: 3rem; line-height: 1; }
   .upload-zone h3 { font-size: 1.1rem; font-weight: 600; }
   .upload-zone p { font-size: 0.85rem; color: var(--muted); }
-  .upload-preview { width: 120px; height: 120px; border-radius: 10px; object-fit: cover; border: 2px solid var(--accent); display: none; }
 
   /* Link zone */
-  .url-zone { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 8px; margin-top: -16px; }
-  .url-input-wrapper { display: flex; gap: 8px; }
-  #url-input { flex: 1; padding: 12px 16px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); font-family: inherit; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
+  .url-input-wrapper { display: flex; gap: 8px; width: 100%; }
+  #url-input { flex: 1; padding: 14px 16px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); font-family: inherit; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
   #url-input:focus { border-color: var(--accent); }
 
+  /* GIF Search Zone */
+  .gif-search-wrapper { display: flex; gap: 8px; width: 100%; }
+  #gif-search-input { flex: 1; padding: 12px 16px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); font-family: inherit; font-size: 0.9rem; outline: none; }
+  #gif-search-input:focus { border-color: var(--accent); }
+  .gif-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; width: 100%; max-height: 280px; overflow-y: auto; padding-right: 4px; }
+  .gif-grid::-webkit-scrollbar { width: 6px; }
+  .gif-grid::-webkit-scrollbar-track { background: transparent; }
+  .gif-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+  .gif-thumb { width: 100%; height: 90px; object-fit: cover; border-radius: 6px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; background: var(--surface2); }
+  .gif-thumb:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(0,0,0,0.5); border: 2px solid var(--accent); z-index: 2; position: relative; }
+
+  /* Unified Preview */
+  #unified-preview { display: none; flex-direction: column; align-items: center; gap: 10px; margin-top: -8px; animation: popIn 0.3s ease; }
+  #unified-preview-img { width: 120px; height: 120px; border-radius: 10px; object-fit: cover; border: 2px solid var(--accent); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+  #unified-preview-text { font-size: 0.9rem; color: var(--success); font-weight: 600; }
+
   /* Difficulty picker */
-  .difficulty-section { width: 100%; max-width: 700px; }
+  .difficulty-section { width: 100%; max-width: 700px; margin-top: 8px; }
   .difficulty-section h3 { font-size: 0.75rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; text-align: center; }
   .difficulty-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 100%; }
   .diff-card {
@@ -122,24 +141,34 @@
   .logs-section { width: 100%; max-width: 800px; display: none; flex-direction: column; gap: 16px; margin-top: 10px; margin-bottom: 40px; }
   .logs-section h3 { font-size: 1.1rem; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 8px; text-align: center; }
   .logs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
-  .log-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; display: flex; gap: 14px; align-items: center; position: relative; overflow: hidden; }
-  .log-thumb { width: 75px; height: 75px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); background: var(--bg); }
-  .log-info { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-  .log-title { font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between; }
-  .log-badge { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+  
+  .log-card { 
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; padding-right: 42px; 
+    display: flex; gap: 14px; align-items: center; position: relative; overflow: hidden; 
+  }
+  .log-thumb { width: 75px; height: 75px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); background: var(--bg); flex-shrink: 0; }
+  .log-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; } 
+  
+  .log-title { font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .log-title span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; } 
+  .log-badge { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; flex-shrink: 0; }
   .badge-progress { background: rgba(91,140,255,0.15); color: var(--accent); }
   .badge-completed { background: rgba(52,211,153,0.15); color: var(--success); }
-  .log-meta { font-size: 0.78rem; color: var(--muted); font-family: 'Space Mono', monospace; }
+  
+  .log-stats-group { display: flex; flex-direction: column; gap: 2px; }
+  .log-date { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .log-meta { font-size: 0.78rem; color: var(--text); font-family: 'Space Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   
   .log-progress-wrap { width: 100%; height: 4px; background: var(--surface2); border-radius: 4px; overflow: hidden; margin-top: 2px; }
   .log-progress-fill { height: 100%; background: var(--accent); border-radius: 4px; }
   
-  .log-actions { display: flex; flex-direction: column; gap: 6px; }
+  .log-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
   .log-btn { background: var(--surface2); border: none; color: var(--text); border-radius: 6px; padding: 8px 12px; font-size: 0.8rem; cursor: pointer; font-family: inherit; font-weight: 600; transition: background 0.2s; white-space: nowrap; }
   .log-btn.btn-resume { background: rgba(91,140,255,0.15); color: var(--accent); border: 1px solid var(--accent); }
   .log-btn.btn-resume:hover { background: var(--accent); color: #fff; }
   .log-btn:hover:not(.btn-resume) { background: var(--surface); border: 1px solid var(--border); }
-  .log-btn-icon { background: transparent; border: none; color: var(--muted); cursor: pointer; padding: 4px; font-size: 1rem; transition: color 0.2s; position: absolute; top: 8px; right: 8px; }
+  
+  .log-btn-icon { background: transparent; border: none; color: var(--muted); cursor: pointer; padding: 8px; font-size: 1.1rem; transition: color 0.2s; position: absolute; top: 50%; transform: translateY(-50%); right: 6px; }
   .log-btn-icon:hover { color: var(--danger); }
 
   /* ── GAME SCREEN ── */
@@ -149,7 +178,6 @@
   @media (min-width: 900px) { .game-layout { flex-direction: row; align-items: stretch; } }
 
   .puzzle-board-wrap { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 16px; }
-  
   #puzzle-board { background: var(--surface2); border: 2px solid var(--border); border-radius: var(--radius); position: relative; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,0.5); box-sizing: content-box; }
   
   .sidebar-wrap { display: flex; flex-direction: column; gap: 16px; width: 100%; flex-shrink: 0; }
@@ -169,14 +197,9 @@
   #pieces-tray {
     width: 100%; flex: 1; min-height: 0; overflow-y: auto; background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius);
     padding: 16px; display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; justify-content: center; box-shadow: inset 0 4px 12px rgba(0,0,0,0.2);
-    
-    /* Hide scrollbars while retaining scroll functionality */
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none; scrollbar-width: none;
   }
-  #pieces-tray::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Opera */
-  }
+  #pieces-tray::-webkit-scrollbar { display: none; }
 
   .slot { position: absolute; transition: background 0.2s; z-index: 2; border-radius: 4px; }
   .slot.drag-over { background: rgba(91,140,255,0.25); }
@@ -197,19 +220,13 @@
 
   /* Win Screen & Tips */
   #win-overlay { 
-    display: none; position: fixed; inset: 0; background: rgba(13,15,20,0.92); 
-    backdrop-filter: blur(8px); z-index: 100; align-items: center; justify-content: center; 
+    display: none; position: fixed; inset: 0; background: rgba(13,15,20,0.92); backdrop-filter: blur(8px); z-index: 100; align-items: center; justify-content: center; 
     flex-direction: column; gap: 18px; text-align: center; padding: 24px; overflow-y: auto; 
   }
   .win-emoji { font-size: 3.5rem; animation: popIn 0.5s cubic-bezier(.34,1.56,.64,1); }
   @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
   .win-title { font-size: 2.2rem; font-weight: 700; letter-spacing: -1px; }
-  
-  .win-img-wrap {
-    width: 100%; max-width: 280px; border-radius: var(--radius); overflow: hidden;
-    border: 3px solid var(--border); box-shadow: 0 12px 32px rgba(0,0,0,0.6); margin: 4px 0;
-    animation: popIn 0.6s cubic-bezier(.34,1.56,.64,1);
-  }
+  .win-img-wrap { width: 100%; max-width: 280px; border-radius: var(--radius); overflow: hidden; border: 3px solid var(--border); box-shadow: 0 12px 32px rgba(0,0,0,0.6); margin: 4px 0; animation: popIn 0.6s cubic-bezier(.34,1.56,.64,1); }
   @media (min-height: 700px) { .win-img-wrap { max-width: 340px; } }
   .win-img-wrap img { width: 100%; height: auto; display: block; }
 
@@ -229,41 +246,18 @@
   .tip-text p { font-size: 0.85rem; color: var(--muted); line-height: 1.4; }
   .btn-tips { width: 100%; margin-top: 8px; padding: 14px; }
 
-  /* Animated Highlight for Tips */
   .highlight-animated {
     background: linear-gradient(90deg, #ff3b3b, #a78bfa, #34d399, #5b8cff, #ff3b3b);
-    background-size: 400% 100%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-weight: 800;
-    font-size: 1.05em;
-    letter-spacing: 0.5px;
-    animation: rainbowGlow 3s linear infinite, popBounce 2s ease-in-out infinite;
-    display: inline-block;
+    background-size: 400% 100%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    font-weight: 800; font-size: 1.05em; letter-spacing: 0.5px; animation: rainbowGlow 3s linear infinite, popBounce 2s ease-in-out infinite; display: inline-block;
   }
-  @keyframes rainbowGlow { 
-    0% { background-position: 100% 50%; } 
-    100% { background-position: 0% 50%; } 
-  }
+  @keyframes rainbowGlow { 0% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
   @keyframes popBounce {
     0%, 100% { transform: scale(1) rotate(-1deg); filter: drop-shadow(0 0 4px rgba(167, 139, 250, 0.3)); }
     50% { transform: scale(1.08) rotate(1deg); filter: drop-shadow(0 0 10px rgba(167, 139, 250, 0.7)); }
   }
-
-  /* Confetti Fix - Keeps them out of the layout flow entirely */
-  .confetti-piece {
-    position: fixed;
-    top: -20px;
-    z-index: 99999;
-    pointer-events: none;
-    border-radius: 2px;
-    animation: fall linear forwards;
-  }
-  @keyframes fall {
-    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
-  }
+  .confetti-piece { position: fixed; top: -20px; z-index: 99999; pointer-events: none; border-radius: 2px; animation: fall linear forwards; }
+  @keyframes fall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
 </style>
 </head>
 <body>
@@ -279,17 +273,8 @@
 
 <div id="tips-overlay">
   <div class="tips-modal">
-    <div class="tips-header">
-      <h2>Welcome to PuzzleDrop 🧩</h2>
-      <p>How to play the game</p>
-    </div>
-    <div class="tip-item">
-      <span class="tip-icon">🖼️</span>
-      <div class="tip-text">
-        <h4>1. Upload Any Image or GIF</h4>
-        <p>Drop a photo, paste an image link, or even use <span class="highlight-animated">ANIMATED PICS! 🌟</span> The puzzle adapts perfectly to your screen.</p>
-      </div>
-    </div>
+    <div class="tips-header"><h2>Welcome to PuzzleDrop 🧩</h2><p>How to play the game</p></div>
+    <div class="tip-item"><span class="tip-icon">🖼️</span><div class="tip-text"><h4>1. Upload Any Image or GIF</h4><p>Drop a photo, paste an image link, or search for <span class="highlight-animated">ANIMATED GIFs! 🌟</span> The puzzle adapts to your screen.</p></div></div>
     <div class="tip-item"><span class="tip-icon">🎯</span><div class="tip-text"><h4>2. Lock Pieces in Place</h4><p>Drag pieces from the tray to the board. They will only snap and lock if placed in their correct spot!</p></div></div>
     <div class="tip-item"><span class="tip-icon">💡</span><div class="tip-text"><h4>3. Stuck? Use the Tools</h4><p>Hold the "Hint" button to peek at the original image, or use "Reset Board" to clear pieces back to the tray.</p></div></div>
     <button class="btn-start btn-tips" id="btn-close-tips">Got it, let's play!</button>
@@ -300,23 +285,48 @@
 <div id="setup-screen">
   <div class="setup-title">
     <h1>Drop an image.<br>Build the puzzle.</h1>
-    <p>Upload a photo, GIF, or paste a link. Pick your difficulty, and solve it piece by piece.</p>
+    <p>Upload a photo, paste a link, or search for a GIF.</p>
   </div>
 
-  <div class="upload-zone" id="upload-zone">
-    <input type="file" id="file-input" accept="image/*">
-    <img class="upload-preview" id="upload-preview" alt="preview">
-    <span class="upload-icon" id="upload-icon">🖼️</span>
-    <h3 id="upload-text">Click or drag an image here</h3>
-    <p id="upload-sub">PNG, JPG, GIF, WEBP — any size</p>
-  </div>
-
-  <div class="url-zone">
-    <div class="url-input-wrapper">
-      <input type="url" id="url-input" placeholder="Or paste an image/GIF link here...">
-      <button class="btn btn-accent" id="btn-load-url" style="padding: 0 20px;">Load Link</button>
+  <div class="input-tabs-wrap">
+    <div class="tabs-header">
+      <div class="tab-btn active" data-target="tab-upload">📁 Upload File</div>
+      <div class="tab-btn" data-target="tab-link">🔗 Paste Link</div>
+      <div class="tab-btn" data-target="tab-gifs">🔍 Search GIFs</div>
     </div>
-    <p id="url-error" style="color: var(--danger); font-size: 0.8rem; display: none; padding-left: 4px;">Could not load image. Make sure it's a direct image link.</p>
+
+    <div class="tab-content active" id="tab-upload">
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="file-input" accept="image/*">
+        <span class="upload-icon">🖼️</span>
+        <h3>Click or drag an image here</h3>
+        <p>PNG, JPG, GIF, WEBP — any size</p>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-link">
+      <div class="url-input-wrapper">
+        <input type="url" id="url-input" placeholder="Paste direct image or GIF link here...">
+        <button class="btn btn-accent" id="btn-load-url" style="padding: 0 20px;">Load Link</button>
+      </div>
+      <p id="url-error" style="color: var(--danger); font-size: 0.8rem; display: none; padding-left: 4px;">Could not load image. Make sure it's a direct image link.</p>
+    </div>
+
+    <div class="tab-content" id="tab-gifs">
+      <div class="gif-search-wrapper">
+        <input type="text" id="gif-search-input" placeholder="Search for animated GIFs...">
+        <button class="btn btn-accent" id="btn-search-gifs" style="padding: 0 20px;">Search</button>
+      </div>
+      <div class="gif-grid" id="gif-grid">
+        <!-- GIFs dynamically loaded here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Unified Image Preview (Appears when ready) -->
+  <div id="unified-preview">
+    <img id="unified-preview-img" src="" alt="Ready Image">
+    <div id="unified-preview-text">✓ Image ready! Choose difficulty.</div>
   </div>
 
   <div class="difficulty-section">
@@ -326,8 +336,6 @@
       <div class="diff-card" data-level="medium"><span class="diff-emoji">🔥</span><div class="diff-name">Medium</div><div class="diff-pieces">~25 pieces</div></div>
       <div class="diff-card" data-level="hard"><span class="diff-emoji">💀</span><div class="diff-name">Hard</div><div class="diff-pieces">~64 pieces</div></div>
       <div class="diff-card" data-level="expert"><span class="diff-emoji">🧠</span><div class="diff-name">Expert</div><div class="diff-pieces">~144 pieces</div></div>
-      
-      <!-- Advanced Levels -->
       <div class="diff-card" data-level="master"><span class="diff-emoji">👑</span><div class="diff-name">Master</div><div class="diff-pieces">~256 pieces</div></div>
       <div class="diff-card" data-level="grandmaster"><span class="diff-emoji">🏆</span><div class="diff-name">G.Master</div><div class="diff-pieces">~400 pieces</div></div>
       <div class="diff-card" data-level="epic"><span class="diff-emoji">🌌</span><div class="diff-name">Epic</div><div class="diff-pieces">~625 pieces</div></div>
@@ -347,9 +355,7 @@
 <div id="game-screen">
   <div class="game-layout">
     <div class="puzzle-board-wrap">
-      <div id="puzzle-board">
-        <div id="hint-overlay"><img id="hint-img" alt="full image"></div>
-      </div>
+      <div id="puzzle-board"><div id="hint-overlay"><img id="hint-img" alt="full image"></div></div>
     </div>
     
     <div class="sidebar-wrap">
@@ -360,15 +366,10 @@
         <button class="btn btn-danger" id="btn-reset-board" title="Reset all pieces to tray">🔄 Reset</button>
         <button class="btn btn-accent" id="btn-solve" title="Auto-place all pieces">✨ Solve</button>
       </div>
-
       <div class="progress-bar-wrap">
-        <div class="progress-label">
-          <span id="prog-label">Progress</span>
-          <span id="prog-pct">0%</span>
-        </div>
+        <div class="progress-label"><span id="prog-label">Progress</span><span id="prog-pct">0%</span></div>
         <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
       </div>
-
       <div class="pieces-tray-wrap" id="tray-container">
         <span class="board-label">Pieces Tray</span>
         <div id="pieces-tray"></div>
@@ -382,11 +383,7 @@
 <div id="win-overlay">
   <div class="win-emoji">🎉</div>
   <div class="win-title">Puzzle Complete!</div>
-  
-  <div class="win-img-wrap">
-    <img id="win-resolved-img" src="" alt="Solved Result">
-  </div>
-
+  <div class="win-img-wrap"><img id="win-resolved-img" src="" alt="Solved Result"></div>
   <div class="win-stats">
     <div class="win-stat"><div class="win-stat-label">Time</div><div class="win-stat-val" id="win-time">—</div></div>
     <div class="win-stat"><div class="win-stat-label">Moves</div><div class="win-stat-val" id="win-moves">—</div></div>
@@ -400,16 +397,7 @@
 
 <script>
 // ── STATE ──────────────────────────────────────────────────────────────────
-const TARGET_PIECES = { 
-  easy: 9, 
-  medium: 25, 
-  hard: 64, 
-  expert: 144,
-  master: 256,
-  grandmaster: 400,
-  epic: 625,
-  legendary: 1024
-};
+const TARGET_PIECES = { easy: 9, medium: 25, hard: 64, expert: 144, master: 256, grandmaster: 400, epic: 625, legendary: 1024 };
 
 let state = {
   id: null, imgSrc: null, logThumb: null, imgEl: null, level: 'easy',
@@ -431,17 +419,25 @@ document.getElementById('btn-close-tips').addEventListener('click', () => {
   localStorage.setItem('puzzleDropOnboarded', 'true');
 });
 
-// ── SETUP LOGIC ────────────────────────────────────────────────────────────
-const fileInput   = document.getElementById('file-input');
-const uploadZone  = document.getElementById('upload-zone');
-const uploadPrev  = document.getElementById('upload-preview');
-const btnStart    = document.getElementById('btn-start');
-const diffCards   = document.querySelectorAll('.diff-card');
+// ── SETUP TABS & UI ────────────────────────────────────────────────────────
+const tabBtns = document.querySelectorAll('.tab-btn');
+const tabContents = document.querySelectorAll('.tab-content');
+let gifsLoaded = false;
 
-const urlInput    = document.getElementById('url-input');
-const btnLoadUrl  = document.getElementById('btn-load-url');
-const urlError    = document.getElementById('url-error');
+tabBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    tabBtns.forEach(b => b.classList.remove('active'));
+    tabContents.forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.target).classList.add('active');
 
+    if (btn.dataset.target === 'tab-gifs' && !gifsLoaded) {
+      loadGifs(); gifsLoaded = true;
+    }
+  });
+});
+
+const diffCards = document.querySelectorAll('.diff-card');
 diffCards.forEach(card => {
   card.addEventListener('click', () => {
     diffCards.forEach(c => c.classList.remove('selected'));
@@ -450,88 +446,48 @@ diffCards.forEach(card => {
   });
 });
 
+function markImageReady(url, thumbUrl) {
+  state.imgSrc = url;
+  state.logThumb = thumbUrl || url;
+  
+  const previewZone = document.getElementById('unified-preview');
+  document.getElementById('unified-preview-img').src = state.imgSrc;
+  previewZone.style.display = 'flex';
+  
+  const btnStart = document.getElementById('btn-start');
+  btnStart.disabled = false;
+  btnStart.textContent = 'Start Puzzle →';
+  
+  btnStart.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ── 1. FILE UPLOAD ─────────────────────────────────────────────────────────
+const fileInput = document.getElementById('file-input');
+const uploadZone = document.getElementById('upload-zone');
+
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
 uploadZone.addEventListener('drop', e => {
   e.preventDefault(); uploadZone.classList.remove('drag-over');
 
+  // Handle URL drops
   let imageUrl = '';
-
   const html = e.dataTransfer.getData('text/html');
-  if (html) {
-    const match = html.match(/<img[^>]+src\s*=\s*["']([^"']+)["']/i);
-    if (match && match[1].match(/^https?:\/\//i)) {
-      imageUrl = match[1];
-    }
-  }
-
+  if (html) { const match = html.match(/<img[^>]+src\s*=\s*["']([^"']+)["']/i); if (match && match[1].match(/^https?:\/\//i)) imageUrl = match[1]; }
   if (!imageUrl) {
     const uriList = e.dataTransfer.getData('text/uri-list');
-    if (uriList) {
-      const lines = uriList.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
-      if (lines.length > 0 && lines[0].match(/^https?:\/\//i)) {
-        imageUrl = lines[0];
-      }
-    }
+    if (uriList) { const lines = uriList.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#')); if (lines.length > 0 && lines[0].match(/^https?:\/\//i)) imageUrl = lines[0]; }
   }
-  
   if (!imageUrl) {
     const plain = e.dataTransfer.getData('text/plain');
-    if (plain && plain.trim().match(/^https?:\/\//i)) {
-        imageUrl = plain.trim();
-    }
+    if (plain && plain.trim().match(/^https?:\/\//i)) imageUrl = plain.trim();
   }
-
-  if (imageUrl) {
-    imageUrl = imageUrl.replace(/&amp;/g, '&');
-    urlInput.value = imageUrl;
-    loadFromUrl(imageUrl);
-    return;
-  }
-
-  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-    processImageFile(e.dataTransfer.files[0]);
-  }
+  
+  if (imageUrl) { loadFromUrl(imageUrl.replace(/&amp;/g, '&')); return; }
+  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) processImageFile(e.dataTransfer.files[0]);
 });
 
-fileInput.addEventListener('change', () => {
-  if (fileInput.files[0]) processImageFile(fileInput.files[0]);
-});
-
-function loadFromUrl(url) {
-  urlError.style.display = 'none';
-  const tempImg = new Image();
-  tempImg.onload = () => {
-    state.imgSrc = url;
-    state.logThumb = url;
-    
-    uploadPrev.src = url;
-    uploadPrev.style.display = 'block';
-    document.getElementById('upload-icon').style.display = 'none';
-    document.getElementById('upload-text').textContent = '✓ Link ready!';
-    document.getElementById('upload-sub').textContent = 'Linked Media';
-    btnStart.disabled = false;
-    btnStart.textContent = 'Start Puzzle →';
-  };
-  tempImg.onerror = () => { urlError.style.display = 'block'; };
-  tempImg.src = url;
-}
-
-btnLoadUrl.addEventListener('click', () => {
-  const url = urlInput.value.trim();
-  if (url) loadFromUrl(url);
-});
-urlInput.addEventListener('keyup', (e) => {
-  if (e.key === 'Enter') { const url = urlInput.value.trim(); if (url) loadFromUrl(url); }
-});
-
-window.addEventListener('paste', e => {
-  const paste = (e.clipboardData || window.clipboardData).getData('text');
-  if (paste && paste.match(/^https?:\/\/.+/i) && document.getElementById('setup-screen').style.display !== 'none') {
-    urlInput.value = paste;
-    loadFromUrl(paste);
-  }
-});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) processImageFile(fileInput.files[0]); });
 
 function processImageFile(file) {
   const reader = new FileReader();
@@ -543,37 +499,98 @@ function processImageFile(file) {
                              file.name.toLowerCase().endsWith('.gif') || file.name.toLowerCase().endsWith('.webp') ||
                              rawData.startsWith('data:image/gif') || rawData.startsWith('data:image/webp');
       
-      if (isAnimatedType) {
-        state.imgSrc = rawData;
-        state.logThumb = rawData;
-      } else {
-        const MAX_DIM = 1400; 
-        let w = tempImg.width, h = tempImg.height;
-        if (w > h && w > MAX_DIM) { h *= MAX_DIM / w; w = MAX_DIM; }
-        else if (h > w && h > MAX_DIM) { w *= MAX_DIM / h; h = MAX_DIM; }
-        
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
+      let finalSrc = rawData; let thumbSrc = rawData;
+      if (!isAnimatedType) {
+        const MAX_DIM = 1400; let w = tempImg.width, h = tempImg.height;
+        if (w > h && w > MAX_DIM) { h *= MAX_DIM / w; w = MAX_DIM; } else if (h > w && h > MAX_DIM) { w *= MAX_DIM / h; h = MAX_DIM; }
+        const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(tempImg, 0, 0, w, h);
-        
-        state.imgSrc = canvas.toDataURL('image/jpeg', 0.85);
-        state.logThumb = canvas.toDataURL('image/jpeg', 0.3);
+        finalSrc = canvas.toDataURL('image/jpeg', 0.85); thumbSrc = canvas.toDataURL('image/jpeg', 0.3);
       }
-      
-      uploadPrev.src = state.imgSrc;
-      uploadPrev.style.display = 'block';
-      document.getElementById('upload-icon').style.display = 'none';
-      document.getElementById('upload-text').textContent = '✓ Image ready!';
-      document.getElementById('upload-sub').textContent = file.name || 'Custom Image';
-      btnStart.disabled = false;
-      btnStart.textContent = 'Start Puzzle →';
+      markImageReady(finalSrc, thumbSrc);
     };
     tempImg.src = rawData;
   };
   reader.readAsDataURL(file);
 }
 
-btnStart.addEventListener('click', () => { if (state.imgSrc) createNewGame(state.imgSrc, state.logThumb, state.level); });
+// ── 2. URL LINK ────────────────────────────────────────────────────────────
+const urlInput = document.getElementById('url-input');
+const urlError = document.getElementById('url-error');
+
+document.getElementById('btn-load-url').addEventListener('click', () => { const url = urlInput.value.trim(); if (url) loadFromUrl(url); });
+urlInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') { const url = urlInput.value.trim(); if (url) loadFromUrl(url); }});
+window.addEventListener('paste', e => {
+  const paste = (e.clipboardData || window.clipboardData).getData('text');
+  if (paste && paste.match(/^https?:\/\/.+/i) && document.getElementById('setup-screen').style.display !== 'none') { urlInput.value = paste; loadFromUrl(paste); }
+});
+
+function loadFromUrl(url) {
+  urlError.style.display = 'none';
+  const tempImg = new Image();
+  tempImg.onload = () => markImageReady(url, url);
+  tempImg.onerror = () => { urlError.style.display = 'block'; };
+  tempImg.src = url;
+}
+
+// ── 3. GIF SEARCH (GIPHY WITH ROBUST FALLBACKS) ────────────────────────────
+const gifSearchInput = document.getElementById('gif-search-input');
+const gifGrid = document.getElementById('gif-grid');
+
+document.getElementById('btn-search-gifs').addEventListener('click', () => loadGifs(gifSearchInput.value));
+gifSearchInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') loadGifs(gifSearchInput.value); });
+
+async function loadGifs(query = '') {
+  gifGrid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 20px; color: var(--muted); font-size: 0.9rem;">Loading GIFs...</div>';
+  
+  // A robust list of valid Giphy public keys so the search always works even if one gets rate limited
+  const keys = [
+    'pLURtkhVrGQm3MWEUciVIZQznjKTKYcg',
+    'WE09qZJAJVRtZ83I8rSMEpM0Ew3L2k4E',
+    'sXpGFUDNkrsYWqcQSAMQEn2NC5_vnpee',
+    'Gc7131jiJuvI7IdN0HZ1D7nh0ow5BU6g'
+  ];
+  
+  const endpoint = query.trim() ? 'search' : 'trending';
+  const qParam = query.trim() ? `&q=${encodeURIComponent(query)}` : '';
+  
+  let data = null;
+
+  for (let key of keys) {
+    try {
+      const res = await fetch(`https://api.giphy.com/v1/gifs/${endpoint}?api_key=${key}${qParam}&limit=24&rating=g`);
+      const json = await res.json();
+      if (res.ok && json.meta && json.meta.status === 200) {
+        data = json;
+        break; // Successfully got data, stop trying keys
+      }
+    } catch (err) { /* Silently fail and try the next key */ }
+  }
+
+  gifGrid.innerHTML = '';
+  
+  if (!data || !data.data) {
+    gifGrid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 20px; color: var(--danger); font-size: 0.9rem;">API rate limit reached. Please use the "Paste Link" tab.</div>';
+    return;
+  }
+  
+  if (data.data.length === 0) {
+    gifGrid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 20px; color: var(--muted);">No GIFs found.</div>';
+    return;
+  }
+  
+  data.data.forEach(gif => {
+    const img = document.createElement('img');
+    img.src = gif.images.fixed_height_small.url;
+    img.dataset.fullUrl = gif.images.original.url;
+    img.className = 'gif-thumb';
+    img.title = gif.title || 'GIF';
+    img.onclick = () => loadFromUrl(img.dataset.fullUrl);
+    gifGrid.appendChild(img);
+  });
+}
+
+document.getElementById('btn-start').addEventListener('click', () => { if (state.imgSrc) createNewGame(state.imgSrc, state.logThumb, state.level); });
 
 // ── LOGS & SAVE MANAGEMENT ─────────────────────────────────────────────────
 const logsSection = document.getElementById('logs-section');
@@ -611,19 +628,9 @@ function createNewGame(baseImgSrc, thumbSrc, baseLevel) {
     date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
   });
 
-  if (logs.length > 6) logs.pop(); 
-  
-  try { 
-    localStorage.setItem('puzzleLogs', JSON.stringify(logs)); 
-  } 
+  try { localStorage.setItem('puzzleLogs', JSON.stringify(logs)); } 
   catch(e) { 
-    while (logs.length > 1) {
-      logs.pop();
-      try {
-        localStorage.setItem('puzzleLogs', JSON.stringify(logs));
-        break;
-      } catch(err) {}
-    }
+    while (logs.length > 1) { logs.pop(); try { localStorage.setItem('puzzleLogs', JSON.stringify(logs)); break; } catch(err) {} }
   }
 
   renderLogs();
@@ -636,19 +643,23 @@ function saveCurrentGameProgress() {
   let logIndex = logs.findIndex(l => l.id === state.id);
   if (logIndex === -1) return;
 
+  let currentLog = logs[logIndex];
   const placedIds = state.pieces.filter(p => p.placed).map(p => p.id);
   const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
 
-  logs[logIndex].elapsed = elapsed;
-  logs[logIndex].moves = state.moves;
-  logs[logIndex].wrongMoves = state.wrongMoves;
-  logs[logIndex].hintsUsed = state.hintsUsed;
-  logs[logIndex].placedIds = placedIds;
-  logs[logIndex].cols = state.cols;
-  logs[logIndex].rows = state.rows;
+  currentLog.elapsed = elapsed;
+  currentLog.moves = state.moves;
+  currentLog.wrongMoves = state.wrongMoves;
+  currentLog.hintsUsed = state.hintsUsed;
+  currentLog.placedIds = placedIds;
+  currentLog.cols = state.cols;
+  currentLog.rows = state.rows;
 
-  try { localStorage.setItem('puzzleLogs', JSON.stringify(logs)); } 
-  catch(e) { console.warn("Storage full"); }
+  // Reposition this log to the top of the history to keep active puzzles sorted first
+  logs.splice(logIndex, 1);
+  logs.unshift(currentLog);
+
+  try { localStorage.setItem('puzzleLogs', JSON.stringify(logs)); } catch(e) {}
 }
 
 function formatTime(seconds) {
@@ -676,6 +687,15 @@ function resumeGame(id) {
   state.hintsUsed = log.hintsUsed || 0;
   state.savedElapsed = log.elapsed || 0;
   state.resumePlacedIds = log.placedIds || [];
+
+  // Bring the resumed log to the top of the history list immediately
+  let logs = getLogs();
+  let logIndex = logs.findIndex(l => l.id === id);
+  if (logIndex > -1) {
+    const currentLog = logs.splice(logIndex, 1)[0];
+    logs.unshift(currentLog);
+    try { localStorage.setItem('puzzleLogs', JSON.stringify(logs)); } catch(e) {}
+  }
   
   initGame();
 }
@@ -688,32 +708,40 @@ function renderLogs() {
   logs.forEach(log => {
     const totalPieces = (log.cols && log.rows) ? (log.cols * log.rows) : TARGET_PIECES[log.level];
     const placedPieces = log.placedIds ? log.placedIds.length : 0;
-    
     const isCompleted = log.status === 'completed' || (totalPieces > 0 && placedPieces >= totalPieces);
-    
     const pct = totalPieces ? Math.round((placedPieces / totalPieces) * 100) : 0;
     const timeDisplay = log.timeStr || formatTime(log.elapsed || 0);
 
-    const wrongMovesVal = log.wrongMoves || 0;
-    const hintsVal = log.hintsUsed || 0;
+    const wrongMovesVal = log.wrongMoves || 0; const hintsVal = log.hintsUsed || 0;
     let extras = [];
     if (wrongMovesVal > 0) extras.push(`${wrongMovesVal}❌`);
     if (hintsVal > 0) extras.push(`${hintsVal}💡`);
     const extrasText = extras.length > 0 ? ` (${extras.join(' ')})` : '';
     const movesText = `${log.moves} moves${extrasText}`;
 
+    // Safely generate formatted date/time from the log.id (which acts as timestamp)
+    let dateTimeStr = '';
+    try {
+      const dateObj = new Date(log.id);
+      if (!isNaN(dateObj)) {
+        dateTimeStr = dateObj.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+      } else { dateTimeStr = log.date || 'Unknown Date'; }
+    } catch(e) { dateTimeStr = log.date || 'Unknown Date'; }
+
     const safeThumbUrl = (log.logThumb || log.imgSrc).replace(/"/g, '&quot;');
 
     const card = document.createElement('div'); card.className = 'log-card';
     card.innerHTML = `
-      <button class="log-btn-icon log-delete-btn" data-id="${log.id}" title="Delete">🗑️</button>
       <img src="${safeThumbUrl}" class="log-thumb" alt="Thumbnail">
       <div class="log-info">
         <div class="log-title">
           <span>${log.level.toUpperCase()}</span>
           <span class="log-badge ${isCompleted ? 'badge-completed' : 'badge-progress'}">${isCompleted ? 'Completed' : 'In Progress'}</span>
         </div>
-        <div class="log-meta">${timeDisplay} • ${movesText}</div>
+        <div class="log-stats-group">
+          <div class="log-date">${dateTimeStr}</div>
+          <div class="log-meta">${timeDisplay} • ${movesText}</div>
+        </div>
         ${!isCompleted ? `
           <div class="log-progress-wrap"><div class="log-progress-fill" style="width: ${pct}%"></div></div>
           <div style="font-size: 0.7rem; color: var(--muted); margin-top: 2px;">${placedPieces} / ${totalPieces} placed</div>
@@ -725,13 +753,12 @@ function renderLogs() {
           : `<button class="log-btn btn-resume log-resume-btn" data-id="${log.id}">▶ Resume</button>`
         }
       </div>
+      <button class="log-btn-icon log-delete-btn" data-id="${log.id}" title="Delete">🗑️</button>
     `;
     logsGrid.appendChild(card);
   });
 
-  document.querySelectorAll('.log-delete-btn').forEach(btn => {
-    btn.addEventListener('click', e => deleteLog(parseInt(e.currentTarget.dataset.id)));
-  });
+  document.querySelectorAll('.log-delete-btn').forEach(btn => { btn.addEventListener('click', e => deleteLog(parseInt(e.currentTarget.dataset.id))); });
   document.querySelectorAll('.log-replay-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       const targetId = parseInt(e.currentTarget.dataset.id);
@@ -739,29 +766,23 @@ function renderLogs() {
       if (lg) createNewGame(lg.imgSrc, lg.logThumb, lg.level);
     });
   });
-  document.querySelectorAll('.log-resume-btn').forEach(btn => {
-    btn.addEventListener('click', e => resumeGame(parseInt(e.currentTarget.dataset.id)));
-  });
+  document.querySelectorAll('.log-resume-btn').forEach(btn => { btn.addEventListener('click', e => resumeGame(parseInt(e.currentTarget.dataset.id))); });
 }
 
-window.addEventListener('beforeunload', () => {
-  if (document.getElementById('game-screen').style.display === 'block' && !state.isSolving) saveCurrentGameProgress();
-});
+window.addEventListener('beforeunload', () => { if (document.getElementById('game-screen').style.display === 'block' && !state.isSolving) saveCurrentGameProgress(); });
 
 // ── PATH GENERATOR ─────────────────────────────────────────────────────────
 function drawTab(ctx, x1, y1, x2, y2, dir, offset) {
   if (dir === 0) { ctx.lineTo(x2, y2); return; }
   const dx = x2 - x1, dy = y2 - y1;
-  const L = Math.hypot(dx, dy);
-  const angle = Math.atan2(dy, dx);
+  const L = Math.hypot(dx, dy); const angle = Math.atan2(dy, dx);
   
   ctx.save(); ctx.translate(x1, y1); ctx.rotate(angle);
   const s = -dir * offset;
   ctx.lineTo(L * 0.38, 0);
   ctx.bezierCurveTo(L * 0.38, s * 0.3, L * 0.30, s * 0.8, L * 0.50, s);
   ctx.bezierCurveTo(L * 0.70, s * 0.8, L * 0.62, s * 0.3, L * 0.62, 0);
-  ctx.lineTo(L, 0);
-  ctx.restore();
+  ctx.lineTo(L, 0); ctx.restore();
 }
 
 // ── GAME INIT ──────────────────────────────────────────────────────────────
@@ -769,10 +790,8 @@ function initGame() {
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('game-screen').style.display = 'block';
 
-  // Clear previous puzzle and explicitly collapse width/height to avoid pushing the UI
   const board = document.getElementById('puzzle-board');
-  board.style.width = '0px';
-  board.style.height = '0px';
+  board.style.width = '0px'; board.style.height = '0px';
   board.innerHTML = '<div id="hint-overlay"><img id="hint-img" alt="full image"></div>';
   document.getElementById('pieces-tray').innerHTML = '';
 
@@ -861,12 +880,8 @@ function buildPuzzle() {
   }
   
   gCtx.rect(0, 0, boardW, boardH);
-  gCtx.strokeStyle = 'rgba(0, 0, 0, 0.85)'; 
-  gCtx.lineWidth = 3.0; 
-  gCtx.stroke();
-  gCtx.strokeStyle = 'rgba(255, 255, 255, 0.45)'; 
-  gCtx.lineWidth = 1.5; 
-  gCtx.stroke();
+  gCtx.strokeStyle = 'rgba(0, 0, 0, 0.85)'; gCtx.lineWidth = 3.0; gCtx.stroke();
+  gCtx.strokeStyle = 'rgba(255, 255, 255, 0.45)'; gCtx.lineWidth = 1.5; gCtx.stroke();
 
   board.appendChild(gridCanvas);
 
@@ -924,20 +939,24 @@ function buildPuzzle() {
     pieceEl.style.width  = pWidth + 'px'; pieceEl.style.height = pHeight + 'px';
     pieceEl.setAttribute('draggable', true);
 
+    // Using precise <img> layout inside a masked div (Better for animated WebP/GIFs in Safari/Webkit than background-image)
     const bgLayer = document.createElement('div');
     bgLayer.style.position = 'absolute'; bgLayer.style.inset = '0';
-    bgLayer.style.backgroundImage = `url('${state.imgSrc}')`;
-    bgLayer.style.backgroundSize = `${drawW}px ${drawH}px`;
-    
-    const bgX = offsetX - (col * cellW - offsetSize);
-    const bgY = offsetY - (row * cellH - offsetSize);
-    bgLayer.style.backgroundPosition = `${bgX}px ${bgY}px`;
-    
+    bgLayer.style.overflow = 'hidden';
     bgLayer.style.webkitMaskImage = `url(${maskDataUrl})`; bgLayer.style.webkitMaskSize = '100% 100%';
     bgLayer.style.maskImage = `url(${maskDataUrl})`; bgLayer.style.maskSize = '100% 100%';
 
-    maskCanvas.style.position = 'absolute'; maskCanvas.style.inset = '0'; maskCanvas.style.pointerEvents = 'none';
+    const pImg = document.createElement('img');
+    pImg.src = state.imgSrc;
+    pImg.style.position = 'absolute';
+    pImg.style.width = `${drawW}px`; pImg.style.height = `${drawH}px`;
+    pImg.style.maxWidth = 'none'; // Overrides global img styles
+    pImg.style.left = `${offsetX - (col * cellW - offsetSize)}px`;
+    pImg.style.top = `${offsetY - (row * cellH - offsetSize)}px`;
+    pImg.style.pointerEvents = 'none';
 
+    bgLayer.appendChild(pImg);
+    maskCanvas.style.position = 'absolute'; maskCanvas.style.inset = '0'; maskCanvas.style.pointerEvents = 'none';
     pieceEl.appendChild(bgLayer); pieceEl.appendChild(maskCanvas);
 
     pieceEl.addEventListener('dragstart', onPieceDragStart);
@@ -968,17 +987,12 @@ function onPieceDragStart(e) {
   const blank = document.createElement('canvas'); blank.width = 1; blank.height = 1; e.dataTransfer.setDragImage(blank, 0, 0);
   showGhost(el, e.clientX, e.clientY);
 }
-function onPieceDragEnd(e) {
-  e.currentTarget.classList.remove('dragging'); hideGhost(); document.querySelectorAll('.slot').forEach(s => s.classList.remove('drag-over'));
-}
+function onPieceDragEnd(e) { e.currentTarget.classList.remove('dragging'); hideGhost(); document.querySelectorAll('.slot').forEach(s => s.classList.remove('drag-over')); }
 
 document.addEventListener('dragover', e => { e.preventDefault(); moveGhost(e.clientX, e.clientY); });
 function onSlotDragOver(e) { e.preventDefault(); const slot = e.currentTarget; if (!slot.classList.contains('filled')) slot.classList.add('drag-over'); }
 function onSlotDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
-function onSlotDrop(e) {
-  e.preventDefault(); e.currentTarget.classList.remove('drag-over');
-  if (state.dragPieceId === null) return; placePiece(state.dragPieceId, e.currentTarget); state.dragPieceId = null;
-}
+function onSlotDrop(e) { e.preventDefault(); e.currentTarget.classList.remove('drag-over'); if (state.dragPieceId === null) return; placePiece(state.dragPieceId, e.currentTarget); state.dragPieceId = null; }
 
 // ── POINTER / TOUCH ────────────────────────────────────────────────────────
 let pointerActive = false, pointerPieceEl = null;
@@ -1031,13 +1045,8 @@ function placePiece(pieceId, slotEl, isRestoring = false) {
 
   if (piece.col !== slotCol || piece.row !== slotRow) {
     if (!isRestoring) { 
-      slot.classList.add('wrong-flash'); 
-      setTimeout(() => slot.classList.remove('wrong-flash'), 500); 
-      
-      state.moves++;
-      state.wrongMoves++;
-      updateHdrMoves();
-      saveCurrentGameProgress();
+      slot.classList.add('wrong-flash'); setTimeout(() => slot.classList.remove('wrong-flash'), 500); 
+      state.moves++; state.wrongMoves++; updateHdrMoves(); saveCurrentGameProgress();
     }
     return false;
   }
@@ -1073,6 +1082,7 @@ function updateProgress() {
   document.getElementById('progress-fill').style.width = pct + '%'; document.getElementById('prog-pct').textContent = pct + '%'; document.getElementById('prog-label').textContent = `${placed} / ${total} pieces`;
 }
 
+// ── HEADER MOVES ──
 function updateHdrMoves() { 
   let extras = [];
   if (state.wrongMoves > 0) extras.push(`${state.wrongMoves}❌`);
@@ -1086,10 +1096,7 @@ function updateHdrPlaced() { document.getElementById('hdr-placed').textContent =
 function startTimer(resumedElapsed = 0) {
   if (state.timerInterval) clearInterval(state.timerInterval);
   state.startTime = Date.now() - (resumedElapsed * 1000);
-  state.timerInterval = setInterval(() => {
-    updateTimer();
-    if (Math.floor(Date.now() / 1000) % 3 === 0) saveCurrentGameProgress();
-  }, 1000);
+  state.timerInterval = setInterval(() => { updateTimer(); if (Math.floor(Date.now() / 1000) % 3 === 0) saveCurrentGameProgress(); }, 1000);
   updateTimer();
 }
 
@@ -1110,9 +1117,22 @@ function checkWin() {
     let logs = getLogs();
     let logIndex = logs.findIndex(l => l.id === state.id);
     if (logIndex > -1) {
-      logs[logIndex].status = 'completed';
-      logs[logIndex].timeStr = document.getElementById('hdr-time').textContent;
-      localStorage.setItem('puzzleLogs', JSON.stringify(logs));
+      let currentLog = logs[logIndex];
+      currentLog.status = 'completed'; 
+      currentLog.timeStr = document.getElementById('hdr-time').textContent;
+      
+      const placedIds = state.pieces.filter(p => p.placed).map(p => p.id);
+      const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+      currentLog.elapsed = elapsed;
+      currentLog.moves = state.moves;
+      currentLog.wrongMoves = state.wrongMoves;
+      currentLog.hintsUsed = state.hintsUsed;
+      currentLog.placedIds = placedIds;
+
+      logs.splice(logIndex, 1);
+      logs.unshift(currentLog);
+
+      try { localStorage.setItem('puzzleLogs', JSON.stringify(logs)); } catch(e) {}
     }
   }
   setTimeout(showWin, 400);
@@ -1126,13 +1146,10 @@ function showWin() {
   if (state.hintsUsed > 0) extras.push(`${state.hintsUsed}💡`);
   const extraText = extras.length > 0 ? ` (${extras.join(' ')})` : '';
   document.getElementById('win-moves').textContent = `${state.moves}${extraText}`;
-  
   document.getElementById('win-level').textContent = state.level;
   
   const finalPreview = document.getElementById('win-resolved-img');
-  if (finalPreview && state.imgSrc) {
-    finalPreview.src = state.imgSrc;
-  }
+  if (finalPreview && state.imgSrc) finalPreview.src = state.imgSrc;
   
   document.getElementById('win-overlay').style.display = 'flex';
   launchConfetti();
@@ -1157,10 +1174,8 @@ document.getElementById('btn-new').addEventListener('click', () => {
   document.getElementById('game-screen').style.display = 'none';
   document.getElementById('setup-screen').style.display = 'flex';
   
-  fileInput.value = ''; 
-  urlInput.value = ''; urlError.style.display = 'none';
-  uploadPrev.style.display = 'none'; document.getElementById('upload-icon').style.display = '';
-  document.getElementById('upload-text').textContent = 'Click or drag an image here'; document.getElementById('upload-sub').textContent  = 'PNG, JPG, GIF, WEBP — any size';
+  document.getElementById('unified-preview').style.display = 'none';
+  const btnStart = document.getElementById('btn-start');
   btnStart.disabled = true; btnStart.textContent = 'Select an image to begin';
   
   state.imgSrc = null; state.id = null;
@@ -1170,14 +1185,9 @@ document.getElementById('btn-new').addEventListener('click', () => {
 
 document.getElementById('logo-btn').addEventListener('click', () => {
   if (state.isSolving) return;
-  if (document.getElementById('game-screen').style.display === 'block') {
-    document.getElementById('btn-new').click();
-  }
-  if (document.getElementById('win-overlay').style.display === 'flex') {
-    document.getElementById('win-new').click();
-  }
-  const setupScreen = document.getElementById('setup-screen');
-  if (setupScreen) setupScreen.scrollTop = 0;
+  if (document.getElementById('game-screen').style.display === 'block') document.getElementById('btn-new').click();
+  if (document.getElementById('win-overlay').style.display === 'flex') document.getElementById('win-new').click();
+  const setupScreen = document.getElementById('setup-screen'); if (setupScreen) setupScreen.scrollTop = 0;
 });
 
 document.getElementById('btn-shuffle').addEventListener('click', () => {
@@ -1187,34 +1197,14 @@ document.getElementById('btn-shuffle').addEventListener('click', () => {
 
 document.getElementById('btn-reset-board').addEventListener('click', () => {
   if (confirm("Reset the pieces to the tray? (Timer keeps running)")) {
-    state.resumePlacedIds = []; 
-    // Synchronize current elapsed time so it doesn't jump backwards
-    state.savedElapsed = Math.floor((Date.now() - state.startTime) / 1000);
-    buildPuzzle(); 
-    saveCurrentGameProgress();
+    state.resumePlacedIds = []; state.savedElapsed = Math.floor((Date.now() - state.startTime) / 1000);
+    buildPuzzle(); saveCurrentGameProgress();
   }
 });
 
 const btnHint = document.getElementById('btn-hint');
-btnHint.addEventListener('mousedown', () => { 
-  const h = document.getElementById('hint-overlay'); 
-  if (h && h.style.display !== 'flex') {
-    h.style.display = 'flex';
-    state.hintsUsed++;
-    updateHdrMoves();
-    saveCurrentGameProgress();
-  } 
-});
-btnHint.addEventListener('touchstart', e => { 
-  e.preventDefault(); 
-  const h = document.getElementById('hint-overlay'); 
-  if (h && h.style.display !== 'flex') {
-    h.style.display = 'flex';
-    state.hintsUsed++;
-    updateHdrMoves();
-    saveCurrentGameProgress();
-  } 
-});
+btnHint.addEventListener('mousedown', () => { const h = document.getElementById('hint-overlay'); if (h && h.style.display !== 'flex') { h.style.display = 'flex'; state.hintsUsed++; updateHdrMoves(); saveCurrentGameProgress(); } });
+btnHint.addEventListener('touchstart', e => { e.preventDefault(); const h = document.getElementById('hint-overlay'); if (h && h.style.display !== 'flex') { h.style.display = 'flex'; state.hintsUsed++; updateHdrMoves(); saveCurrentGameProgress(); } });
 document.addEventListener('mouseup', () => { const h = document.getElementById('hint-overlay'); if (h) h.style.display = 'none'; });
 document.addEventListener('touchend', () => { const h = document.getElementById('hint-overlay'); if (h) h.style.display = 'none'; });
 
@@ -1223,10 +1213,7 @@ document.getElementById('btn-solve').addEventListener('click', () => {
   const unplaced = state.pieces.filter(p => !p.placed);
   let delay = 0;
   unplaced.forEach(piece => {
-    setTimeout(() => {
-      const slot = document.getElementById(`slot-${piece.col}-${piece.row}`);
-      if (slot && !slot.classList.contains('filled')) placePiece(piece.id, slot);
-    }, delay); delay += 50;
+    setTimeout(() => { const slot = document.getElementById(`slot-${piece.col}-${piece.row}`); if (slot && !slot.classList.contains('filled')) placePiece(piece.id, slot); }, delay); delay += 50;
   });
   setTimeout(() => { state.isSolving = false; }, delay + 100);
 });
@@ -1234,9 +1221,7 @@ document.getElementById('btn-solve').addEventListener('click', () => {
 document.getElementById('win-new').addEventListener('click', () => { document.getElementById('win-overlay').style.display = 'none'; document.getElementById('btn-new').click(); });
 document.getElementById('win-replay').addEventListener('click', () => { document.getElementById('win-overlay').style.display = 'none'; createNewGame(state.imgSrc, state.logThumb, state.level); });
 
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr;
-}
+function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
 </script>
 </body>
 </html>
