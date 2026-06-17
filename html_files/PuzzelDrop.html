@@ -2,7 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Optimized viewport for mobile web app layout and preventing unwanted scaling -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<!-- iOS Web App support to maximize screen space when added to home screen -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PuzzleDrop">
+
 <title>PuzzleDrop</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>">
 <style>
@@ -29,7 +35,7 @@
     background: var(--bg);
     color: var(--text);
     height: 100vh;
-    height: 100dvh; /* Dynamically adjusts as address bar transitions */
+    height: 100svh; /* Avoid dynamic bar overflow issues */
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -104,7 +110,7 @@
   /* Hide main top header in mobile landscape to maximize board workspace */
   @media (max-height: 520px) and (orientation: landscape) {
     header { display: none !important; }
-    #game-screen { height: 100vh !important; height: 100dvh !important; padding: 6px 12px 12px !important; }
+    #game-screen { height: 100vh !important; height: 100svh !important; padding: 6px 12px 12px !important; }
   }
 
   /* ── SETUP SCREEN ── */
@@ -233,7 +239,7 @@
     display: none; 
     width: 100%; 
     height: calc(100vh - 64px); 
-    height: calc(100dvh - 64px); /* Dynamic Viewport height fallback */
+    height: calc(100svh - 64px); /* Fallback safety */
     padding: 12px 16px 16px; 
     box-sizing: border-box; 
     overflow: hidden; 
@@ -242,7 +248,7 @@
   @media (max-width: 900px) {
     #game-screen { 
       height: calc(100vh - 48px); 
-      height: calc(100dvh - 48px); 
+      height: calc(100svh - 48px); 
       padding: 8px 12px 12px; 
     }
   }
@@ -580,12 +586,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!localStorage.getItem('puzzleDropOnboarded')) {
     document.getElementById('tips-overlay').style.display = 'flex';
   }
-  
-  // Passive pointerdown listener on the tray. Touching anywhere inside re-engages Fullscreen
-  // before drag event computation occurs to avoid drag cancelling.
-  document.getElementById('pieces-tray').addEventListener('pointerdown', () => {
-    requestFullscreenIfPossible();
-  }, { passive: true });
 });
 
 document.getElementById('btn-close-tips').addEventListener('click', () => {
@@ -608,17 +608,20 @@ window.addEventListener('resize', () => {
 
 // ── FULLSCREEN MANAGEMENT FOR MOBILE ───────────────────────────────────────
 function requestFullscreenIfPossible() {
+  // Only attempt on mobile/tablet viewports to hide browser bars
   if (window.innerWidth <= 1024) {
     const docEl = document.documentElement;
-    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-      try {
-        if (docEl.requestFullscreen) {
-          docEl.requestFullscreen().catch(() => {});
-        } else if (docEl.webkitRequestFullscreen) {
-          docEl.webkitRequestFullscreen();
-        }
-      } catch (e) {}
-    }
+    try {
+      if (docEl.requestFullscreen) {
+        docEl.requestFullscreen().catch(() => {});
+      } else if (docEl.webkitRequestFullscreen) {
+        docEl.webkitRequestFullscreen();
+      } else if (docEl.mozRequestFullScreen) {
+        docEl.mozRequestFullScreen();
+      } else if (docEl.msRequestFullscreen) {
+        docEl.msRequestFullscreen();
+      }
+    } catch (e) {}
   }
 }
 
@@ -633,6 +636,17 @@ function exitFullscreenIfActive() {
     }
   } catch (e) {}
 }
+
+// Global pointer gesture listener specifically on the game workspace.
+// This re-asserts/re-enters fullscreen mode securely as soon as the user touches the screen
+// to drag a piece or interact with controls, bypassing transient action limits.
+document.getElementById('game-screen').addEventListener('pointerdown', () => {
+  if (document.getElementById('game-screen').style.display === 'block') {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      requestFullscreenIfPossible();
+    }
+  }
+});
 
 // ── SETUP TABS & UI ────────────────────────────────────────────────────────
 const tabBtns = document.querySelectorAll('.tab-btn');
@@ -1034,7 +1048,7 @@ function buildPuzzle() {
   board.style.width = '0px'; board.style.height = '0px';
   board.innerHTML = ''; tray.innerHTML = '';
 
-  // Increased margin boundaries slightly to guarantee height clearance on all phones
+  // Height clearance safety on layout dimensions
   const availW = boardWrap.clientWidth - 24;
   const availH = boardWrap.clientHeight - 24;
 
@@ -1080,12 +1094,11 @@ function buildPuzzle() {
   const pWidth = cellW + 2 * offsetSize;
   const pHeight = cellH + 2 * offsetSize;
 
-  // Calculate scaling factor for pieces inside the tray to prevent single-column crowding
-  const targetTrayPieceSize = 72; // Target size in pixels
+  // Scaling factor optimization for pieces in tray
+  const targetTrayPieceSize = 72;
   const trayScale = Math.min(1, targetTrayPieceSize / pWidth);
   const trayMargin = Math.floor((pWidth * (trayScale - 1)) / 2) + 2;
 
-  // Apply custom layout values directly to the tray style
   tray.style.setProperty('--tray-scale', trayScale);
   tray.style.setProperty('--tray-margin', `${trayMargin}px`);
 
@@ -1211,6 +1224,7 @@ function buildPuzzle() {
 
 // ── DRAG & DROP ────────────────────────────────────────────────────────────
 function onPieceDragStart(e) {
+  requestFullscreenIfPossible();
   const el = e.currentTarget; state.dragPieceId = parseInt(el.dataset.id);
   el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', state.dragPieceId);
   const blank = document.createElement('canvas'); blank.width = 1; blank.height = 1; e.dataTransfer.setDragImage(blank, 0, 0);
@@ -1228,6 +1242,7 @@ let pointerActive = false, pointerPieceEl = null;
 
 function onPiecePointerDown(e) {
   if (e.pointerType === 'mouse') return; e.preventDefault();
+  requestFullscreenIfPossible();
   pointerPieceEl = e.currentTarget; state.dragPieceId = parseInt(pointerPieceEl.dataset.id);
   pointerActive = true; pointerPieceEl.classList.add('dragging');
   showGhost(pointerPieceEl, e.clientX, e.clientY);
@@ -1311,6 +1326,7 @@ function updateProgress() {
   document.getElementById('progress-fill').style.width = pct + '%'; document.getElementById('prog-pct').textContent = pct + '%'; document.getElementById('prog-label').textContent = `${placed}/${total} placed`;
 }
 
+// Stats format calculations and updates
 function updateHdrMoves() { 
   let extras = [];
   if (state.wrongMoves > 0) extras.push(`${state.wrongMoves}❌`);
