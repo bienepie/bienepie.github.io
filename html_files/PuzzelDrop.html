@@ -29,7 +29,7 @@
     background: var(--bg);
     color: var(--text);
     height: 100vh;
-    height: 100svh; /* Avoid dynamic bar overflow issues */
+    height: 100dvh; /* Dynamically adjusts as address bar transitions */
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -104,7 +104,7 @@
   /* Hide main top header in mobile landscape to maximize board workspace */
   @media (max-height: 520px) and (orientation: landscape) {
     header { display: none !important; }
-    #game-screen { height: 100vh !important; height: 100svh !important; padding: 6px 12px 12px !important; }
+    #game-screen { height: 100vh !important; height: 100dvh !important; padding: 6px 12px 12px !important; }
   }
 
   /* ── SETUP SCREEN ── */
@@ -233,7 +233,7 @@
     display: none; 
     width: 100%; 
     height: calc(100vh - 64px); 
-    height: calc(100svh - 64px); /* Fallback safety */
+    height: calc(100dvh - 64px); /* Dynamic Viewport height fallback */
     padding: 12px 16px 16px; 
     box-sizing: border-box; 
     overflow: hidden; 
@@ -242,7 +242,7 @@
   @media (max-width: 900px) {
     #game-screen { 
       height: calc(100vh - 48px); 
-      height: calc(100svh - 48px); 
+      height: calc(100dvh - 48px); 
       padding: 8px 12px 12px; 
     }
   }
@@ -580,6 +580,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!localStorage.getItem('puzzleDropOnboarded')) {
     document.getElementById('tips-overlay').style.display = 'flex';
   }
+  
+  // Passive pointerdown listener on the tray. Touching anywhere inside re-engages Fullscreen
+  // before drag event computation occurs to avoid drag cancelling.
+  document.getElementById('pieces-tray').addEventListener('pointerdown', () => {
+    requestFullscreenIfPossible();
+  }, { passive: true });
 });
 
 document.getElementById('btn-close-tips').addEventListener('click', () => {
@@ -602,18 +608,17 @@ window.addEventListener('resize', () => {
 
 // ── FULLSCREEN MANAGEMENT FOR MOBILE ───────────────────────────────────────
 function requestFullscreenIfPossible() {
-  // Only attempt on mobile/tablet viewports to hide browser bars
   if (window.innerWidth <= 1024) {
     const docEl = document.documentElement;
-    try {
-      if (docEl.requestFullscreen) {
-        docEl.requestFullscreen().catch(() => {});
-      } else if (docEl.webkitRequestFullscreen) {
-        docEl.webkitRequestFullscreen();
-      } else if (docEl.msRequestFullscreen) {
-        docEl.msRequestFullscreen();
-      }
-    } catch (e) {}
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      try {
+        if (docEl.requestFullscreen) {
+          docEl.requestFullscreen().catch(() => {});
+        } else if (docEl.webkitRequestFullscreen) {
+          docEl.webkitRequestFullscreen();
+        }
+      } catch (e) {}
+    }
   }
 }
 
@@ -1206,7 +1211,6 @@ function buildPuzzle() {
 
 // ── DRAG & DROP ────────────────────────────────────────────────────────────
 function onPieceDragStart(e) {
-  requestFullscreenIfPossible(); // Ensure fullscreen is re-engaged on drag interaction
   const el = e.currentTarget; state.dragPieceId = parseInt(el.dataset.id);
   el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', state.dragPieceId);
   const blank = document.createElement('canvas'); blank.width = 1; blank.height = 1; e.dataTransfer.setDragImage(blank, 0, 0);
@@ -1224,7 +1228,6 @@ let pointerActive = false, pointerPieceEl = null;
 
 function onPiecePointerDown(e) {
   if (e.pointerType === 'mouse') return; e.preventDefault();
-  requestFullscreenIfPossible(); // Ensure fullscreen is re-engaged on touch interaction
   pointerPieceEl = e.currentTarget; state.dragPieceId = parseInt(pointerPieceEl.dataset.id);
   pointerActive = true; pointerPieceEl.classList.add('dragging');
   showGhost(pointerPieceEl, e.clientX, e.clientY);
