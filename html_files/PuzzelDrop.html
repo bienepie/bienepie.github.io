@@ -29,9 +29,54 @@
     background: var(--bg);
     color: var(--text);
     height: 100vh;
+    height: 100svh; /* Avoid dynamic bar overflow issues */
     overflow: hidden;
     display: flex;
     flex-direction: column;
+  }
+
+  /* ── ROTATION FORCED OVERLAY ── */
+  #orientation-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    color: var(--text);
+    z-index: 100000;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 32px;
+    gap: 20px;
+  }
+  .rotate-icon {
+    font-size: 4rem;
+    animation: rotatePhone 2.5s ease-in-out infinite;
+  }
+  @keyframes rotatePhone {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(-90deg); }
+  }
+  #orientation-overlay h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+  #orientation-overlay p {
+    color: var(--muted);
+    font-size: 0.95rem;
+    max-width: 320px;
+    line-height: 1.4;
+  }
+
+  /* Show overlay if the mobile/tablet screen aspect ratio is portrait */
+  @media (max-aspect-ratio: 13/10) and (max-width: 1024px) {
+    #orientation-overlay {
+      display: flex;
+    }
+    body > *:not(#orientation-overlay) {
+      display: none !important;
+    }
   }
 
   /* ── HEADER ── */
@@ -49,6 +94,18 @@
   .header-stats { display: flex; gap: 20px; align-items: center; font-family: 'Space Mono', monospace; font-size: 0.75rem; color: var(--muted); }
   .stat { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
   .stat-val { font-size: 1rem; color: var(--text); font-weight: 700; }
+
+  @media (max-width: 900px) {
+    header { height: 48px; padding: 0 16px; }
+    .logo { font-size: 1.1rem; }
+    .stat-val { font-size: 0.9rem; }
+  }
+
+  /* Hide main top header in mobile landscape to maximize board workspace */
+  @media (max-height: 520px) and (orientation: landscape) {
+    header { display: none !important; }
+    #game-screen { height: 100vh !important; height: 100svh !important; padding: 6px 12px 12px !important; }
+  }
 
   /* ── SETUP SCREEN ── */
   #setup-screen {
@@ -172,34 +229,78 @@
   .log-btn-icon:hover { color: var(--danger); }
 
   /* ── GAME SCREEN ── */
-  #game-screen { display: none; width: 100%; height: calc(100vh - 64px); padding: 16px 24px 24px; box-sizing: border-box; overflow: hidden; }
+  #game-screen { 
+    display: none; 
+    width: 100%; 
+    height: calc(100vh - 64px); 
+    height: calc(100svh - 64px); /* Fallback safety */
+    padding: 12px 16px 16px; 
+    box-sizing: border-box; 
+    overflow: hidden; 
+  }
+  
+  @media (max-width: 900px) {
+    #game-screen { 
+      height: calc(100vh - 48px); 
+      height: calc(100svh - 48px); 
+      padding: 8px 12px 12px; 
+    }
+  }
 
-  .game-layout { display: flex; flex-direction: column; gap: 20px; width: 100%; height: 100%; max-width: 1800px; margin: 0 auto; }
-  @media (min-width: 900px) { .game-layout { flex-direction: row; align-items: stretch; } }
+  .game-layout { display: flex; flex-direction: column; gap: 12px; width: 100%; height: 100%; max-width: 1800px; margin: 0 auto; overflow: hidden; }
 
-  .puzzle-board-wrap { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 16px; }
+  @media (min-width: 768px) or (orientation: landscape) { 
+    .game-layout { flex-direction: row; align-items: stretch; gap: 16px; } 
+  }
+
+  .puzzle-board-wrap { flex: 1.2; min-height: 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
   #puzzle-board { background: var(--surface2); border: 2px solid var(--border); border-radius: var(--radius); position: relative; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,0.5); box-sizing: content-box; }
   
-  .sidebar-wrap { display: flex; flex-direction: column; gap: 16px; width: 100%; flex-shrink: 0; }
-  @media (min-width: 900px) { .sidebar-wrap { width: clamp(300px, 25vw, 420px); height: 100%; } }
+  .sidebar-wrap { display: flex; flex-direction: column; gap: 10px; width: 100%; flex-shrink: 0; min-height: 0; }
+  
+  @media (min-width: 768px) or (orientation: landscape) { 
+    .sidebar-wrap { width: clamp(280px, 34vw, 380px); height: 100%; } 
+  }
 
-  .game-controls { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; flex-shrink: 0; }
-  .game-controls .btn { flex: 1; min-width: calc(33% - 8px); padding: 10px 8px; text-align: center; }
+  /* Compact Sidebar Stats displayed only when header is hidden */
+  .sidebar-stats {
+    display: none;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 4px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem;
+    text-align: center;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  @media (max-height: 520px) and (orientation: landscape) {
+    .sidebar-stats { display: grid; }
+  }
 
-  .progress-bar-wrap { width: 100%; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
-  .progress-label { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; color: var(--text); }
-  .progress-track { height: 8px; background: var(--surface2); border-radius: 99px; overflow: hidden; width: 100%; }
+  .game-controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 100%; flex-shrink: 0; }
+  .game-controls .btn { padding: 8px 4px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 4px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #btn-reset-board { grid-column: span 1; }
+  #btn-solve { grid-column: span 2; }
+
+  .progress-bar-wrap { width: 100%; display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 600; color: var(--text); }
+  .progress-track { height: 6px; background: var(--surface2); border-radius: 99px; overflow: hidden; width: 100%; }
   .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 99px; transition: width 0.4s cubic-bezier(.4,0,.2,1); width: 0%; }
 
-  .pieces-tray-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; width: 100%; flex: 1; min-height: 200px; }
-  .board-label { font-size: 0.72rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); flex-shrink: 0; width: 100%; text-align: left; }
+  .pieces-tray-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: 100%; flex: 1; min-height: 0; }
+  .board-label { font-size: 0.68rem; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); flex-shrink: 0; width: 100%; text-align: left; }
 
   #pieces-tray {
     width: 100%; flex: 1; min-height: 0; overflow-y: auto; background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius);
-    padding: 16px; display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; justify-content: center; box-shadow: inset 0 4px 12px rgba(0,0,0,0.2);
-    -ms-overflow-style: none; scrollbar-width: none;
+    padding: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; justify-content: center; box-shadow: inset 0 4px 12px rgba(0,0,0,0.2);
   }
-  #pieces-tray::-webkit-scrollbar { display: none; }
+  #pieces-tray::-webkit-scrollbar { width: 4px; }
+  #pieces-tray::-webkit-scrollbar-track { background: transparent; }
+  #pieces-tray::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
   .slot { position: absolute; transition: background 0.2s; z-index: 2; border-radius: 4px; }
   .slot.drag-over { background: rgba(91,140,255,0.25); }
@@ -211,8 +312,25 @@
   @keyframes flashWrong { 0% { background: rgba(239, 68, 68, 0.4); } 100% { background: transparent; } }
 
   .puzzle-piece { cursor: grab; transition: transform 0.15s, filter 0.15s; flex-shrink: 0; position: relative; user-select: none; touch-action: none; }
-  .puzzle-piece:hover { transform: scale(1.06) translateY(-2px); filter: drop-shadow(0 8px 16px rgba(0,0,0,0.6)) drop-shadow(0 0 4px var(--accent)); z-index: 10; }
+  
+  #pieces-tray .puzzle-piece {
+    transform: scale(var(--tray-scale, 1));
+    transform-origin: center center;
+    margin: var(--tray-margin, 0px);
+    transition: transform 0.15s, filter 0.15s;
+  }
+  #pieces-tray .puzzle-piece:hover {
+    transform: scale(calc(var(--tray-scale, 1) * 1.1)) translateY(-2px);
+    filter: drop-shadow(0 8px 16px rgba(0,0,0,0.6)) drop-shadow(0 0 4px var(--accent));
+    z-index: 10;
+  }
   .puzzle-piece.dragging { opacity: 0.35; }
+
+  /* Ensure dragged ghost ignores scaled tray layouts */
+  #drag-ghost .puzzle-piece {
+    transform: none !important;
+    margin: 0 !important;
+  }
 
   #hint-overlay { position: absolute; inset: 0; background: rgba(13,15,20,0.8); display: none; z-index: 20; }
   #hint-img { width: 100%; height: 100%; opacity: 0.4; object-fit: cover; }
@@ -236,15 +354,51 @@
   .win-stat-val { font-size: 1.6rem; font-weight: 700; font-family: 'Space Mono', monospace; margin-top: 2px; }
   .win-buttons { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 
-  #tips-overlay { display: none; position: fixed; inset: 0; background: rgba(13,15,20,0.85); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
-  .tips-modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; max-width: 450px; width: 100%; display: flex; flex-direction: column; gap: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
-  .tips-header h2 { font-size: 1.5rem; font-weight: 700; text-align: center; }
-  .tips-header p { text-align: center; color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
-  .tip-item { display: flex; gap: 14px; align-items: flex-start; }
-  .tip-icon { font-size: 1.8rem; line-height: 1; }
-  .tip-text h4 { font-size: 1rem; font-weight: 600; margin-bottom: 4px; color: var(--text); }
-  .tip-text p { font-size: 0.85rem; color: var(--muted); line-height: 1.4; }
-  .btn-tips { width: 100%; margin-top: 8px; padding: 14px; }
+  #tips-overlay { 
+    display: none; 
+    position: fixed; 
+    inset: 0; 
+    background: rgba(13,15,20,0.85); 
+    backdrop-filter: blur(4px); 
+    z-index: 1000; 
+    align-items: flex-start; 
+    justify-content: center; 
+    padding: 16px; 
+    overflow-y: auto; 
+  }
+  .tips-modal { 
+    background: var(--surface); 
+    border: 1px solid var(--border); 
+    border-radius: var(--radius); 
+    padding: 24px; 
+    max-width: 450px; 
+    width: 100%; 
+    margin: auto; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 16px; 
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5); 
+  }
+  .tips-header h2 { font-size: 1.35rem; font-weight: 700; text-align: center; }
+  .tips-header p { text-align: center; color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+  .tip-item { display: flex; gap: 12px; align-items: flex-start; }
+  .tip-icon { font-size: 1.6rem; line-height: 1.1; }
+  .tip-text h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 2px; color: var(--text); }
+  .tip-text p { font-size: 0.8rem; color: var(--muted); line-height: 1.35; }
+  .btn-tips { width: 100%; margin-top: 4px; padding: 12px; }
+
+  @media (max-height: 520px) {
+    .tips-modal {
+      padding: 16px;
+      gap: 12px;
+    }
+    .tips-header h2 { font-size: 1.15rem; }
+    .tips-header p { font-size: 0.8rem; }
+    .tip-icon { font-size: 1.3rem; }
+    .tip-text h4 { font-size: 0.85rem; }
+    .tip-text p { font-size: 0.75rem; }
+    .btn-tips { padding: 10px; font-size: 0.9rem; }
+  }
 
   .highlight-animated {
     background: linear-gradient(90deg, #ff3b3b, #a78bfa, #34d399, #5b8cff, #ff3b3b);
@@ -261,6 +415,13 @@
 </style>
 </head>
 <body>
+
+<!-- Device rotation forced warning -->
+<div id="orientation-overlay">
+  <div class="rotate-icon">📱</div>
+  <h2>Rotate Your Device</h2>
+  <p>PuzzleDrop functions best in landscape mode. Please turn your screen sideways to build your puzzle.</p>
+</div>
 
 <header>
   <div class="logo" id="logo-btn" title="Return to Main Menu">PuzzleDrop</div>
@@ -359,6 +520,13 @@
     </div>
     
     <div class="sidebar-wrap">
+      <!-- Secondary stats wrapper for landscape viewports -->
+      <div class="sidebar-stats" id="sidebar-stats">
+        <div class="s-stat" title="Time Elapsed">🕒 <span id="sb-time">00:00</span></div>
+        <div class="s-stat" title="Moves Counter">🎯 <span id="sb-moves">0</span></div>
+        <div class="s-stat" title="Placed Pieces">🧩 <span id="sb-placed">0/0</span></div>
+      </div>
+
       <div class="game-controls">
         <button class="btn" id="btn-new">← Back</button>
         <button class="btn" id="btn-shuffle">🔀 Shuffle</button>
@@ -418,6 +586,48 @@ document.getElementById('btn-close-tips').addEventListener('click', () => {
   document.getElementById('tips-overlay').style.display = 'none';
   localStorage.setItem('puzzleDropOnboarded', 'true');
 });
+
+// Re-scale board automatically when device structure changes or screen is rotated
+let resizeTimeout;
+window.addEventListener('resize', () => {
+  if (document.getElementById('game-screen').style.display === 'block' && !state.isSolving) {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      saveCurrentGameProgress();
+      state.resumePlacedIds = state.pieces.filter(p => p.placed).map(p => p.id);
+      buildPuzzle();
+    }, 200);
+  }
+});
+
+// ── FULLSCREEN MANAGEMENT FOR MOBILE ───────────────────────────────────────
+function requestFullscreenIfPossible() {
+  // Only attempt on mobile/tablet viewports to hide browser bars
+  if (window.innerWidth <= 1024) {
+    const docEl = document.documentElement;
+    try {
+      if (docEl.requestFullscreen) {
+        docEl.requestFullscreen().catch(() => {});
+      } else if (docEl.webkitRequestFullscreen) {
+        docEl.webkitRequestFullscreen();
+      } else if (docEl.msRequestFullscreen) {
+        docEl.msRequestFullscreen();
+      }
+    } catch (e) {}
+  }
+}
+
+function exitFullscreenIfActive() {
+  try {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
+    }
+  } catch (e) {}
+}
 
 // ── SETUP TABS & UI ────────────────────────────────────────────────────────
 const tabBtns = document.querySelectorAll('.tab-btn');
@@ -533,7 +743,7 @@ function loadFromUrl(url) {
   tempImg.src = url;
 }
 
-// ── 3. GIF SEARCH (GIPHY WITH ROBUST FALLBACKS) ────────────────────────────
+// ── 3. GIF SEARCH (GIPHY WITH FALLBACKS) ────────────────────────────
 const gifSearchInput = document.getElementById('gif-search-input');
 const gifGrid = document.getElementById('gif-grid');
 
@@ -543,7 +753,6 @@ gifSearchInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') loadGif
 async function loadGifs(query = '') {
   gifGrid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 20px; color: var(--muted); font-size: 0.9rem;">Loading GIFs...</div>';
   
-  // A robust list of valid Giphy public keys so the search always works even if one gets rate limited
   const keys = [
     'pLURtkhVrGQm3MWEUciVIZQznjKTKYcg',
     'WE09qZJAJVRtZ83I8rSMEpM0Ew3L2k4E',
@@ -562,15 +771,15 @@ async function loadGifs(query = '') {
       const json = await res.json();
       if (res.ok && json.meta && json.meta.status === 200) {
         data = json;
-        break; // Successfully got data, stop trying keys
+        break;
       }
-    } catch (err) { /* Silently fail and try the next key */ }
+    } catch (err) { }
   }
 
   gifGrid.innerHTML = '';
   
   if (!data || !data.data) {
-    gifGrid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 20px; color: var(--danger); font-size: 0.9rem;">API rate limit reached. Please use the "Paste Link" tab.</div>';
+    gifGrid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 20px; color: var(--danger); font-size: 0.9rem;">API limit reached. Please use the "Paste Link" tab.</div>';
     return;
   }
   
@@ -590,7 +799,12 @@ async function loadGifs(query = '') {
   });
 }
 
-document.getElementById('btn-start').addEventListener('click', () => { if (state.imgSrc) createNewGame(state.imgSrc, state.logThumb, state.level); });
+document.getElementById('btn-start').addEventListener('click', () => { 
+  if (state.imgSrc) {
+    requestFullscreenIfPossible();
+    createNewGame(state.imgSrc, state.logThumb, state.level); 
+  }
+});
 
 // ── LOGS & SAVE MANAGEMENT ─────────────────────────────────────────────────
 const logsSection = document.getElementById('logs-section');
@@ -655,7 +869,6 @@ function saveCurrentGameProgress() {
   currentLog.cols = state.cols;
   currentLog.rows = state.rows;
 
-  // Reposition this log to the top of the history to keep active puzzles sorted first
   logs.splice(logIndex, 1);
   logs.unshift(currentLog);
 
@@ -688,7 +901,6 @@ function resumeGame(id) {
   state.savedElapsed = log.elapsed || 0;
   state.resumePlacedIds = log.placedIds || [];
 
-  // Bring the resumed log to the top of the history list immediately
   let logs = getLogs();
   let logIndex = logs.findIndex(l => l.id === id);
   if (logIndex > -1) {
@@ -697,6 +909,7 @@ function resumeGame(id) {
     try { localStorage.setItem('puzzleLogs', JSON.stringify(logs)); } catch(e) {}
   }
   
+  requestFullscreenIfPossible();
   initGame();
 }
 
@@ -719,7 +932,6 @@ function renderLogs() {
     const extrasText = extras.length > 0 ? ` (${extras.join(' ')})` : '';
     const movesText = `${log.moves} moves${extrasText}`;
 
-    // Safely generate formatted date/time from the log.id (which acts as timestamp)
     let dateTimeStr = '';
     try {
       const dateObj = new Date(log.id);
@@ -749,7 +961,7 @@ function renderLogs() {
       </div>
       <div class="log-actions">
         ${isCompleted 
-          ? `<button class="log-btn log-replay-btn" data-id="${log.id}">▶ Play Again</button>`
+          ? `<button class="log-btn log-replay-btn" data-id="${log.id}">▶ Play</button>`
           : `<button class="log-btn btn-resume log-resume-btn" data-id="${log.id}">▶ Resume</button>`
         }
       </div>
@@ -763,7 +975,10 @@ function renderLogs() {
     btn.addEventListener('click', e => {
       const targetId = parseInt(e.currentTarget.dataset.id);
       const lg = getLogs().find(l => l.id === targetId);
-      if (lg) createNewGame(lg.imgSrc, lg.logThumb, lg.level);
+      if (lg) {
+        requestFullscreenIfPossible();
+        createNewGame(lg.imgSrc, lg.logThumb, lg.level);
+      }
     });
   });
   document.querySelectorAll('.log-resume-btn').forEach(btn => { btn.addEventListener('click', e => resumeGame(parseInt(e.currentTarget.dataset.id))); });
@@ -814,8 +1029,9 @@ function buildPuzzle() {
   board.style.width = '0px'; board.style.height = '0px';
   board.innerHTML = ''; tray.innerHTML = '';
 
-  const availW = boardWrap.clientWidth;
-  const availH = boardWrap.clientHeight - 4;
+  // Increased margin boundaries slightly to guarantee height clearance on all phones
+  const availW = boardWrap.clientWidth - 24;
+  const availH = boardWrap.clientHeight - 24;
 
   const natW = state.imgEl.naturalWidth;
   const natH = state.imgEl.naturalHeight;
@@ -858,6 +1074,15 @@ function buildPuzzle() {
   const offsetSize = Math.floor(cellW * 0.25);
   const pWidth = cellW + 2 * offsetSize;
   const pHeight = cellH + 2 * offsetSize;
+
+  // Calculate scaling factor for pieces inside the tray to prevent single-column crowding
+  const targetTrayPieceSize = 72; // Target size in pixels
+  const trayScale = Math.min(1, targetTrayPieceSize / pWidth);
+  const trayMargin = Math.floor((pWidth * (trayScale - 1)) / 2) + 2;
+
+  // Apply custom layout values directly to the tray style
+  tray.style.setProperty('--tray-scale', trayScale);
+  tray.style.setProperty('--tray-margin', `${trayMargin}px`);
 
   const gridCanvas = document.createElement('canvas');
   gridCanvas.width = boardW; gridCanvas.height = boardH;
@@ -939,7 +1164,6 @@ function buildPuzzle() {
     pieceEl.style.width  = pWidth + 'px'; pieceEl.style.height = pHeight + 'px';
     pieceEl.setAttribute('draggable', true);
 
-    // Using precise <img> layout inside a masked div (Better for animated WebP/GIFs in Safari/Webkit than background-image)
     const bgLayer = document.createElement('div');
     bgLayer.style.position = 'absolute'; bgLayer.style.inset = '0';
     bgLayer.style.overflow = 'hidden';
@@ -950,7 +1174,7 @@ function buildPuzzle() {
     pImg.src = state.imgSrc;
     pImg.style.position = 'absolute';
     pImg.style.width = `${drawW}px`; pImg.style.height = `${drawH}px`;
-    pImg.style.maxWidth = 'none'; // Overrides global img styles
+    pImg.style.maxWidth = 'none';
     pImg.style.left = `${offsetX - (col * cellW - offsetSize)}px`;
     pImg.style.top = `${offsetY - (row * cellH - offsetSize)}px`;
     pImg.style.pointerEvents = 'none';
@@ -1079,19 +1303,28 @@ function placePiece(pieceId, slotEl, isRestoring = false) {
 function updateProgress() {
   const total = state.pieces.length; const placed = state.pieces.filter(p => p.placed).length;
   const pct = total ? Math.round((placed / total) * 100) : 0;
-  document.getElementById('progress-fill').style.width = pct + '%'; document.getElementById('prog-pct').textContent = pct + '%'; document.getElementById('prog-label').textContent = `${placed} / ${total} pieces`;
+  document.getElementById('progress-fill').style.width = pct + '%'; document.getElementById('prog-pct').textContent = pct + '%'; document.getElementById('prog-label').textContent = `${placed}/${total} placed`;
 }
 
-// ── HEADER MOVES ──
 function updateHdrMoves() { 
   let extras = [];
   if (state.wrongMoves > 0) extras.push(`${state.wrongMoves}❌`);
   if (state.hintsUsed > 0) extras.push(`${state.hintsUsed}💡`);
   const extraText = extras.length > 0 ? ` (${extras.join(' ')})` : '';
-  document.getElementById('hdr-moves').textContent = `${state.moves}${extraText}`; 
+  const valText = `${state.moves}${extraText}`;
+  
+  document.getElementById('hdr-moves').textContent = valText; 
+  const sbMoves = document.getElementById('sb-moves');
+  if (sbMoves) sbMoves.textContent = valText;
 }
 
-function updateHdrPlaced() { document.getElementById('hdr-placed').textContent = `${state.pieces.filter(p => p.placed).length}/${state.pieces.length}`; }
+function updateHdrPlaced() { 
+  const valText = `${state.pieces.filter(p => p.placed).length}/${state.pieces.length}`;
+  
+  document.getElementById('hdr-placed').textContent = valText; 
+  const sbPlaced = document.getElementById('sb-placed');
+  if (sbPlaced) sbPlaced.textContent = valText;
+}
 
 function startTimer(resumedElapsed = 0) {
   if (state.timerInterval) clearInterval(state.timerInterval);
@@ -1102,7 +1335,11 @@ function startTimer(resumedElapsed = 0) {
 
 function updateTimer() {
   const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
-  document.getElementById('hdr-time').textContent = formatTime(elapsed);
+  const formatted = formatTime(elapsed);
+  
+  document.getElementById('hdr-time').textContent = formatted;
+  const sbTime = document.getElementById('sb-time');
+  if (sbTime) sbTime.textContent = formatted;
 }
 
 function stopTimer() { if (state.timerInterval) { clearInterval(state.timerInterval); state.timerInterval = null; } }
@@ -1170,6 +1407,7 @@ function launchConfetti() {
 // ── CONTROLS ───────────────────────────────────────────────────────────────
 document.getElementById('btn-new').addEventListener('click', () => {
   stopTimer(); saveCurrentGameProgress();
+  exitFullscreenIfActive();
   document.getElementById('win-overlay').style.display = 'none';
   document.getElementById('game-screen').style.display = 'none';
   document.getElementById('setup-screen').style.display = 'flex';
@@ -1218,8 +1456,15 @@ document.getElementById('btn-solve').addEventListener('click', () => {
   setTimeout(() => { state.isSolving = false; }, delay + 100);
 });
 
-document.getElementById('win-new').addEventListener('click', () => { document.getElementById('win-overlay').style.display = 'none'; document.getElementById('btn-new').click(); });
-document.getElementById('win-replay').addEventListener('click', () => { document.getElementById('win-overlay').style.display = 'none'; createNewGame(state.imgSrc, state.logThumb, state.level); });
+document.getElementById('win-new').addEventListener('click', () => { 
+  document.getElementById('win-overlay').style.display = 'none'; 
+  document.getElementById('btn-new').click(); 
+});
+document.getElementById('win-replay').addEventListener('click', () => { 
+  document.getElementById('win-overlay').style.display = 'none'; 
+  requestFullscreenIfPossible();
+  createNewGame(state.imgSrc, state.logThumb, state.level); 
+});
 
 function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
 </script>
