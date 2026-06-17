@@ -42,7 +42,10 @@
   .logo {
     font-family: 'Space Mono', monospace; font-size: 1.25rem; font-weight: 700; letter-spacing: -0.5px;
     background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    cursor: pointer; transition: opacity 0.2s;
   }
+  .logo:hover { opacity: 0.8; }
+  
   .header-stats { display: flex; gap: 20px; align-items: center; font-family: 'Space Mono', monospace; font-size: 0.75rem; color: var(--muted); }
   .stat { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
   .stat-val { font-size: 1rem; color: var(--text); font-weight: 700; }
@@ -50,7 +53,7 @@
   /* ── SETUP SCREEN ── */
   #setup-screen {
     flex: 1; display: flex; flex-direction: column; align-items: center;
-    padding: 40px 20px; gap: 32px; width: 100%; max-width: 800px; margin: 0 auto; overflow-y: auto;
+    padding: 24px 20px 40px; gap: 24px; width: 100%; max-width: 800px; margin: 0 auto; overflow-y: auto;
     
     /* Hide scrollbars while retaining scroll functionality */
     -ms-overflow-style: none;  /* IE and Edge */
@@ -145,7 +148,7 @@
   .game-layout { display: flex; flex-direction: column; gap: 20px; width: 100%; height: 100%; max-width: 1800px; margin: 0 auto; }
   @media (min-width: 900px) { .game-layout { flex-direction: row; align-items: stretch; } }
 
-  .puzzle-board-wrap { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .puzzle-board-wrap { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 16px; }
   
   #puzzle-board { background: var(--surface2); border: 2px solid var(--border); border-radius: var(--radius); position: relative; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,0.5); box-sizing: content-box; }
   
@@ -247,12 +250,26 @@
     0%, 100% { transform: scale(1) rotate(-1deg); filter: drop-shadow(0 0 4px rgba(167, 139, 250, 0.3)); }
     50% { transform: scale(1.08) rotate(1deg); filter: drop-shadow(0 0 10px rgba(167, 139, 250, 0.7)); }
   }
+
+  /* Confetti Fix - Keeps them out of the layout flow entirely */
+  .confetti-piece {
+    position: fixed;
+    top: -20px;
+    z-index: 99999;
+    pointer-events: none;
+    border-radius: 2px;
+    animation: fall linear forwards;
+  }
+  @keyframes fall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">PuzzleDrop</div>
+  <div class="logo" id="logo-btn" title="Return to Main Menu">PuzzleDrop</div>
   <div class="header-stats">
     <div class="stat"><span class="stat-val" id="hdr-time">00:00</span><span>time</span></div>
     <div class="stat"><span class="stat-val" id="hdr-moves">0</span><span>moves</span></div>
@@ -397,7 +414,7 @@ const TARGET_PIECES = {
 let state = {
   id: null, imgSrc: null, logThumb: null, imgEl: null, level: 'easy',
   cols: 0, rows: 0, pieces: [], slotFilled: {},
-  moves: 0, wrongMoves: 0, startTime: null, timerInterval: null, savedElapsed: 0,
+  moves: 0, wrongMoves: 0, hintsUsed: 0, startTime: null, timerInterval: null, savedElapsed: 0,
   dragPieceId: null, isSolving: false, resumePlacedIds: []
 };
 
@@ -571,6 +588,7 @@ function createNewGame(baseImgSrc, thumbSrc, baseLevel) {
   state.level = baseLevel;
   state.moves = 0;
   state.wrongMoves = 0;
+  state.hintsUsed = 0;
   state.savedElapsed = 0;
   state.resumePlacedIds = [];
   state.cols = 0; 
@@ -586,6 +604,7 @@ function createNewGame(baseImgSrc, thumbSrc, baseLevel) {
     status: 'in-progress',
     moves: 0,
     wrongMoves: 0,
+    hintsUsed: 0,
     elapsed: 0,
     placedIds: [],
     cols: 0, rows: 0,
@@ -623,6 +642,7 @@ function saveCurrentGameProgress() {
   logs[logIndex].elapsed = elapsed;
   logs[logIndex].moves = state.moves;
   logs[logIndex].wrongMoves = state.wrongMoves;
+  logs[logIndex].hintsUsed = state.hintsUsed;
   logs[logIndex].placedIds = placedIds;
   logs[logIndex].cols = state.cols;
   logs[logIndex].rows = state.rows;
@@ -653,6 +673,7 @@ function resumeGame(id) {
   state.rows = log.rows || 0;
   state.moves = log.moves || 0;
   state.wrongMoves = log.wrongMoves || 0;
+  state.hintsUsed = log.hintsUsed || 0;
   state.savedElapsed = log.elapsed || 0;
   state.resumePlacedIds = log.placedIds || [];
   
@@ -674,7 +695,12 @@ function renderLogs() {
     const timeDisplay = log.timeStr || formatTime(log.elapsed || 0);
 
     const wrongMovesVal = log.wrongMoves || 0;
-    const movesText = `${log.moves} moves` + (wrongMovesVal > 0 ? ` (${wrongMovesVal}❌)` : '');
+    const hintsVal = log.hintsUsed || 0;
+    let extras = [];
+    if (wrongMovesVal > 0) extras.push(`${wrongMovesVal}❌`);
+    if (hintsVal > 0) extras.push(`${hintsVal}💡`);
+    const extrasText = extras.length > 0 ? ` (${extras.join(' ')})` : '';
+    const movesText = `${log.moves} moves${extrasText}`;
 
     const safeThumbUrl = (log.logThumb || log.imgSrc).replace(/"/g, '&quot;');
 
@@ -742,6 +768,13 @@ function drawTab(ctx, x1, y1, x2, y2, dir, offset) {
 function initGame() {
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('game-screen').style.display = 'block';
+
+  // Clear previous puzzle and explicitly collapse width/height to avoid pushing the UI
+  const board = document.getElementById('puzzle-board');
+  board.style.width = '0px';
+  board.style.height = '0px';
+  board.innerHTML = '<div id="hint-overlay"><img id="hint-img" alt="full image"></div>';
+  document.getElementById('pieces-tray').innerHTML = '';
 
   const img = new Image();
   img.onload = () => {
@@ -1039,10 +1072,15 @@ function updateProgress() {
   const pct = total ? Math.round((placed / total) * 100) : 0;
   document.getElementById('progress-fill').style.width = pct + '%'; document.getElementById('prog-pct').textContent = pct + '%'; document.getElementById('prog-label').textContent = `${placed} / ${total} pieces`;
 }
+
 function updateHdrMoves() { 
-  const wrongText = state.wrongMoves > 0 ? ` (${state.wrongMoves}❌)` : '';
-  document.getElementById('hdr-moves').textContent = `${state.moves}${wrongText}`; 
+  let extras = [];
+  if (state.wrongMoves > 0) extras.push(`${state.wrongMoves}❌`);
+  if (state.hintsUsed > 0) extras.push(`${state.hintsUsed}💡`);
+  const extraText = extras.length > 0 ? ` (${extras.join(' ')})` : '';
+  document.getElementById('hdr-moves').textContent = `${state.moves}${extraText}`; 
 }
+
 function updateHdrPlaced() { document.getElementById('hdr-placed').textContent = `${state.pieces.filter(p => p.placed).length}/${state.pieces.length}`; }
 
 function startTimer(resumedElapsed = 0) {
@@ -1083,8 +1121,12 @@ function checkWin() {
 function showWin() {
   document.getElementById('win-time').textContent = document.getElementById('hdr-time').textContent;
   
-  const wrongText = state.wrongMoves > 0 ? ` (${state.wrongMoves}❌)` : '';
-  document.getElementById('win-moves').textContent = `${state.moves}${wrongText}`;
+  let extras = [];
+  if (state.wrongMoves > 0) extras.push(`${state.wrongMoves}❌`);
+  if (state.hintsUsed > 0) extras.push(`${state.hintsUsed}💡`);
+  const extraText = extras.length > 0 ? ` (${extras.join(' ')})` : '';
+  document.getElementById('win-moves').textContent = `${state.moves}${extraText}`;
+  
   document.getElementById('win-level').textContent = state.level;
   
   const finalPreview = document.getElementById('win-resolved-img');
@@ -1126,6 +1168,18 @@ document.getElementById('btn-new').addEventListener('click', () => {
   renderLogs();
 });
 
+document.getElementById('logo-btn').addEventListener('click', () => {
+  if (state.isSolving) return;
+  if (document.getElementById('game-screen').style.display === 'block') {
+    document.getElementById('btn-new').click();
+  }
+  if (document.getElementById('win-overlay').style.display === 'flex') {
+    document.getElementById('win-new').click();
+  }
+  const setupScreen = document.getElementById('setup-screen');
+  if (setupScreen) setupScreen.scrollTop = 0;
+});
+
 document.getElementById('btn-shuffle').addEventListener('click', () => {
   const tray = document.getElementById('pieces-tray'); const pieces = Array.from(tray.children);
   shuffle(pieces); pieces.forEach(p => tray.appendChild(p));
@@ -1133,13 +1187,34 @@ document.getElementById('btn-shuffle').addEventListener('click', () => {
 
 document.getElementById('btn-reset-board').addEventListener('click', () => {
   if (confirm("Reset the pieces to the tray? (Timer keeps running)")) {
-    state.moves = 0; state.wrongMoves = 0; state.resumePlacedIds = []; updateHdrMoves(); buildPuzzle(); saveCurrentGameProgress();
+    state.resumePlacedIds = []; 
+    // Synchronize current elapsed time so it doesn't jump backwards
+    state.savedElapsed = Math.floor((Date.now() - state.startTime) / 1000);
+    buildPuzzle(); 
+    saveCurrentGameProgress();
   }
 });
 
 const btnHint = document.getElementById('btn-hint');
-btnHint.addEventListener('mousedown', () => { const h = document.getElementById('hint-overlay'); if (h) h.style.display = 'flex'; });
-btnHint.addEventListener('touchstart', e => { e.preventDefault(); const h = document.getElementById('hint-overlay'); if (h) h.style.display = 'flex'; });
+btnHint.addEventListener('mousedown', () => { 
+  const h = document.getElementById('hint-overlay'); 
+  if (h && h.style.display !== 'flex') {
+    h.style.display = 'flex';
+    state.hintsUsed++;
+    updateHdrMoves();
+    saveCurrentGameProgress();
+  } 
+});
+btnHint.addEventListener('touchstart', e => { 
+  e.preventDefault(); 
+  const h = document.getElementById('hint-overlay'); 
+  if (h && h.style.display !== 'flex') {
+    h.style.display = 'flex';
+    state.hintsUsed++;
+    updateHdrMoves();
+    saveCurrentGameProgress();
+  } 
+});
 document.addEventListener('mouseup', () => { const h = document.getElementById('hint-overlay'); if (h) h.style.display = 'none'; });
 document.addEventListener('touchend', () => { const h = document.getElementById('hint-overlay'); if (h) h.style.display = 'none'; });
 
