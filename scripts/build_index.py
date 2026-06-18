@@ -30,12 +30,12 @@ def main():
         print("Found your own index.html in the listed folder -- keeping it.")
     else:
         (out / "index.html").write_text(render_index(listed), encoding="utf-8")
-        print(f"Generated _site/index.html listing {len(listed)} page(s).")
+        print("Generated _site/index.html listing " + str(len(listed)) + " page(s).")
 
     base = site_base_url()
     Path("README.md").write_text(render_readme(listed, base), encoding="utf-8")
-    print(f"README.md lists {len(listed)} page(s); {len(unlisted)} unlisted page(s) "
-          f"deployed but hidden. Base URL: {base or '(relative)'}")
+    print("README.md lists " + str(len(listed)) + " page(s); " + str(len(unlisted))
+          + " unlisted page(s) deployed but hidden. Base URL: " + (base or "(relative)"))
 
 
 def publish(src, out):
@@ -69,47 +69,26 @@ def site_base_url():
     if "/" in repo:
         owner, name = repo.split("/", 1)
         owner_l = owner.lower()
-        if name.lower() == f"{owner_l}.github.io":
-            return f"https://{owner_l}.github.io/"
-        return f"https://{owner_l}.github.io/{name}/"
+        if name.lower() == owner_l + ".github.io":
+            return "https://" + owner_l + ".github.io/"
+        return "https://" + owner_l + ".github.io/" + name + "/"
     return ""  # local run with no env -> relative links
 
 
-def render_readme(links, base):
-    if links:
-        rows = []
-        for stem in links:
-            url = (base + stem + "/") if base else (stem + "/")
-            rows.append(f"- [{stem}]({url})")
-        body = "\n".join(rows)
-    else:
-        body = "_No pages yet — drop an `.html` file into the `html_files/` folder and push._"
+# --- Templates (plain strings; placeholders filled with .replace) ------------
 
-    home = base or "./"
-    count = len(links)
-    return f"""<!-- AUTO-GENERATED on every push. Do not edit by hand --
+README_TEMPLATE = """<!-- AUTO-GENERATED on every push. Do not edit by hand --
      add or remove .html files in the html_files/ folder instead. -->
 # My pages
 
-🌐 **Live site:** {home}
+\U0001F310 **Live site:** __HOME__
 
-**{count}** page{'' if count == 1 else 's'}:
+__COUNTLINE__
 
-{body}
+__BODY__
 """
 
-
-def render_index(links):
-    if links:
-        items = "\n".join(
-            f'        <li><a href="{html.escape(stem)}/">{html.escape(stem)}</a></li>'
-            for stem in links
-        )
-    else:
-        items = '        <li class="empty">No pages yet &mdash; drop an HTML file into the folder and push.</li>'
-
-    n = len(links)
-    return f"""<!DOCTYPE html>
+INDEX_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -117,8 +96,8 @@ def render_index(links):
 <title>BienePie's S3cr4t3 P4g3s</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
-  *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
     font-family: 'Space Grotesk', sans-serif;
     background: #0d0f14;
     color: #e8eaf0;
@@ -126,12 +105,12 @@ def render_index(links):
     display: flex;
     justify-content: center;
     padding: 48px 20px;
-  }}
-  main {{ width: 100%; max-width: 640px; }}
-  h1 {{ font-size: 1.8rem; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 4px; }}
-  p.sub {{ font-family: 'Space Mono', monospace; color: #8b93a7; margin-bottom: 28px; font-size: 0.9rem; }}
-  ul {{ list-style: none; display: flex; flex-direction: column; gap: 10px; }}
-  li a {{
+  }
+  main { width: 100%; max-width: 640px; }
+  h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 4px; }
+  p.sub { font-family: 'Space Mono', monospace; color: #8b93a7; margin-bottom: 28px; font-size: 0.9rem; }
+  ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  li a {
     display: block;
     padding: 14px 18px;
     background: #161a24;
@@ -142,18 +121,56 @@ def render_index(links):
     font-size: 1.05rem;
     font-weight: 500;
     transition: border-color .15s, transform .15s;
-  }}
-  li a:hover {{ border-color: #5b8cff; transform: translateX(3px); }}
-  li.empty {{ font-family: 'Space Mono', monospace; color: #8b93a7; padding: 14px 0; }}
+  }
+  li a:hover { border-color: #5b8cff; transform: translateX(3px); }
+  li.empty { font-family: 'Space Mono', monospace; color: #8b93a7; padding: 14px 0; }
 </style>
 </head>
 <body>
   <main>
     <h1>BienePie's S3cr4t3 P4g3s</h1>
-    <p class="sub">{n} page{'' if n == 1 else 's'} &middot; click to open</p>
+    <p class="sub">__SUB__</p>
     <ul>
-{items}
+__ITEMS__
     </ul>
   </main>
 </body>
 </html>
+"""
+
+
+def render_readme(links, base):
+    if links:
+        rows = []
+        for stem in links:
+            url = (base + stem + "/") if base else (stem + "/")
+            rows.append("- [" + stem + "](" + url + ")")
+        body = "\n".join(rows)
+    else:
+        body = "_No pages yet — drop an `.html` file into the `html_files/` folder and push._"
+
+    home = base or "./"
+    count = len(links)
+    countline = "**" + str(count) + "** page" + ("" if count == 1 else "s") + ":"
+    return (README_TEMPLATE
+            .replace("__HOME__", home)
+            .replace("__COUNTLINE__", countline)
+            .replace("__BODY__", body))
+
+
+def render_index(links):
+    if links:
+        items = "\n".join(
+            '        <li><a href="' + html.escape(s) + '/">' + html.escape(s) + "</a></li>"
+            for s in links
+        )
+    else:
+        items = '        <li class="empty">No pages yet &mdash; drop an HTML file into the folder and push.</li>'
+
+    n = len(links)
+    sub = str(n) + " page" + ("" if n == 1 else "s") + " &middot; click to open"
+    return INDEX_TEMPLATE.replace("__SUB__", sub).replace("__ITEMS__", items)
+
+
+if __name__ == "__main__":
+    main()
