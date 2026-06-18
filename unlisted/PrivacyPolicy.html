@@ -1,220 +1,316 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Privacy Policy - PuzzleDrop & Mini Games</title>
-    <!-- Playful and modern Google Fonts -->
-    <link
-        href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&family=Nunito:wght@400;600;700&display=swap"
-        rel="stylesheet">
+    <!-- Fonts imported directly from your game -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        /* Modern CSS Variables - Easy to customize colors */
+        /* CSS Variables - Smooth Transition Support */
         :root {
-            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-            --bg-color: #f3f4f6;
-            --card-bg: #ffffff;
-            --text-main: #2d3748;
-            --text-muted: #718096;
-            --accent-green: #10b981;
-            --shadow: 0 10px 30px rgba(99, 102, 241, 0.08);
-            --border-radius: 18px;
+            /* Light Theme Palette */
+            --bg: #f3f4f6;
+            --surface: #ffffff;
+            --surface2: #f9fafb;
+            --border: #e5e7eb;
+            --accent: #5b8cff;
+            --accent2: #a78bfa;
+            --danger: #ef4444;
+            --success: #10b981;
+            --text: #1f2937;
+            --muted: #6b7280;
+            
+            --success-bg: rgba(16, 185, 129, 0.08);
+            --success-border: rgba(16, 185, 129, 0.3);
+            
+            --radius: 12px;
+            --transition-speed: 0.25s;
         }
 
-        /* Smooth animated background gradient */
-        body {
-            font-family: 'Nunito', sans-serif;
-            background-color: var(--bg-color);
-            background-image: radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.1) 0, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.1) 0, transparent 50%);
-            color: var(--text-main);
-            line-height: 1.7;
+        /* Dark Theme Palette (Mirrored exactly from PuzzleDrop.html) */
+        body.dark {
+            --bg: #0d0f14;
+            --surface: #161a24;
+            --surface2: #1e2333;
+            --border: #2a3045;
+            --accent: #5b8cff;
+            --accent2: #a78bfa;
+            --danger: #ef4444;
+            --success: #34d399;
+            --text: #e8eaf0;
+            --muted: #6b7280;
+            
+            --success-bg: rgba(52, 211, 153, 0.15);
+            --success-border: rgba(52, 211, 153, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
             margin: 0;
-            padding: 40px 20px;
+            padding: 0;
+            transition: background-color var(--transition-speed) ease, 
+                        border-color var(--transition-speed) ease, 
+                        color var(--transition-speed) ease;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            padding: 40px 20px;
         }
 
-        /* Floating glassmorphism-style card container */
+        /* Central container styled like game panels */
         .policy-card {
-            background: var(--card-bg);
-            max-width: 700px;
+            background: var(--surface);
+            max-width: 750px;
             width: 100%;
             padding: 40px;
-            border-radius: var(--border-radius);
-            box-shadow: var(--shadow);
-            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
             position: relative;
-            overflow: hidden;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.05);
         }
 
-        /* Top decorative accent bar */
-        .policy-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 6px;
-            background: var(--primary-gradient);
+        body.dark .policy-card {
+            box-shadow: 0 12px 32px rgba(0,0,0,0.4);
         }
 
-        /* Playful game-style typography */
-        h1 {
-            font-family: 'Quicksand', sans-serif;
+        /* Top Bar Wrapper for layout balance */
+        .card-header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        /* Date badge styled like game stats */
+        .date-badge {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
             font-weight: 700;
-            font-size: 32px;
-            margin-top: 0;
-            background: var(--primary-gradient);
+            color: var(--accent);
+            background: rgba(91, 140, 255, 0.12);
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid rgba(91, 140, 255, 0.2);
+            text-transform: uppercase;
+        }
+
+        /* Clean, square Emoji Toggle Button */
+        .theme-toggle-btn {
+            background: var(--surface2);
+            color: var(--text);
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            width: 38px;
+            height: 38px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+
+        .theme-toggle-btn:hover {
+            border-color: var(--accent);
+            background: var(--surface);
+        }
+
+        /* Typography elements */
+        h1 {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            font-size: 2rem;
+            letter-spacing: -1px;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            display: inline-block;
+            background-clip: text;
         }
 
         h2 {
-            font-family: 'Quicksand', sans-serif;
+            font-family: 'Space Mono', monospace;
             font-weight: 700;
-            font-size: 20px;
-            color: #4f46e5;
-            margin-top: 35px;
-            border-bottom: 2px dashed #e2e8f0;
-            padding-bottom: 8px;
+            font-size: 1.15rem;
+            color: var(--accent);
+            margin-top: 32px;
+            margin-bottom: 12px;
+            border-bottom: 1.5px dashed var(--border);
+            padding-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        p,
-        li {
-            font-size: 16px;
-            color: var(--text-main);
+        p, li {
+            font-size: 0.95rem;
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        p {
+            margin-bottom: 16px;
         }
 
         ul {
             padding-left: 20px;
+            margin-bottom: 16px;
         }
 
         li {
             margin-bottom: 8px;
-            position: relative;
             list-style-type: none;
         }
 
-        /* Custom puzzle-piece or dot bullet points */
+        /* Stylized monospace bullet points */
         li::before {
-            content: "•";
-            color: #a855f7;
+            content: ">";
+            font-family: 'Space Mono', monospace;
+            color: var(--accent2);
             font-weight: bold;
-            display: inline-block;
-            width: 1em;
-            margin-left: -1em;
+            display: inline-block; 
+            width: 1.5em;
+            margin-left: -1.5em;
         }
 
-        .date-badge {
-            font-size: 13px;
-            font-weight: 700;
-            color: #6366f1;
-            background: rgba(99, 102, 241, 0.1);
-            padding: 4px 12px;
-            border-radius: 20px;
-            display: inline-block;
-            margin-bottom: 20px;
-        }
-
-        /* Eye-catching badge for Zero Data policy */
+        /* Safe Badge with accent colors */
         .zero-data-badge {
-            background: rgba(16, 185, 129, 0.08);
-            border: 1.5px solid rgba(16, 185, 129, 0.3);
-            border-radius: 12px;
+            background: var(--success-bg);
+            border: 1.5px solid var(--success-border);
+            border-radius: var(--radius);
             padding: 20px;
-            margin: 25px 0;
+            margin: 24px 0;
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 6px;
         }
 
         .zero-data-badge strong {
-            color: var(--accent-green);
-            font-size: 18px;
-            font-family: 'Quicksand', sans-serif;
+            color: var(--success);
+            font-family: 'Space Mono', monospace;
+            font-size: 1.05rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        /* Animated link design */
+        .zero-data-badge span {
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
         a {
-            color: #6366f1;
+            color: var(--accent);
             text-decoration: none;
-            font-weight: 700;
-            transition: color 0.2s ease;
+            font-weight: 600;
         }
 
         a:hover {
-            color: #a855f7;
+            color: var(--accent2);
             text-decoration: underline;
         }
 
         .footer {
-            margin-top: 45px;
-            font-size: 13px;
-            color: var(--text-muted);
-            border-top: 1px solid #edf2f7;
+            margin-top: 40px;
+            font-size: 0.8rem;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
             padding-top: 20px;
             text-align: center;
         }
     </style>
 </head>
-
 <body>
 
     <div class="policy-card">
-        <span class="date-badge">Last Updated: October 2023</span>
+        <div class="card-header-actions">
+            <span class="date-badge" id="date-badge">Last Updated: October 2023</span>
+            <button class="theme-toggle-btn" id="theme-toggle" aria-label="Toggle Theme">
+                <span id="theme-icon">🌙</span>
+            </button>
+        </div>
+
         <h1>Privacy Policy</h1>
-
-        <p>This Privacy Policy covers <strong>PuzzleDrop</strong> and other simple, non-commercial mini-games and hobby
-            projects developed by us and hosted statically via GitHub Pages.</p>
-
-        <p>These projects are built strictly for fun, personal learning, and portfolio display. They are completely free
-            to use, run entirely in your web browser, and contain no ads or commercial monetization.</p>
+        
+        <p>This Privacy Policy applies to <strong>PuzzleDrop</strong> and other simple, non-commercial mini-games and hobby projects developed by us and hosted statically via GitHub Pages.</p>
+        
+        <p>These projects are created solely for personal learning, portfolio presentation, and entertainment. They are entirely free to use, run on static environments, and do not carry advertisements, trackers, or commercial monetization.</p>
 
         <div class="zero-data-badge">
             <strong>🔒 Zero Data Collection Policy</strong>
-            <span>We do not collect, store, track, or share any personal data, analytical metrics, or browser history.
-                Because our projects are completely static, there is no server database or backend registering your
-                information.</span>
+            <span>We do not collect, process, save, or share any personal details, metrics, or browsing histories. Because our games are built as static web apps, there is no database server logging or storing your data.</span>
         </div>
 
-        <h2>1. Local Integrations (e.g., Pinterest API)</h2>
-        <p>Some of our visual projects, like PuzzleDrop, allow you to find or link public images (using tools like the
-            Pinterest API) to convert them into interactive puzzles.</p>
+        <h2>1. Third-Party Integrations</h2>
+        <p>Certain dynamic modules within our games, like PuzzleDrop, let you search for or select images (via platforms like the Pinterest API) to construct personalized puzzles.</p>
         <ul>
-            <li><strong>Browser-Only Operations:</strong> All API requests and image manipulations happen live in your
-                browser window.</li>
-            <li><strong>No Saving:</strong> We do not download, duplicate, or store your image URLs or search queries to
-                any external host.</li>
-            <li><strong>Third Parties:</strong> Interactions with third-party APIs are subject to their respective terms
-                and privacy behaviors.</li>
+            <li><strong>Local Processing:</strong> All connections to external image engines take place locally on your client browser.</li>
+            <li><strong>No Retaining:</strong> We do not upload, register, or keep copies of your custom image URLs, search strings, or keys on any server infrastructure.</li>
+            <li><strong>External Terms:</strong> Querying assets via third-party web protocols connects you with platforms operating under their own privacy standards. We advise reading their guidelines.</li>
         </ul>
 
-        <h2>2. Cookies and Trackers</h2>
-        <p>Our static game pages do not load tracking pixels, analytic cookies (such as Google Analytics), or behavioral
-            trackers.</p>
+        <h2>2. Tracking and Web Cookies</h2>
+        <p>Our static web environments do not generate or track user cookies, analytical trackers (such as Google Analytics), or behavioral advertising identifiers.</p>
 
-        <h2>3. Static Hosting via GitHub</h2>
-        <p>Our pages run on GitHub Pages. GitHub may log standard network requests (like IP addresses) solely to ensure
-            hosting security and platform performance. This remains bound to the standard GitHub Privacy Statement.</p>
+        <h2>3. Static Project Hosting</h2>
+        <p>These portfolio projects run on GitHub Pages. To keep hosting channels reliable and secure, GitHub may process minor network transmission logs (like server request times and IP handshakes). This data is managed directly by GitHub under their global Privacy Statement.</p>
 
-        <h2>4. Family-Safe</h2>
-        <p>Because there is absolute zero data harvest or tracking, our simple projects are completely safe and private
-            for players of all ages.</p>
+        <h2>4. Family &amp; Children's Privacy</h2>
+        <p>Because these applications require no registration and collect absolutely zero personal information, they are completely safe and clean for players of all ages, including children under 13.</p>
 
-        <h2>5. Let's Connect!</h2>
-        <p>If you have any questions or feedback about our mini-games, feel free to drop a line:</p>
+        <h2>5. Contact &amp; Questions</h2>
+        <p>If you have any questions or feedback regarding these simple portfolio applications, please feel free to reach out:</p>
         <p><strong>Email:</strong> <a href="mailto:bienepie@gmail.com">bienepie@gmail.com</a></p>
 
         <div class="footer">
-            <p>&copy; 2023 PuzzleDrop &amp; Mini Games. Designed with care.</p>
+            <p>PuzzleDrop &amp; Mini Games &copy; 2025 | Developed with care.</p>
         </div>
     </div>
 
-</body>
+    <script>
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
 
+        // Determine starting system or storage preference
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
+                setTheme('dark');
+            } else {
+                setTheme('light');
+            }
+        }
+
+        function setTheme(mode) {
+            if (mode === 'dark') {
+                document.body.classList.add('dark');
+                themeIcon.textContent = '☀️';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.body.classList.remove('dark');
+                themeIcon.textContent = '🌙';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        themeToggle.addEventListener('click', () => {
+            if (document.body.classList.contains('dark')) {
+                setTheme('light');
+            } else {
+                setTheme('dark');
+            }
+        });
+
+        // Initialize theme on run
+        initTheme();
+    </script>
+</body>
 </html>
