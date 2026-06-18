@@ -5,45 +5,58 @@ import shutil
 import sys
 from pathlib import Path
 
+# Pages in this folder are PUBLIC and shown in the lists (homepage + README).
+LISTED_DIR = "html_files"
+# Pages in this folder are reachable by URL but NOT shown in any list.
+UNLISTED_DIR = "unlisted"
+
 
 def main():
-    src = Path(sys.argv[1] if len(sys.argv) > 1 else "html_files")
+    listed_src = Path(sys.argv[1] if len(sys.argv) > 1 else LISTED_DIR)
     out = Path(sys.argv[2] if len(sys.argv) > 2 else "_site")
+    unlisted_src = Path(sys.argv[3] if len(sys.argv) > 3 else UNLISTED_DIR)
 
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True, exist_ok=True)
 
-    if src.is_dir():
-        shutil.copytree(src, out, dirs_exist_ok=True)
-        pages = sorted(
-            p.relative_to(src).as_posix()
-            for p in src.rglob("*.html")
-            if p.name.lower() != "index.html"
-        )
-    else:
-        print(f"Source folder '{src}' does not exist -- publishing an empty site.")
-        pages = []
+    listed = publish(listed_src, out)      # shown in the lists
+    unlisted = publish(unlisted_src, out)  # reachable, but hidden from the lists
 
     (out / ".nojekyll").write_text("", encoding="utf-8")
 
-    links = []
-    for p in pages:
-        stem = p[:-5]  # drop ".html"
-        clean = out / stem / "index.html"
-        clean.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(out / p, clean)
-        links.append(stem)
-
-    if (out / "index.html").exists():
-        print("Found your own index.html -- keeping it for the live site.")
+    # Homepage: keep your own html_files/index.html if present, else generate.
+    if (listed_src / "index.html").exists():
+        print("Found your own index.html in the listed folder -- keeping it.")
     else:
-        (out / "index.html").write_text(render_index(links), encoding="utf-8")
-        print(f"Generated _site/index.html listing {len(links)} page(s).")
+        (out / "index.html").write_text(render_index(listed), encoding="utf-8")
+        print(f"Generated _site/index.html listing {len(listed)} page(s).")
 
     base = site_base_url()
-    Path("README.md").write_text(render_readme(links, base), encoding="utf-8")
-    print(f"Wrote README.md listing {len(links)} page(s). Base URL: {base or '(relative)'}")
+    Path("README.md").write_text(render_readme(listed, base), encoding="utf-8")
+    print(f"README.md lists {len(listed)} page(s); {len(unlisted)} unlisted page(s) "
+          f"deployed but hidden. Base URL: {base or '(relative)'}")
+
+
+def publish(src, out):
+    """Copy everything in src into out, add a clean /name URL for each .html,
+    and return the list of clean stem names found."""
+    if not src.is_dir():
+        return []
+    shutil.copytree(src, out, dirs_exist_ok=True)
+    pages = sorted(
+        p.relative_to(src).as_posix()
+        for p in src.rglob("*.html")
+        if p.name.lower() != "index.html"
+    )
+    stems = []
+    for rel in pages:
+        stem = rel[:-5]  # drop ".html"
+        clean = out / stem / "index.html"
+        clean.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(out / rel, clean)
+        stems.append(stem)
+    return stems
 
 
 def site_base_url():
@@ -144,8 +157,3 @@ def render_index(links):
   </main>
 </body>
 </html>
-"""
-
-
-if __name__ == "__main__":
-    main()

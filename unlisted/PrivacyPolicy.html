@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - PuzzleDrop & Mini Games</title>
+    <!-- Playful and modern Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&family=Nunito:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        /* Modern CSS Variables - Easy to customize colors */
+        :root {
+            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-main: #2d3748;
+            --text-muted: #718096;
+            --accent-green: #10b981;
+            --shadow: 0 10px 30px rgba(99, 102, 241, 0.08);
+            --border-radius: 18px;
+        }
+
+        /* Smooth animated background gradient */
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.1) 0, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.1) 0, transparent 50%);
+            color: var(--text-main);
+            line-height: 1.7;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* Floating glassmorphism-style card container */
+        .policy-card {
+            background: var(--card-bg);
+            max-width: 700px;
+            width: 100%;
+            padding: 40px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Top decorative accent bar */
+        .policy-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: var(--primary-gradient);
+        }
+
+        /* Playful game-style typography */
+        h1 {
+            font-family: 'Quicksand', sans-serif;
+            font-weight: 700;
+            font-size: 32px;
+            margin-top: 0;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+        }
+
+        h2 {
+            font-family: 'Quicksand', sans-serif;
+            font-weight: 700;
+            font-size: 20px;
+            color: #4f46e5;
+            margin-top: 35px;
+            border-bottom: 2px dashed #e2e8f0;
+            padding-bottom: 8px;
+        }
+
+        p,
+        li {
+            font-size: 16px;
+            color: var(--text-main);
+        }
+
+        ul {
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 8px;
+            position: relative;
+            list-style-type: none;
+        }
+
+        /* Custom puzzle-piece or dot bullet points */
+        li::before {
+            content: "•";
+            color: #a855f7;
+            font-weight: bold;
+            display: inline-block;
+            width: 1em;
+            margin-left: -1em;
+        }
+
+        .date-badge {
+            font-size: 13px;
+            font-weight: 700;
+            color: #6366f1;
+            background: rgba(99, 102, 241, 0.1);
+            padding: 4px 12px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+
+        /* Eye-catching badge for Zero Data policy */
+        .zero-data-badge {
+            background: rgba(16, 185, 129, 0.08);
+            border: 1.5px solid rgba(16, 185, 129, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 25px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .zero-data-badge strong {
+            color: var(--accent-green);
+            font-size: 18px;
+            font-family: 'Quicksand', sans-serif;
+        }
+
+        /* Animated link design */
+        a {
+            color: #6366f1;
+            text-decoration: none;
+            font-weight: 700;
+            transition: color 0.2s ease;
+        }
+
+        a:hover {
+            color: #a855f7;
+            text-decoration: underline;
+        }
+
+        .footer {
+            margin-top: 45px;
+            font-size: 13px;
+            color: var(--text-muted);
+            border-top: 1px solid #edf2f7;
+            padding-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="policy-card">
+        <span class="date-badge">Last Updated: October 2023</span>
+        <h1>Privacy Policy</h1>
+
+        <p>This Privacy Policy covers <strong>PuzzleDrop</strong> and other simple, non-commercial mini-games and hobby
+            projects developed by us and hosted statically via GitHub Pages.</p>
+
+        <p>These projects are built strictly for fun, personal learning, and portfolio display. They are completely free
+            to use, run entirely in your web browser, and contain no ads or commercial monetization.</p>
+
+        <div class="zero-data-badge">
+            <strong>🔒 Zero Data Collection Policy</strong>
+            <span>We do not collect, store, track, or share any personal data, analytical metrics, or browser history.
+                Because our projects are completely static, there is no server database or backend registering your
+                information.</span>
+        </div>
+
+        <h2>1. Local Integrations (e.g., Pinterest API)</h2>
+        <p>Some of our visual projects, like PuzzleDrop, allow you to find or link public images (using tools like the
+            Pinterest API) to convert them into interactive puzzles.</p>
+        <ul>
+            <li><strong>Browser-Only Operations:</strong> All API requests and image manipulations happen live in your
+                browser window.</li>
+            <li><strong>No Saving:</strong> We do not download, duplicate, or store your image URLs or search queries to
+                any external host.</li>
+            <li><strong>Third Parties:</strong> Interactions with third-party APIs are subject to their respective terms
+                and privacy behaviors.</li>
+        </ul>
+
+        <h2>2. Cookies and Trackers</h2>
+        <p>Our static game pages do not load tracking pixels, analytic cookies (such as Google Analytics), or behavioral
+            trackers.</p>
+
+        <h2>3. Static Hosting via GitHub</h2>
+        <p>Our pages run on GitHub Pages. GitHub may log standard network requests (like IP addresses) solely to ensure
+            hosting security and platform performance. This remains bound to the standard GitHub Privacy Statement.</p>
+
+        <h2>4. Family-Safe</h2>
+        <p>Because there is absolute zero data harvest or tracking, our simple projects are completely safe and private
+            for players of all ages.</p>
+
+        <h2>5. Let's Connect!</h2>
+        <p>If you have any questions or feedback about our mini-games, feel free to drop a line:</p>
+        <p><strong>Email:</strong> <a href="mailto:bienepie@gmail.com">bienepie@gmail.com</a></p>
+
+        <div class="footer">
+            <p>&copy; 2023 PuzzleDrop &amp; Mini Games. Designed with care.</p>
+        </div>
+    </div>
+
+</body>
+
+</html>
