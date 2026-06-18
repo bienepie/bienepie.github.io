@@ -327,7 +327,7 @@
   .game-controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 100%; flex-shrink: 0; }
   .game-controls .btn { padding: 8px 4px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 4px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #btn-reset-board { grid-column: span 1; }
-  #btn-solve { grid-column: span 2; }
+  #btn-solve { grid-column: span 1; }
 
   .progress-bar-wrap { width: 100%; display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
   .progress-label { display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 600; color: var(--text); }
@@ -470,7 +470,7 @@
 <header>
   <div style="display: flex; align-items: center; gap: 12px;">
     <div class="logo" id="logo-btn" title="Return to Main Menu">PuzzleDrop</div>
-    <button id="theme-toggle" title="Toggle Theme">☀️</button>
+    <button id="theme-toggle" class="theme-toggle-btn" title="Toggle Theme">☀️</button>
   </div>
   <div class="header-stats">
     <div class="stat"><span class="stat-val" id="hdr-time">00:00</span><span>time</span></div>
@@ -560,6 +560,7 @@
 
   <!-- FOOTER -->
   <div class="site-footer">
+    <button class="btn theme-toggle-btn" style="margin-bottom: 12px; font-size: 0.8rem; padding: 6px 16px;">☀️ Light Mode</button><br>
     PuzzleDrop &copy; 2025 | <a href="https://bienepie.github.io/PrivacyPolicy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
   </div>
 </div>
@@ -581,6 +582,7 @@
 
       <div class="game-controls">
         <button class="btn" id="btn-new">← Back</button>
+        <button class="btn theme-toggle-btn game-theme-btn">☀️ Theme</button>
         <button class="btn" id="btn-shuffle">🔀 Shuffle</button>
         <button class="btn" id="btn-hint" title="Hold to see image">👁️ Hint</button>
         <button class="btn btn-danger" id="btn-reset-board" title="Reset all pieces to tray">🔄 Reset</button>
@@ -1536,39 +1538,51 @@ document.getElementById('win-replay').addEventListener('click', () => {
 function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
 
 // ── THEME SWITCHER LOGIC ──
-// Ensure saved theme is loaded before button initializes
 if (localStorage.getItem('theme') === 'light') {
   document.body.classList.remove('dark');
 } else if (localStorage.getItem('theme') === 'dark') {
   document.body.classList.add('dark');
 }
 
-const themeToggle = document.getElementById('theme-toggle');
+const themeToggleBtns = document.querySelectorAll('.theme-toggle-btn');
+
+function updateThemeButtons() {
+  const isDark = document.body.classList.contains('dark');
+  themeToggleBtns.forEach(btn => {
+    if (btn.id === 'theme-toggle') {
+      btn.textContent = isDark ? '☀️' : '🌙'; // Header icon-only
+    } else if (btn.classList.contains('game-theme-btn')) {
+      btn.textContent = isDark ? '☀️ Theme' : '🌙 Theme'; // Game controls compact
+    } else {
+      btn.textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode'; // Footer full text
+    }
+  });
+}
 
 function setTheme(mode) {
   if (mode === 'dark') {
     document.body.classList.add('dark');
     localStorage.setItem('theme', 'dark');
-    if (themeToggle) themeToggle.textContent = '☀️'; // Change button to sun icon
   } else {
     document.body.classList.remove('dark');
     localStorage.setItem('theme', 'light');
-    if (themeToggle) themeToggle.textContent = '🌙'; // Change button to moon icon
   }
+  updateThemeButtons();
 }
 
-// Initial icon setup on page load
-if (themeToggle) {
-  themeToggle.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
-  
-  themeToggle.addEventListener('click', () => {
+// Initial setup on page load
+updateThemeButtons();
+
+// Bind event to all theme toggle buttons everywhere on the page
+themeToggleBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
     if (document.body.classList.contains('dark')) {
       setTheme('light');
     } else {
       setTheme('dark');
     }
   });
-}
+});
 </script>
 </body>
 </html>
