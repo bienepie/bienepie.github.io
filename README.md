@@ -4,7 +4,8 @@
 
 🌐 **Live site:** https://bienepie.github.io/
 
-**2** pages:
+**3** pages:
 
 - [PuzzelDrop](https://bienepie.github.io/PuzzelDrop/)
+- [SplitIt](https://bienepie.github.io/SplitIt/)
 - [Ta3reesometer](https://bienepie.github.io/Ta3reesometer/)
