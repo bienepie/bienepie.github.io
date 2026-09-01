@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4fc9d8">
+<title>قسّمها · Split It</title>
+<style>
+  :root{
+    --water:#8fe6ee; --water2:#4fc9d8; --deep:#22aec2;
+    --deck:#fbd3e1; --deck-line:#fff;
+    --card:#ffffff; --card2:#f3fcfd; --line:#d5f0f4; --line2:#bfe6ec;
+    --text:#0f3f4a; --muted:#5b8891;
+    --pink:#f38fb5; --pink2:#f7b3cc; --pink-soft:#fde6ef; --pink-text:#c2447a;
+    --yellow:#ffd76a; --yellow2:#ffe59a; --yellow-soft:#fff5d1; --yellow-text:#8a6200;
+    --accent:#1fa9bd; --accent-soft:#dff7fa; --num:#1fa9bd;
+    --danger:#e2537f; --warn:#c77a00; --warn-soft:#fff4d6;
+    --shadow:0 10px 28px rgba(31,140,160,.20);
+    --caustic:rgba(255,255,255,.55);
+    --hero-text:#fff; --hero-shadow:#1fa9bd;
+  }
+  html[data-theme=dark]{
+    --water:#2C4972; --water2:#1C273E; --deep:#11141B;
+    --deck:#2f3653; --deck-line:#3d4766;
+    --card:#1C273E; --card2:#182238; --line:#2C4972; --line2:#3a5a86;
+    --text:#eaf2fb; --muted:#8FACCB;
+    --pink:#f38fb5; --pink2:#f7b3cc; --pink-soft:#3b2a45; --pink-text:#ffb8d3;
+    --yellow:#ffd76a; --yellow2:#ffe59a; --yellow-soft:#3d3626; --yellow-text:#ffe08a;
+    --accent:#8FACCB; --accent-soft:#2C4972; --num:#ffd76a;
+    --danger:#ff8fb1; --warn:#ffc65c; --warn-soft:#3d3626;
+    --shadow:0 12px 30px rgba(0,0,0,.45);
+    --caustic:rgba(143,172,203,.28);
+    --hero-text:#eaf2fb; --hero-shadow:#11141B;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;font-family:"Segoe UI",Tahoma,"Noto Sans Arabic",Arial,sans-serif;color:var(--text);line-height:1.5;
+    background:linear-gradient(170deg,var(--water) 0%,var(--water2) 55%,var(--deep) 100%) fixed;min-height:100vh;display:flex;flex-direction:column}
+  button,input,select{font:inherit}
+  button{cursor:pointer;border:0;background:transparent;color:inherit}
+  ::selection{background:var(--pink);color:#fff}
+  svg.i{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
+  /* ---------- الهيدر ---------- */
+  .hero{position:relative;overflow:hidden;isolation:isolate}
+  .hero svg.art{position:absolute;inset:0;width:100%;height:100%;z-index:-1}
+  .hero-inner{max-width:1100px;margin:0 auto;padding:26px 20px 26px;display:flex;flex-direction:column;gap:18px;min-height:300px;justify-content:space-between}
+  .title{font-size:clamp(38px,8vw,72px);font-weight:900;line-height:1.05;margin:0;color:var(--hero-text);letter-spacing:1px;
+    text-shadow:0 4px 0 var(--hero-shadow),0 10px 22px rgba(0,0,0,.18);transform:rotate(-3deg);transform-origin:right bottom;display:inline-block}
+  .title small{display:block;font-size:.36em;font-weight:800;letter-spacing:3px}
+  .subtitle{margin:10px 0 0;color:var(--hero-text);font-size:14px;opacity:.95;text-shadow:0 1px 3px rgba(0,0,0,.25);max-width:520px}
+  .toolbar{display:flex;gap:8px;align-items:center}
+  .tool{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.92);color:var(--text);display:grid;place-items:center;box-shadow:var(--shadow);font-size:18px}
+  html[data-theme=dark] .tool{background:rgba(28,39,62,.92)}
+  .tool svg.i{width:20px;height:20px}
+
+  /* ---------- الأقسام ---------- */
+  main{max-width:1100px;width:100%;margin:-14px auto 0;padding:0 14px 20px;position:relative;flex:1}
+  .card{background:var(--card);border-radius:22px;padding:18px;margin-bottom:16px;box-shadow:var(--shadow)}
+  .card > h2{margin:0 0 12px;font-size:17px;font-weight:800;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .card > h2 .t{display:flex;align-items:center;gap:10px}
+  .badge-n{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--pink);color:#fff;font-size:13px;box-shadow:0 3px 0 var(--pink-text)}
+  .hint{font-size:12.5px;color:var(--muted)}
+  .row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+  .field{display:flex;flex-direction:column;gap:4px;min-width:140px;flex:1}
+  .field label{font-size:12.5px;color:var(--muted);font-weight:700}
+  .inp{position:relative}
+  .inp span{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:700;pointer-events:none}
+  input[type=text],input[type=number],select{width:100%;padding:9px 12px;border:2px solid var(--line);border-radius:12px;background:var(--card2);color:var(--text);min-height:42px}
+  input[type=number]{padding-left:34px;font-weight:800;font-size:16px}
+  input:focus,select:focus{outline:0;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .btn{border-radius:999px;padding:8px 16px;background:var(--accent);color:#fff;font-weight:800;display:inline-flex;align-items:center;gap:6px;box-shadow:0 3px 0 rgba(0,0,0,.12);min-height:38px}
+  html[data-theme=dark] .btn{color:#11141B}
+  .btn:active{transform:translateY(2px);box-shadow:none}
+  .btn.pink{background:var(--pink);color:#fff}
+  .btn.yellow{background:var(--yellow);color:#5a3f00}
+  .btn.ghost{background:var(--line);color:var(--text);box-shadow:none}
+  .btn.sm{padding:5px 12px;min-height:30px;font-size:12.5px;box-shadow:none}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin-top:12px}
+  .stat{border-radius:16px;padding:10px 14px;background:var(--accent-soft)}
+  .stat .l{font-size:12px;color:var(--muted);font-weight:700}
+  .stat .v{font-size:21px;font-weight:900;color:var(--num);line-height:1.2}
+  .stat .v small{font-size:12px;font-weight:700;opacity:.8}
+  .stat.pink{background:var(--pink-soft)} .stat.pink .v{color:var(--pink-text)}
+  .stat.yellow{background:var(--yellow-soft)} .stat.yellow .v{color:var(--yellow-text)}
+  .stat.warn{background:var(--warn-soft)} .stat.warn .v{color:var(--warn);font-size:14px}
+  .x{color:var(--danger);font-size:20px;line-height:1;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;flex:none}
+  .x:hover{background:var(--pink-soft)}
+  .empty-state{text-align:center;padding:18px 10px;color:var(--muted);border:2px dashed var(--line2);border-radius:16px;font-size:13px}
+
+  /* ---------- البروفايلات ---------- */
+  .tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px;scrollbar-width:thin}
+  .tab{flex:none;padding:8px 16px;border-radius:999px;background:var(--card2);border:2px solid var(--line);font-weight:800;white-space:nowrap;color:var(--muted);font-size:14px}
+  .tab.active{background:var(--pink);border-color:var(--pink);color:#fff;box-shadow:0 4px 12px rgba(243,143,181,.4)}
+  .tab.add{border-style:dashed;background:transparent}
+  .prof-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
+  .prof-row input{flex:1;min-width:160px;font-weight:800}
+  .prof-row input[type=date]{flex:0 0 auto;width:auto;min-width:150px;padding:8px 10px;border:2px solid var(--line);border-radius:12px;background:var(--card2);color:var(--text);min-height:42px;font-weight:700}
+
+  /* ---------- التكاليف ---------- */
+  .costs{display:flex;flex-direction:column;gap:6px}
+  .cost{display:grid;grid-template-columns:1fr 150px auto 32px;gap:6px;align-items:center}
+  .cost input{min-height:38px;padding:7px 10px;border-radius:10px}
+  .cost .inp input{padding-left:30px}
+  .cost .opt{font-size:12px;font-weight:700;color:var(--muted);display:inline-flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;padding:0 4px}
+  .cost .opt input{accent-color:var(--yellow);width:16px;height:16px;min-height:0}
+  .cost .opt.on{color:var(--yellow-text)}
+
+  /* ---------- المجموعات والصفوف ---------- */
+  .groups{display:flex;flex-direction:column;gap:10px}
+  .group{border:2px solid var(--line);border-radius:16px;background:var(--card2);overflow:hidden}
+  .group.over{border-color:var(--pink);box-shadow:0 0 0 3px var(--pink-soft)}
+  .ghead{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--card);cursor:pointer;user-select:none}
+  .ghead .chev{width:26px;height:26px;display:grid;place-items:center;color:var(--muted);transition:.2s;flex:none}
+  .group.closed .ghead .chev{transform:rotate(90deg)}
+  .ghead input{flex:1;border:0;background:transparent;font-weight:800;padding:4px 6px;min-height:0;border-radius:8px;min-width:80px}
+  .ghead input:focus{background:var(--card2);box-shadow:none}
+  .ghead .gname{flex:1;font-weight:800;padding:4px 6px}
+  .ghead .cnt{font-size:12px;color:var(--muted);background:var(--line);border-radius:999px;padding:1px 9px;font-weight:700}
+  .ghead .gsum{font-weight:800;color:var(--num);white-space:nowrap;font-size:14px}
+  .gbody{display:flex;flex-direction:column;padding:6px;gap:4px;min-height:34px}
+  .group.closed .gbody{display:none}
+  .gbody:empty::after{content:"اسحب أشخاص لهون أو اضغط + شخص";display:block;text-align:center;color:var(--muted);font-size:12px;padding:6px}
+  .prow{background:var(--card);border-radius:12px;padding:4px 6px;border:2px solid transparent}
+  .prow.dragging{opacity:.35}
+  .drop-ph{height:0;border-top:3px solid var(--pink);border-radius:2px;margin:2px 6px;pointer-events:none}
+  #drag-ghost{position:fixed;left:0;top:0;pointer-events:none;z-index:9999;transform:translate(-50%,-50%) rotate(-2deg);
+    background:var(--card);color:var(--text);border-radius:999px;padding:6px 14px 6px 8px;font-weight:800;box-shadow:0 12px 28px rgba(0,0,0,.28);display:none;align-items:center;gap:8px;white-space:nowrap}
+  .prow.off{opacity:.5}
+  .prow.off .name{text-decoration:line-through}
+  .pl{display:grid;grid-template-columns:24px 30px 1fr auto auto auto auto auto 32px;gap:6px;align-items:center}
+  .pl select.grp{padding:5px 8px;min-height:32px;border-radius:9px;font-size:12.5px;width:auto;border-width:1px;max-width:130px}
+  .handle{cursor:grab;color:var(--line2);display:grid;place-items:center;touch-action:none;height:36px}
+  .handle:active{cursor:grabbing}
+  .avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:900;color:#fff;font-size:13px;box-shadow:inset 0 -3px 0 rgba(0,0,0,.15)}
+  .pl input.name{border:0;background:transparent;font-weight:800;padding:6px 6px;min-height:36px;border-radius:8px}
+  .pl input.name:focus{background:var(--card2);box-shadow:none}
+  .pl select.mode{padding:5px 8px;min-height:32px;border-radius:9px;font-size:12.5px;width:auto;border-width:1px}
+  .opts{display:flex;gap:4px;flex-wrap:wrap}
+  .ob{border-radius:999px;padding:4px 10px;font-size:12px;font-weight:800;background:var(--line);color:var(--muted);opacity:.6;text-decoration:line-through;min-height:28px}
+  .ob.on{background:var(--yellow);color:#5a3f00;opacity:1;text-decoration:none}
+  .ob:disabled{opacity:.25;cursor:not-allowed}
+  .ib{width:34px;height:32px;border-radius:9px;display:grid;place-items:center;color:var(--muted);background:var(--line);opacity:.6}
+  .ib.st{opacity:1}
+  .ib.st.in{color:#fff;background:var(--accent)}
+  html[data-theme=dark] .ib.st.in{color:#11141B}
+  .ib.st.maybe{color:#5a3f00;background:var(--yellow)}
+  .ib.st.out{opacity:.6}
+  .prow.maybe{border:2px dashed var(--yellow)}
+  .amt.maybe{color:var(--yellow-text)}
+  .amt.back{color:#1f9d6a}
+  html[data-theme=dark] .amt.back{color:#6ee7b7}
+  .tag.maybe{background:var(--yellow-soft);color:var(--yellow-text)}
+  h3.sub{font-size:15px;font-weight:800;margin:16px 0 8px;display:flex;flex-wrap:wrap;gap:8px;align-items:baseline}
+  .res.tent{grid-template-columns:auto 1fr auto auto}
+  .res.tent .det{grid-column:1/3}
+  .res.tent.came,.res.refund.came{background:var(--yellow-soft)}
+  .sw{display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:12.5px;font-weight:700;color:var(--muted);user-select:none;white-space:nowrap}
+  .sw input{position:absolute;opacity:0;width:0;height:0}
+  .sw .knob{width:40px;height:22px;border-radius:11px;background:var(--line2);position:relative;transition:.2s;flex:none}
+  .sw .knob::after{content:"";position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .sw:has(input:checked) .knob{background:var(--pink)} .sw:has(input:checked) .knob::after{right:21px} .sw:has(input:checked){color:var(--text)}
+  .total-row.green{background:linear-gradient(135deg,#34d399,#1fa9bd)}
+  .amt{text-align:left;white-space:nowrap;font-weight:900;color:var(--num);font-size:15px;min-width:74px}
+  .amt small{display:block;font-size:11px;color:var(--muted);font-weight:700}
+  .cover{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:2px 6px 6px 36px}
+  .cover select{width:auto;padding:5px 8px;min-height:32px;border-radius:9px;font-size:12.5px;border-width:1px}
+  details.pick-box{flex:1;min-width:200px;border:1px solid var(--line2);border-radius:9px;background:var(--card2)}
+  details.pick-box summary{cursor:pointer;list-style:none;padding:5px 10px;display:flex;align-items:center;gap:8px;font-size:12.5px}
+  details.pick-box summary::-webkit-details-marker{display:none}
+  details.pick-box summary .arrow{transition:.2s;color:var(--muted);font-size:10px}
+  details.pick-box[open] summary .arrow{transform:rotate(-90deg)}
+  details.pick-box summary .sum{flex:1;font-weight:700}
+  details.pick-box summary .sum.empty{color:var(--danger)}
+  details.pick-box .body{padding:6px 10px 8px;display:flex;flex-direction:column;gap:5px;border-top:1px dashed var(--line2)}
+  .pick{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+  .pick .lbl{font-size:12px;color:var(--muted);min-width:50px;font-weight:700}
+  .pick label{background:var(--line);border-radius:999px;padding:3px 9px;font-size:12.5px;display:flex;gap:5px;align-items:center;cursor:pointer}
+  .pick label input{accent-color:var(--pink);margin:0}
+  .pick label.on{background:var(--accent-soft);color:var(--accent);font-weight:800}
+  .pick label.g.on{background:var(--pink-soft);color:var(--pink-text)}
+  .err{color:var(--danger);font-size:12px;font-weight:700;width:100%}
+
+  /* ---------- النتيجة ---------- */
+  .results{display:flex;flex-direction:column;gap:6px}
+  .res{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;padding:8px 12px;border-radius:14px;background:var(--card2)}
+  .res .name{font-weight:800;display:flex;align-items:center;gap:8px}
+  .res .bar{grid-column:1/-1;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+  .res .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--pink),var(--yellow));border-radius:3px}
+  .res .amt{font-size:17px}
+  .res .det{font-size:12px;color:var(--muted)}
+  .tag{display:inline-block;font-size:11px;padding:1px 9px;border-radius:999px;background:var(--line);color:var(--muted);font-weight:800;white-space:nowrap}
+  .tag.self{background:var(--accent-soft);color:var(--accent)}
+  .tag.covered{background:var(--pink-soft);color:var(--pink-text)}
+  .tag.exempt{background:var(--yellow-soft);color:var(--yellow-text)}
+  .total-row{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-radius:16px;background:linear-gradient(135deg,var(--pink),var(--yellow));color:#fff;font-weight:900;font-size:18px;margin-top:4px;text-shadow:0 1px 2px rgba(0,0,0,.2)}
+  details.how{margin-top:12px;font-size:13px;color:var(--muted)}
+  details.how summary{cursor:pointer;font-weight:700;color:var(--accent)}
+  details.how ul{margin:6px 0 0;padding-right:18px}
+  #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--card);padding:10px 20px;border-radius:999px;font-size:14px;font-weight:700;opacity:0;transition:.3s;pointer-events:none;z-index:9}
+  #toast.show{opacity:1;transform:translateX(-50%)}
+
+  /* ---------- الفوتر ---------- */
+  .site-footer{width:100%;text-align:center;padding:24px 16px 18px;margin-top:auto;font-size:.8rem;color:rgba(255,255,255,.85)}
+  .site-footer a{color:inherit;text-decoration:none;font-weight:600;transition:color .2s}
+  .site-footer a:hover{color:var(--yellow);text-decoration:underline}
+
+  @media (max-width:640px){
+    .card{padding:14px;border-radius:18px}
+    .hero-inner{padding:170px 16px 18px;min-height:380px;justify-content:flex-end;gap:14px}
+    .toolbar{order:2}
+    .title{transform:rotate(-2deg)}
+    .subtitle{font-size:13px}
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .cost{grid-template-columns:1fr 100px 32px}
+    .cost .cname{grid-column:1;grid-row:1} .cost .inp{grid-column:2;grid-row:1} .cost .x{grid-column:3;grid-row:1}
+    .cost .opt{grid-column:1/-1;grid-row:2;justify-self:start;padding:0 2px}
+    .prof-row{flex-wrap:wrap} .prof-row input{min-width:0} .prof-row input[type=date]{flex:1;min-width:0}
+    .pl{grid-template-columns:28px auto 1fr auto;grid-template-rows:auto auto auto}
+    .pl .handle{grid-row:1/4}
+    .pl .avatar{grid-row:1}
+    .pl .name{grid-column:3;grid-row:1}
+    .pl .st{grid-column:4;grid-row:1}
+    .pl .mode{grid-column:2/3;grid-row:2;width:100%}
+    .pl .grp{grid-column:3/5;grid-row:2;max-width:none;width:100%}
+    .pl .opts{grid-column:2/4;grid-row:3}
+    .pl .amt{grid-column:4;grid-row:3;min-width:0}
+    .pl .x{display:none}
+    .cover{padding-right:10px}
+    .ghead .addp .lbl{display:none}
+    .ghead .addp{padding:4px 10px}
+    .res{grid-template-columns:1fr auto}
+    .res .det{grid-column:1/-1}
+    .res.tent{grid-template-columns:1fr auto}
+    .res.tent .det,.res.tent .sw{grid-column:1/-1}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <svg class="art" viewBox="0 0 1200 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="wg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--water)"/><stop offset="1" stop-color="var(--water2)"/></linearGradient>
+      <pattern id="tiles" width="34" height="34" patternUnits="userSpaceOnUse"><rect width="34" height="34" fill="var(--deck)"/><path d="M0 0H34V34" fill="none" stroke="var(--deck-line)" stroke-width="2"/></pattern>
+      <filter id="wob" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="38" xChannelSelector="R" yChannelSelector="G"/></filter>
+      <clipPath id="ballClip"><circle cx="0" cy="0" r="34"/></clipPath>
+    </defs>
+    <rect width="1200" height="420" fill="url(#wg)"/>
+    <g filter="url(#wob)" fill="none" stroke="var(--caustic)" stroke-width="5" stroke-linecap="round" opacity=".9">
+      <ellipse cx="300" cy="120" rx="90" ry="40"/><ellipse cx="520" cy="300" rx="110" ry="46"/><ellipse cx="760" cy="90" rx="80" ry="34"/><ellipse cx="950" cy="250" rx="120" ry="50"/>
+      <ellipse cx="1100" cy="80" rx="70" ry="30"/><ellipse cx="650" cy="200" rx="60" ry="26"/><ellipse cx="400" cy="380" rx="100" ry="40"/><ellipse cx="1050" cy="390" rx="90" ry="36"/>
+      <ellipse cx="180" cy="330" rx="70" ry="28"/><ellipse cx="850" cy="360" rx="60" ry="24"/><path d="M200 60 q60 -30 120 0 t120 0"/><path d="M600 380 q60 -30 120 0 t120 0"/>
+    </g>
+    <path d="M0 0 H330 C300 90 250 150 170 230 C120 280 60 300 0 320 Z" fill="url(#tiles)"/>
+    <path d="M330 0 C300 90 250 150 170 230 C120 280 60 300 0 320" fill="none" stroke="#fff" stroke-width="10" opacity=".95"/>
+    <g transform="translate(120 110) rotate(28)">
+      <rect x="-52" y="-30" width="104" height="60" rx="6" fill="var(--yellow)"/><rect x="-52" y="-30" width="104" height="8" fill="#fff" opacity=".8"/><rect x="-52" y="22" width="104" height="8" fill="#fff" opacity=".8"/><rect x="-52" y="-6" width="104" height="10" fill="#fff" opacity=".6"/>
+      <circle cx="-10" cy="4" r="8" fill="#22aec2" stroke="#fff" stroke-width="2"/><circle cx="10" cy="4" r="8" fill="#22aec2" stroke="#fff" stroke-width="2"/><path d="M-2 4 H2" stroke="#fff" stroke-width="2"/>
+    </g>
+    <g transform="translate(70 40)">
+      <circle r="78" fill="#fff"/>
+      <g fill="var(--pink)"><path d="M0 0 L78 0 A78 78 0 0 1 55.2 55.2 Z"/><path d="M0 0 L0 78 A78 78 0 0 1 -55.2 55.2 Z"/><path d="M0 0 L-78 0 A78 78 0 0 1 -55.2 -55.2 Z"/><path d="M0 0 L0 -78 A78 78 0 0 1 55.2 -55.2 Z"/></g>
+      <circle r="78" fill="none" stroke="#fff" stroke-width="3"/><circle r="6" fill="#fff"/>
+    </g>
+    <g transform="translate(60 265) rotate(-20)" fill="var(--pink)"><rect x="-9" y="-20" width="18" height="40" rx="9"/><rect x="14" y="-20" width="18" height="40" rx="9"/><path d="M0 -8 l-5 8 M0 -8 l5 8 M23 -8 l-5 8 M23 -8 l5 8" stroke="#fff" stroke-width="2" fill="none"/></g>
+    <g transform="translate(600 100)">
+      <ellipse cx="6" cy="14" rx="86" ry="78" fill="rgba(0,0,0,.10)"/>
+      <circle r="80" fill="none" stroke="var(--yellow)" stroke-width="34"/><circle r="80" fill="none" stroke="var(--yellow2)" stroke-width="10" stroke-dasharray="60 120" opacity=".7"/>
+      <circle r="40" fill="#fff"/><circle cx="-24" cy="-30" r="12" fill="#fff"/><circle cx="24" cy="-30" r="12" fill="#fff"/>
+      <circle cx="-24" cy="-30" r="5" fill="var(--pink2)"/><circle cx="24" cy="-30" r="5" fill="var(--pink2)"/>
+      <circle cx="-12" cy="-6" r="3.5" fill="#1C273E"/><circle cx="12" cy="-6" r="3.5" fill="#1C273E"/><ellipse cx="0" cy="6" rx="6" ry="4.5" fill="#1C273E"/>
+      <circle cx="-22" cy="8" r="6" fill="var(--pink2)" opacity=".8"/><circle cx="22" cy="8" r="6" fill="var(--pink2)" opacity=".8"/>
+    </g>
+    <g transform="translate(440 150)">
+      <ellipse cx="4" cy="8" rx="36" ry="32" fill="rgba(0,0,0,.10)"/>
+      <g clip-path="url(#ballClip)"><circle r="34" fill="#fff"/><path d="M0 0 L0 -40 A40 40 0 0 1 34.6 -20 Z M0 0 L34.6 20 A40 40 0 0 1 0 40 Z M0 0 L-34.6 20 A40 40 0 0 1 -34.6 -20 Z" fill="var(--pink)"/></g>
+      <circle r="34" fill="none" stroke="#fff" stroke-width="2"/><circle r="5" fill="var(--yellow)"/>
+    </g>
+    <g fill="#fff" opacity=".7"><circle cx="560" cy="80" r="3"/><circle cx="590" cy="60" r="2"/><circle cx="880" cy="330" r="3"/><circle cx="420" cy="230" r="2.5"/><circle cx="1150" cy="300" r="2"/></g>
+  </svg>
+  <div class="hero-inner">
+    <div class="toolbar">
+      <button class="tool" id="exportBtn" title="حفظ نسخة احتياطية (كل البروفايلات)"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg></button>
+      <button class="tool" id="importBtn" title="استرجاع نسخة احتياطية ودمجها"><svg class="i" viewBox="0 0 24 24"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg></button>
+      <button class="tool" id="themeBtn" title="الوضع الليلي / النهاري">🌙</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+    <div>
+      <h1 class="title">قسّمها<small>SPLIT IT · POOL PARTY</small></h1>
+      <p class="subtitle">قسّم أي مصروف جماعي بعدل: شاليه، رحلة، عشا، هدية… كل شي بينحفظ تلقائياً على جهازك.</p>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- البروفايلات -->
+  <section class="card">
+    <div class="tabs" id="tabs"></div>
+    <div class="prof-row">
+      <input type="text" id="profName" placeholder="اسم الحسبة (مثلاً: شاليه آب، رحلة العقبة)">
+      <input type="date" id="profDate" title="تاريخ الحسبة">
+      <button class="btn ghost sm" id="dupProfile" title="نسخة من هالحسبة بنفس الأشخاص">⧉ نسخ</button>
+      <button class="x" id="delProfile" title="حذف هالحسبة">×</button>
+    </div>
+  </section>
+
+  <!-- التكاليف -->
+  <section class="card">
+    <h2><span class="t"><span class="badge-n">١</span>التكاليف</span>
+      <span style="display:flex;gap:6px;align-items:center"><span class="field" style="flex:0 0 auto;min-width:0"><input type="number" id="maxPeople" min="1" step="1" inputmode="numeric" title="الحد الأقصى للأشخاص" style="width:120px;padding-left:12px;font-size:14px;min-height:36px"></span><span class="hint">حد الأشخاص</span><button class="btn yellow" id="addCost">＋ تكلفة</button></span></h2>
+    <div class="costs" id="costs"></div>
+    <div class="stats" id="costStats"></div>
+  </section>
+
+  <!-- الأشخاص -->
+  <section class="card">
+    <h2><span class="t"><span class="badge-n">٢</span>الأشخاص <span class="hint" id="countHint"></span></span>
+      <span style="display:flex;gap:6px"><button class="btn yellow" id="addGroup">＋ مجموعة</button><button class="btn pink" id="addPerson">＋ شخص</button></span></h2>
+    <div class="groups" id="groups"></div>
+    <p class="hint" style="margin:10px 0 0">اسحب من ⠿ لترتيب الأشخاص أو نقلهم بين المجموعات. اضغط على رأس المجموعة لطيّها.</p>
+  </section>
+
+  <!-- النتيجة -->
+  <section class="card">
+    <h2><span class="t"><span class="badge-n">٣</span>النتيجة النهائية</span></h2>
+    <div class="results" id="results"></div>
+    <div class="stats" id="resultStats"></div>
+    <div id="tentSec" hidden>
+      <h3 class="sub">غير مؤكدين <span class="hint">محسوبين برا الحسبة. لو حدا إجا باللحظة الأخيرة أشّر عليه</span></h3>
+      <div class="results" id="tent"></div>
+      <div id="refundSec" hidden>
+        <h3 class="sub">المرتجعات <span class="hint" id="refundHead"></span></h3>
+        <div class="results" id="refunds"></div>
+      </div>
+    </div>
+    <details class="how">
+      <summary>كيف بتنحسب؟</summary>
+      <ul>
+        <li>كل تكلفة بتنقسم بالتساوي على المشاركين غير المعفيين. التكلفة "الاختيارية" بتنقسم بس على الي مأشّرين عليها.</li>
+        <li>حصة الشخص المحاسب عنه بتتوزع بالتساوي على الي بيحاسبوا عنه.</li>
+        <li>الجبر: المجموع النهائي = أقرب عدد صحيح فوق المجموع الحقيقي. الزيادات بتروح لأصحاب الكسور الأكبر، والي حصتهم متساوية بيدفعوا نفس المبلغ.</li>
+        <li>الشخص المعطّل بيتجاهل تماماً بس بيضل موجود مشان ترجّعه بكبسة.</li>
+        <li>غير المؤكد ما بينحسب بالحصص. لو إجا باللحظة الأخيرة بيدفع نفس مبلغ أقرب شخص مؤكد لحصته المفترضة، وبعدين بيترجع الفرق للجميع (المؤكدين والي وصلوا) كل واحد حسب ما دفع، بحيث الباقي مع الكل بعد الإرجاع = التكاليف بالضبط (مع نفس قاعدة الجبر).</li>
+      </ul>
+    </details>
+  </section>
+</main>
+
+<div class="site-footer">قسّمها &copy; <span id="year"></span> | <a href="https://bienepie.github.io/PrivacyPolicy" target="_blank" rel="noopener noreferrer">Privacy Policy</a></div>
+<div id="toast"></div>
+<div id="drag-ghost"></div>
+
+<script>
+const KEY = 'splitit-v1';
+const OLD_KEY = 'chalet-split-v1';
+const THEME_KEY = 'chalet-split-theme';
+const COLORS = ['#f38fb5','#22aec2','#ffb347','#7c6ff2','#4fd1a5','#f26d6d','#5aa9e6','#e08ad6','#ffd76a','#59c3c3'];
+const ICON = {
+  power: '<svg class="i" viewBox="0 0 24 24"><path d="M12 3v9m6.4-5.4a9 9 0 11-12.8 0"/></svg>',
+  chev: '<svg class="i" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
+  grip: '<svg class="i" viewBox="0 0 24 24" style="stroke-width:0;fill:currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
+};
+const CUR = '₪';
+const STATUS = {
+  in:    { icon:'<svg class="i" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>', title:'مؤكد (اضغط: غير مؤكد)' },
+  maybe: { icon:'<span style="font-weight:900;font-size:16px">؟</span>', title:'غير مؤكد، مش محسوب بالحسبة (اضغط: تعطيل)' },
+  out:   { icon:'<svg class="i" viewBox="0 0 24 24"><path d="M12 3v9m6.4-5.4a9 9 0 11-12.8 0"/></svg>', title:'معطّل (اضغط: مؤكد)' },
+};
+const openPickers = new Set();
+
+/* ---------- أدوات ---------- */
+const $ = s => document.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2,9);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => Math.round(n).toLocaleString('en-US');
+const fmt2 = n => (Math.round(n*100)/100).toLocaleString('en-US');
+const pname = p => p.name?.trim() || 'بدون اسم';
+const cname = c => c.name?.trim() || 'تكلفة';
+const colorOf = p => COLORS[[...p.id].reduce((a,c) => a + c.charCodeAt(0), 0) % COLORS.length];
+const initial = p => (p.name?.trim() || '؟').slice(0,1);
+let toastT; function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200); }
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  $('#themeBtn').textContent = t === 'dark' ? '☀️' : '🌙';
+  document.querySelector('meta[name=theme-color]').content = t === 'dark' ? '#11141B' : '#4fc9d8';
+  try{ localStorage.setItem(THEME_KEY, t); }catch(e){}
+}
+
+/* ---------- البيانات ---------- */
+function normData(x){
+  x = x || {};
+  let costs = Array.isArray(x.costs) ? x.costs.filter(c => c && c.id).map(c => ({ id:String(c.id), name:String(c.name ?? ''), amount:+c.amount || 0, optional: !!c.optional })) : null;
+  const legacy = !costs;
+  if (legacy){ /* الصيغة القديمة: شاليه + مواصلات + إضافات */
+    costs = [];
+    if (x.chalet !== undefined || x.transport !== undefined){
+      costs.push({ id:'chalet', name:'الشاليه', amount:+x.chalet || 0, optional:false });
+      costs.push({ id:'transport', name:'المواصلات', amount:+x.transport || 0, optional:true });
+    }
+    (Array.isArray(x.extras) ? x.extras : []).forEach(e => { if (e && e.id) costs.push({ id:String(e.id), name:String(e.name ?? ''), amount:+e.amount || 0, optional:false }); });
+  }
+  return {
+    maxPeople: Math.max(1, Math.floor(+x.maxPeople) || 20),
+    ungroupedClosed: !!x.ungroupedClosed,
+    costs,
+    groups: Array.isArray(x.groups) ? x.groups.filter(g => g && g.id).map(g => ({ id:String(g.id), name:String(g.name ?? ''), closed: !!g.closed })) : [],
+    people: Array.isArray(x.people) ? x.people.filter(p => p && p.id).map(p => ({
+      id:String(p.id), name:String(p.name ?? ''), groupId:String(p.groupId ?? ''),
+      status: ['in','maybe','out'].includes(p.status) ? p.status : (p.active === false ? 'out' : 'in'),
+      arrived: !!p.arrived,
+      skip: Array.isArray(p.skip) ? p.skip.map(String) : (legacy && p.transport === false ? ['transport'] : []),
+      mode: ['self','covered','exempt'].includes(p.mode) ? p.mode : 'self',
+      coverAll: p.coverAll !== undefined ? !!p.coverAll : (p.coverType === 'all' || !p.coverType),
+      coverGroups: Array.isArray(p.coverGroups) ? p.coverGroups.map(String) : (p.coverType === 'group' && p.coverGroupId ? [String(p.coverGroupId)] : []),
+      coverPeople: Array.isArray(p.coverPeople) ? p.coverPeople.map(String) : [],
+    })) : []
+  };
+}
+function normProfile(p){
+  const createdAt = p?.createdAt || new Date().toISOString();
+  return { id: String(p?.id || uid()), name: String(p?.name ?? ''), createdAt, date: /^\d{4}-\d{2}-\d{2}$/.test(p?.date || '') ? p.date : createdAt.slice(0,10), data: normData(p?.data) };
+}
+function newProfile(name){ const now = new Date().toISOString(); return { id: uid(), name: name || '', createdAt: now, date: now.slice(0,10), data: normData({}) }; }
+function load(){
+  try{
+    const x = JSON.parse(localStorage.getItem(KEY));
+    if (x && Array.isArray(x.profiles) && x.profiles.length){
+      const profiles = x.profiles.map(normProfile);
+      return { profiles, activeId: profiles.some(p => p.id === x.activeId) ? x.activeId : profiles[0].id };
+    }
+  }catch(e){}
+  try{ /* ترحيل النسخة القديمة */
+    const old = JSON.parse(localStorage.getItem(OLD_KEY));
+    if (old && old.people){ const p = normProfile({ name:'رحلة الشاليه', data: old }); return { profiles:[p], activeId:p.id }; }
+  }catch(e){}
+  const p = newProfile('حسبتي الأولى'); return { profiles:[p], activeId:p.id };
+}
+let DB = load();
+let S = DB.profiles.find(p => p.id === DB.activeId).data;
+const prof = () => DB.profiles.find(p => p.id === DB.activeId);
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){} }
+function switchProfile(id){ DB.activeId = id; S = prof().data; openPickers.clear(); save(); renderAll(); }
+
+/* ---------- الحساب ---------- */
+const participates = (p, c) => p.mode !== 'exempt' && (!c.optional || !p.skip.includes(c.id));
+function payersOf(c, selfPayers){
+  if (c.coverAll) return selfPayers.filter(p => p.id !== c.id);
+  const ids = new Set(c.coverPeople);
+  selfPayers.forEach(p => { if (p.groupId && c.coverGroups.includes(p.groupId)) ids.add(p.id); });
+  ids.delete(c.id);
+  return selfPayers.filter(p => ids.has(p.id));
+}
+function core(active){
+  const counted = active.filter(p => p.mode !== 'exempt');
+  const total = S.costs.reduce((a,c) => a + (+c.amount || 0), 0);
+  const costInfo = S.costs.map(c => { const parts = counted.filter(p => participates(p, c)); return { c, n: parts.length, share: parts.length ? (+c.amount || 0) / parts.length : 0 }; });
+  const ownShare = p => costInfo.reduce((a,ci) => a + (participates(p, ci.c) ? ci.share : 0), 0);
+  const owed = {}, errors = {}, detail = {}, covers = {}, coverPart = {};
+  S.people.forEach(p => { owed[p.id] = 0; detail[p.id] = []; covers[p.id] = []; });
+  const selfPayers = active.filter(p => p.mode === 'self');
+  selfPayers.forEach(p => { owed[p.id] += ownShare(p); detail[p.id].push('حصته'); });
+  active.filter(p => p.mode === 'covered').forEach(c => {
+    const payers = payersOf(c, selfPayers);
+    if (!payers.length){ errors[c.id] = 'ما في حدا مؤكد بيدفع عن نفسه ضمن الاختيار، حصته مش محسوبة'; return; }
+    const part = ownShare(c) / payers.length; coverPart[c.id] = part;
+    payers.forEach(p => { owed[p.id] += part; detail[p.id].push(`عن ${pname(c)}`); covers[p.id].push(c.id); });
+    detail[c.id].push('بيحاسب عنه: ' + payers.map(pname).join('، '));
+  });
+  const exactSum = Object.values(owed).reduce((a,b) => a+b, 0);
+  const final = roundFair(owed);
+  const sum = Object.values(final).reduce((a,b) => a+b, 0);
+  return { total, counted: counted.length, costInfo, owed, final, sum, exactSum, errors, detail, covers, coverPart, shareFor: ownShare };
+}
+/* الجبر العادل: المجموع = سقف المجموع الحقيقي، الزيادات لأكبر الكسور، وأصحاب نفس الحصة بياخدوا نفس الرقم */
+function roundFair(exact){
+  const ids = Object.keys(exact);
+  const target = Math.ceil(ids.reduce((a,id) => a + exact[id], 0) - 1e-9);
+  const out = {}; ids.forEach(id => { out[id] = Math.floor(exact[id] + 1e-9); });
+  let deficit = target - ids.reduce((a,id) => a + out[id], 0);
+  const classes = [];
+  ids.forEach(id => {
+    const frac = exact[id] - Math.floor(exact[id] + 1e-9);
+    if (frac <= 1e-9) return;
+    let k = classes.find(k => Math.abs(k.v - exact[id]) < 1e-6);
+    if (!k){ k = { v: exact[id], frac, ids: [] }; classes.push(k); }
+    k.ids.push(id);
+  });
+  classes.sort((a,b) => (b.frac - a.frac) || (b.v - a.v));
+  for (const k of classes){ if (deficit <= 0) break; k.ids.forEach(id => out[id] += 1); deficit -= k.ids.length; }
+  return out;
+}
+function compute(){
+  const active = S.people.filter(p => p.status === 'in');
+  const R = core(active);
+  /* غير المؤكدين: لو إجا بيدفع مثل شخص مؤكد بنفس المعطيات (المجموعة، التكاليف الاختيارية، عن مين بيدفع)،
+     ولو ما في تطابق كامل بنوخد الأقرب بالمعطيات وبعدين الأقرب بالمبلغ */
+  const payers = active.filter(p => p.mode === 'self' && R.final[p.id] > 0);
+  const skipKey = p => S.costs.filter(c => c.optional && !p.skip.includes(c.id)).map(c => c.id).sort().join(',');
+  R.tent = S.people.filter(p => p.status === 'maybe').map(t => {
+    const tt = { ...t, mode: t.mode === 'exempt' ? 'exempt' : 'self' };
+    /* عن مين رح يدفع لو إجا */
+    const wouldCover = active.filter(c => c.mode === 'covered' && !R.errors[c.id] && (c.coverAll || (t.groupId && c.coverGroups.includes(t.groupId)) || c.coverPeople.includes(t.id))).map(c => c.id);
+    const expected = tt.mode === 'exempt' ? 0 : R.shareFor(tt) + wouldCover.reduce((a,id) => a + (R.coverPart[id] || 0), 0);
+    const tKey = skipKey(tt), tCov = [...wouldCover].sort().join(',');
+    let near = null, best = null;
+    payers.forEach(p => {
+      const score = (skipKey(p) === tKey ? 4 : 0) + ([...R.covers[p.id]].sort().join(',') === tCov ? 2 : 0) + (p.groupId === t.groupId ? 1 : 0);
+      const dist = Math.abs(R.final[p.id] - expected);
+      if (!near || score > best.score || (score === best.score && dist < best.dist)){ near = p; best = { score, dist }; }
+    });
+    const reasons = [];
+    /* لازم يطابق بالتكاليف الاختيارية وبمين بيدفع عنه (هدول الي بيغيروا المبلغ)، والمجموعة للترجيح */
+    if (near && best.score < 6) near = null;
+    if (near){
+      reasons.push('نفس التكاليف الاختيارية');
+      reasons.push(tCov ? 'بيدفع عن نفس الأشخاص' : 'ما بيدفع عن حدا');
+      if (near.groupId === t.groupId) reasons.push('نفس المجموعة');
+    } else reasons.push('ما في حدا مؤكد بنفس المعطيات، فبيدفع حصته المحسوبة');
+    const pay = tt.mode === 'exempt' ? 0 : near ? R.final[near.id] : Math.ceil(expected);
+    return { p: t, owedT: expected, near, pay, reasons, wouldCover };
+  });
+  /* الترجيع الشامل: الكل (مؤكدين + الي وصلوا) بيرجعلهم حسب ما دفعوا، بحيث مجموع الصافي = التكاليف */
+  const arrivals = R.tent.filter(x => x.p.arrived);
+  R.collected = arrivals.reduce((a,x) => a + x.pay, 0);
+  const paid = {};
+  active.forEach(p => { if (R.final[p.id] > 0) paid[p.id] = R.final[p.id]; });
+  arrivals.forEach(x => { if (x.pay > 0) paid[x.p.id] = x.pay; });
+  const gross = Object.values(paid).reduce((a,b) => a+b, 0);            /* = R.sum + المحصّل */
+  const exactNet = {}; Object.keys(paid).forEach(id => { exactNet[id] = gross ? paid[id] * R.sum / gross : 0; });
+  const net = roundFair(exactNet);
+  R.refunds = Object.keys(paid).map(id => { const p = S.people.find(q => q.id === id); return { p, paid: paid[id], net: net[id], refund: paid[id] - net[id], arrived: arrivals.some(x => x.p === p) }; });
+  R.netSum = Object.values(net).reduce((a,b) => a+b, 0);
+  R.refundSum = R.collected - (R.netSum - R.sum);
+  return R;
+}
+
+/* ---------- الرسم: البروفايلات ---------- */
+function renderTabs(){
+  const box = $('#tabs'); box.innerHTML = '';
+  DB.profiles.forEach(p => {
+    const b = document.createElement('button'); b.className = 'tab' + (p.id === DB.activeId ? ' active' : '');
+    b.textContent = p.name.trim() || 'بدون اسم'; b.addEventListener('click', () => switchProfile(p.id)); box.appendChild(b);
+  });
+  const add = document.createElement('button'); add.className = 'tab add'; add.textContent = '＋ حسبة جديدة';
+  add.addEventListener('click', () => { const p = newProfile(''); DB.profiles.push(p); switchProfile(p.id); $('#profName').focus(); });
+  box.appendChild(add);
+  const pr = prof();
+  if (document.activeElement !== $('#profName')) $('#profName').value = pr.name;
+  $('#profDate').value = pr.date || '';
+  $('#delProfile').disabled = DB.profiles.length <= 1;
+}
+
+/* ---------- الرسم: التكاليف ---------- */
+function renderCosts(R){
+  $('#maxPeople').value = S.maxPeople;
+  const box = $('#costs'); box.innerHTML = '';
+  if (!S.costs.length) box.innerHTML = '<div class="empty-state">ما في تكاليف بعد. اضغط "＋ تكلفة" وضيف الشاليه، المواصلات، الأكل… أي شي.</div>';
+  S.costs.forEach(c => {
+    const el = document.createElement('div'); el.className = 'cost';
+    el.innerHTML = `<input type="text" class="cname" value="${esc(c.name)}" placeholder="اسم التكلفة (شاليه، مواصلات، أكل…)">
+      <div class="inp"><input type="number" class="camt" min="0" step="1" inputmode="numeric" value="${c.amount || ''}" placeholder="0"><span>${CUR}</span></div>
+      <label class="opt ${c.optional?'on':''}" title="بس الي مأشّرين عليها بالأشخاص بيدفعوها"><input type="checkbox" ${c.optional?'checked':''}>اختيارية</label>
+      <button class="x" title="حذف">×</button>`;
+    el.querySelector('.cname').addEventListener('input', e => { c.name = e.target.value; save(); renderPeople(); });
+    el.querySelector('.camt').addEventListener('input', e => { c.amount = +e.target.value || 0; save(); renderPeople(); });
+    el.querySelector('.opt input').addEventListener('change', e => { c.optional = e.target.checked; save(); renderAll(); });
+    el.querySelector('.x').addEventListener('click', () => { if (c.amount && !confirm(`حذف "${cname(c)}"؟`)) return; S.costs = S.costs.filter(y => y !== c); S.people.forEach(p => p.skip = p.skip.filter(id => id !== c.id)); save(); renderAll(); });
+    box.appendChild(el);
+  });
+  $('#costStats').innerHTML = `
+    <div class="stat"><div class="l">المجموع الكلي</div><div class="v">${fmt(R.total)} <small>${CUR}</small></div></div>
+    <div class="stat pink"><div class="l">محسوبين</div><div class="v">${R.counted}</div></div>
+    ${R.costInfo.map((ci,i) => `<div class="stat ${ci.c.optional?'yellow':'pink'}"><div class="l">حصة ${esc(cname(ci.c))} <span style="opacity:.7">(${ci.n})</span></div><div class="v">${fmt2(ci.share)} <small>${CUR}</small></div></div>`).join('')}`;
+}
+
+/* ---------- الرسم: الأشخاص ---------- */
+function coverSummary(p){
+  const parts = [];
+  p.coverGroups.forEach(id => { const g = S.groups.find(g => g.id === id); if (g) parts.push('👥 ' + (g.name || 'مجموعة')); });
+  p.coverPeople.forEach(id => { const o = S.people.find(x => x.id === id); if (o) parts.push(pname(o)); });
+  return parts.length ? parts.join('، ') : 'اضغط لاختيار الدافعين';
+}
+function personRow(p, R){
+  const el = document.createElement('div');
+  el.className = 'prow' + (p.status === 'out' ? ' off' : p.status === 'maybe' ? ' maybe' : ''); el.dataset.id = p.id;
+  const tent = p.status === 'maybe' ? R.tent.find(x => x.p === p) : null;
+  const pct = R.sum ? (R.final[p.id] / R.sum * 100) : 0;
+  const optCosts = S.costs.filter(c => c.optional);
+  let cover = '';
+  if (p.mode === 'covered'){
+    const others = S.people.filter(o => o.id !== p.id && o.mode === 'self' && o.status === 'in');
+    const empty = !p.coverGroups.length && !p.coverPeople.length;
+    cover = `<div class="cover">
+      <select data-k="coverAll"><option value="1" ${p.coverAll?'selected':''}>بيحاسب عنه الكل</option><option value="0" ${!p.coverAll?'selected':''}>مجموعات / أشخاص محددين</option></select>
+      ${!p.coverAll ? `<details class="pick-box" ${openPickers.has(p.id)?'open':''}>
+        <summary><span class="arrow">◀</span><span class="sum ${empty?'empty':''}">${esc(coverSummary(p))}</span></summary>
+        <div class="body">
+          <div class="pick"><span class="lbl">مجموعات</span>${S.groups.length ? S.groups.map(g => `<label class="g ${p.coverGroups.includes(g.id)?'on':''}"><input type="checkbox" data-pickg="${g.id}" ${p.coverGroups.includes(g.id)?'checked':''}>${esc(g.name||'مجموعة')}</label>`).join('') : '<span class="hint">ما في مجموعات</span>'}</div>
+          <div class="pick"><span class="lbl">أشخاص</span>${others.length ? others.map(o => `<label class="${p.coverPeople.includes(o.id)?'on':''}"><input type="checkbox" data-pickp="${o.id}" ${p.coverPeople.includes(o.id)?'checked':''}>${esc(pname(o))}</label>`).join('') : '<span class="hint">ما في أشخاص بيدفعوا عن نفسهم</span>'}</div>
+        </div></details>` : ''}
+      ${R.errors[p.id] ? `<span class="err">⚠ ${R.errors[p.id]}</span>` : ''}
+    </div>`;
+  }
+  el.innerHTML = `<div class="pl">
+      <span class="handle" title="اسحب للترتيب">${ICON.grip}</span>
+      <span class="avatar" style="background:${colorOf(p)}">${esc(initial(p))}</span>
+      <input type="text" class="name" value="${esc(p.name)}" placeholder="الاسم">
+      <select class="mode" data-k="mode">
+        <option value="self" ${p.mode==='self'?'selected':''}>بيدفع عن نفسه</option>
+        <option value="covered" ${p.mode==='covered'?'selected':''}>غيره بيحاسب عنه</option>
+        <option value="exempt" ${p.mode==='exempt'?'selected':''}>معفي (طفل)</option>
+      </select>
+      ${S.groups.length ? `<select class="grp" data-k="groupId" title="المجموعة"><option value="">بدون مجموعة</option>${S.groups.map(g => `<option value="${g.id}" ${g.id===p.groupId?'selected':''}>${esc(g.name||'مجموعة')}</option>`).join('')}</select>` : ''}
+      <div class="opts">${optCosts.map(c => `<button class="ob ${p.skip.includes(c.id)?'':'on'}" data-opt="${c.id}" title="${p.skip.includes(c.id)?'ما بيدفع':'بيدفع'} ${esc(cname(c))}" ${p.mode==='exempt'?'disabled':''}>${esc(cname(c))}</button>`).join('')}</div>
+      <button class="ib st ${p.status}" data-k="status" title="${STATUS[p.status].title}">${STATUS[p.status].icon}</button>
+      ${tent ? `<div class="amt maybe" title="لو إجا باللحظة الأخيرة بيدفع مثل ${tent.near ? esc(pname(tent.near)) : 'حصته'}">${fmt(tent.pay)} ${CUR}<small>لو إجا${tent.near ? ' · مثل ' + esc(pname(tent.near)) : ' · حصته'}</small></div>`
+             : `<div class="amt">${fmt(R.final[p.id])} ${CUR}<small>${pct.toFixed(1)}٪</small></div>`}
+      <button class="x" title="حذف نهائي">×</button>
+    </div>${cover}`;
+  el.querySelector('.name').addEventListener('input', e => { p.name = e.target.value; el.querySelector('.avatar').textContent = initial(p); save(); renderResult(); });
+  el.querySelectorAll('[data-opt]').forEach(b => b.addEventListener('click', () => { const id = b.dataset.opt; p.skip = p.skip.includes(id) ? p.skip.filter(x => x !== id) : [...p.skip, id]; save(); renderAll(); }));
+  el.querySelector('[data-k=status]').addEventListener('click', () => { p.status = p.status === 'in' ? 'maybe' : p.status === 'maybe' ? 'out' : 'in'; if (p.status !== 'maybe') p.arrived = false; save(); renderAll(); });
+  el.querySelectorAll('select').forEach(sel => sel.addEventListener('change', e => {
+    const k = e.target.dataset.k;
+    if (k === 'coverAll'){ p.coverAll = e.target.value === '1'; if(!p.coverAll) openPickers.add(p.id); }
+    else { p[k] = e.target.value; if (p.mode === 'covered' && !p.coverAll) openPickers.add(p.id); }
+    save(); renderAll();
+  }));
+  const det = el.querySelector('details.pick-box');
+  if (det) det.addEventListener('toggle', () => { det.open ? openPickers.add(p.id) : openPickers.delete(p.id); });
+  el.querySelectorAll('[data-pickg]').forEach(cb => cb.addEventListener('change', e => { const id = e.target.dataset.pickg; if (e.target.checked) p.coverGroups.push(id); else p.coverGroups = p.coverGroups.filter(x => x !== id); save(); renderAll(); }));
+  el.querySelectorAll('[data-pickp]').forEach(cb => cb.addEventListener('change', e => { const id = e.target.dataset.pickp; if (e.target.checked) p.coverPeople.push(id); else p.coverPeople = p.coverPeople.filter(x => x !== id); save(); renderAll(); }));
+  el.querySelector('.x').addEventListener('click', () => {
+    if (!confirm(`حذف ${pname(p)} نهائياً؟ (للتعطيل المؤقت استخدم زر الحالة)`)) return;
+    S.people = S.people.filter(x => x !== p); S.people.forEach(o => { o.coverPeople = o.coverPeople.filter(x => x !== p.id); }); save(); renderAll();
+  });
+  bindDrag(el, p);
+  return el;
+}
+function groupBlock(g, members, R){
+  const el = document.createElement('div');
+  const closed = g ? g.closed : S.ungroupedClosed;
+  el.className = 'group' + (closed ? ' closed' : ''); el.dataset.gid = g ? g.id : '';
+  const gsum = members.filter(p => p.status === 'in').reduce((a,p) => a + R.final[p.id], 0);
+  el.innerHTML = `<div class="ghead">
+      <span class="chev">${ICON.chev}</span>
+      ${g ? `<input type="text" value="${esc(g.name)}" placeholder="اسم المجموعة">` : `<span class="gname">بدون مجموعة</span>`}
+      <span class="cnt">${members.length}</span>
+      <span class="gsum">${fmt(gsum)} ${CUR}</span>
+      <button class="btn sm pink addp" title="إضافة شخص لهاي المجموعة">＋<span class="lbl"> شخص</span></button>
+      ${g ? `<button class="x" title="حذف المجموعة (الأشخاص بيرجعوا بدون مجموعة)">×</button>` : ''}
+    </div><div class="gbody"></div>`;
+  const body = el.querySelector('.gbody');
+  members.forEach(p => body.appendChild(personRow(p, R)));
+  const head = el.querySelector('.ghead');
+  head.addEventListener('click', e => {
+    if (e.target.closest('input,button')) return;
+    if (g) g.closed = !g.closed; else S.ungroupedClosed = !S.ungroupedClosed;
+    el.classList.toggle('closed'); save();
+  });
+  if (g){
+    head.querySelector('input').addEventListener('input', e => { g.name = e.target.value; save(); renderResult(); });
+    head.querySelector('.x').addEventListener('click', () => {
+      if (!confirm(`حذف مجموعة "${g.name || 'مجموعة'}"؟ الأشخاص ما بينحذفوا.`)) return;
+      S.groups = S.groups.filter(x => x !== g);
+      S.people.forEach(p => { if (p.groupId === g.id) p.groupId = ''; p.coverGroups = p.coverGroups.filter(x => x !== g.id); });
+      save(); renderAll();
+    });
+  }
+  head.querySelector('.addp').addEventListener('click', () => addPerson(g ? g.id : ''));
+  return el;
+}
+function renderPeople(){
+  const R = compute();
+  renderCosts(R);
+  const box = $('#groups'); box.innerHTML = '';
+  $('#countHint').textContent = `${S.people.length} / ${S.maxPeople}`;
+  const full = S.people.length >= S.maxPeople;
+  $('#addPerson').disabled = full;
+  S.groups.forEach(g => box.appendChild(groupBlock(g, S.people.filter(p => p.groupId === g.id), R)));
+  const ung = S.people.filter(p => !S.groups.some(g => g.id === p.groupId));
+  if (ung.length || !S.groups.length) box.appendChild(groupBlock(null, ung, R));
+  document.querySelectorAll('.ghead .addp').forEach(b => b.disabled = full);
+  renderResult(R);
+}
+function renderResult(R){
+  R = R || compute();
+  const box = $('#results'); box.innerHTML = '';
+  const modeName = { self:'<span class="tag self">بيدفع عن نفسه</span>', covered:'<span class="tag covered">محاسب عنه</span>', exempt:'<span class="tag exempt">معفي</span>' };
+  const shown = S.people.filter(p => p.status === 'in');
+  const maxV = Math.max(1, ...shown.map(p => R.final[p.id]));
+  [...shown].sort((a,b) => R.final[b.id] - R.final[a.id]).forEach(p => {
+    const pct = R.sum ? (R.final[p.id] / R.sum * 100) : 0;
+    const bits = [...R.detail[p.id]];
+    const g = S.groups.find(g => g.id === p.groupId); if (g) bits.unshift('👥 ' + (g.name || 'مجموعة'));
+    if (p.mode !== 'exempt') S.costs.filter(c => c.optional && p.skip.includes(c.id)).forEach(c => bits.push('بدون ' + cname(c)));
+    if (R.final[p.id] > 0 && Math.abs(R.owed[p.id] - R.final[p.id]) > 0.004) bits.push(`بالضبط ${fmt2(R.owed[p.id])}`);
+    const el = document.createElement('div'); el.className = 'res';
+    el.innerHTML = `<div class="name"><span class="avatar" style="background:${colorOf(p)}">${esc(initial(p))}</span>${esc(pname(p))} ${modeName[p.mode]||''}</div>
+      <div class="det">${esc(bits.join(' · '))}${R.errors[p.id] ? ` <span class="err">⚠ ${R.errors[p.id]}</span>` : ''}</div>
+      <div class="amt">${fmt(R.final[p.id])} ${CUR}<small>${pct.toFixed(1)}٪ من المجموع</small></div>
+      <div class="bar"><i style="width:${(R.final[p.id]/maxV*100).toFixed(1)}%"></i></div>`;
+    box.appendChild(el);
+  });
+  const offN = S.people.filter(p => p.status === 'out').length;
+  if (!shown.length) box.innerHTML = '<div class="empty-state">ما في مشاركين مؤكدين بالحسبة.</div>';
+  else box.insertAdjacentHTML('beforeend', `<div class="total-row"><span>المجموع${offN ? ` <span style="font-size:12px;opacity:.9">(${offN} معطّل)</span>` : ''}</span><span>${fmt(R.sum)} ${CUR}</span></div>`);
+  renderTentative(R);
+  const diff = R.sum - R.total, uncovered = Object.keys(R.errors).length;
+  $('#resultStats').innerHTML = `
+    <div class="stat"><div class="l">المجموع بعد الجبر</div><div class="v">${fmt(R.sum)} <small>${CUR}</small></div></div>
+    <div class="stat ${diff>0?'warn':'yellow'}"><div class="l">الفرق عن الأصلي</div><div class="v">${diff>0?'+':''}${fmt(diff)} <small>${CUR}</small></div></div>
+    ${uncovered ? `<div class="stat warn"><div class="l">تنبيه</div><div class="v">${uncovered} شخص محاسب عنه بدون دافع</div></div>` : ''}
+    ${!uncovered && diff < 0 ? `<div class="stat warn"><div class="l">تنبيه</div><div class="v">المجموع أقل من الأصلي</div></div>` : ''}`;
+}
+function renderTentative(R){
+  const sec = $('#tentSec'); const box = $('#tent'); const rbox = $('#refunds');
+  box.innerHTML = ''; rbox.innerHTML = '';
+  if (!R.tent.length){ sec.hidden = true; return; }
+  sec.hidden = false;
+  R.tent.forEach(x => {
+    const p = x.p;
+    const el = document.createElement('div'); el.className = 'res tent' + (p.arrived ? ' came' : '');
+    el.innerHTML = `<div class="name"><span class="avatar" style="background:${colorOf(p)}">${esc(initial(p))}</span>${esc(pname(p))} <span class="tag maybe">غير مؤكد</span></div>
+      <div class="det">حصته المتوقعة: ${fmt2(x.owedT)}${x.wouldCover.length ? ' (بيدفع عن ' + x.wouldCover.map(id => pname(S.people.find(q => q.id === id))).join('، ') + ')' : ''} · ${x.near ? `مثل ${esc(pname(x.near))} (${fmt(R.final[x.near.id])}): ${x.reasons.join('، ')}` : x.reasons.join('، ')}</div>
+      <div class="amt">${fmt(x.pay)} ${CUR}<small>بيدفع لو إجا</small></div>
+      <label class="sw"><input type="checkbox" ${p.arrived?'checked':''}><span class="knob"></span>${p.arrived ? 'إجا باللحظة الأخيرة ✔' : 'ما إجا'}</label>`;
+    el.querySelector('input').addEventListener('change', e => { p.arrived = e.target.checked; save(); renderAll(); });
+    box.appendChild(el);
+  });
+  const came = R.tent.filter(x => x.p.arrived);
+  if (!came.length){ $('#refundSec').hidden = true; return; }
+  $('#refundSec').hidden = false;
+  $('#refundHead').textContent = `المحصّل الكلي ${fmt(R.sum + R.collected)} ${CUR} (منها ${fmt(R.collected)} من ${came.map(x => pname(x.p)).join('، ')}) · التكاليف ${fmt(R.total)} ${CUR}`;
+  [...R.refunds].sort((a,b) => b.paid - a.paid).forEach(r => {
+    const el = document.createElement('div'); el.className = 'res refund' + (r.arrived ? ' came' : '');
+    el.innerHTML = `<div class="name"><span class="avatar" style="background:${colorOf(r.p)}">${esc(initial(r.p))}</span>${esc(pname(r.p))} ${r.arrived ? '<span class="tag maybe">إجا باللحظة الأخيرة</span>' : ''}</div>
+      <div class="det">دفع ${fmt(r.paid)} · بعد الإرجاع بيصير <b>${fmt(r.net)}</b></div>
+      <div class="amt back">${fmt(r.refund)} ${CUR}<small>بيرجعله</small></div>`;
+    rbox.appendChild(el);
+  });
+  const extra = R.netSum - R.sum;
+  rbox.insertAdjacentHTML('beforeend', `<div class="total-row green"><span>مجموع المرتجع${extra ? ` <span style="font-size:12px;opacity:.9">(باقي ${fmt(extra)} ${CUR} بسبب الجبر)</span>` : ''}</span><span>${fmt(R.refundSum)} ${CUR}</span></div>
+    <div class="total-row"><span>الباقي مع الجميع بعد الإرجاع${extra ? ` <span style="font-size:12px;opacity:.9">(التكاليف ${fmt(R.total)} + ${fmt(extra)} جبر)</span>` : ' = التكاليف'}</span><span>${fmt(R.netSum)} ${CUR}</span></div>`);
+}
+function renderAll(){ renderTabs(); renderPeople(); }
+
+/* ---------- السحب والإفلات (أسلوب PuzzelDrop: شبح ثابت + elementFromPoint + تنفيذ عند الإفلات) ---------- */
+const ghost = document.getElementById('drag-ghost');
+const ph = document.createElement('div'); ph.className = 'drop-ph';
+let dragRow = null;
+function showGhost(p, x, y){ ghost.innerHTML = `<span class="avatar" style="background:${colorOf(p)}">${esc(initial(p))}</span>${esc(pname(p))}`; ghost.style.display = 'flex'; moveGhost(x, y); }
+function moveGhost(x, y){ ghost.style.left = x + 'px'; ghost.style.top = y + 'px'; }
+function hideGhost(){ ghost.style.display = 'none'; }
+function clearTarget(){ ph.remove(); document.querySelectorAll('.group.over').forEach(g => g.classList.remove('over')); }
+function updateTarget(x, y){
+  if (y < 60) window.scrollBy(0, -10); else if (y > innerHeight - 60) window.scrollBy(0, 10);
+  const el = document.elementFromPoint(x, y); if (!el) return;
+  const grp = el.closest('.group'); if (!grp) return;
+  clearTarget(); grp.classList.add('over');
+  const row = el.closest('.prow');
+  if (row && row !== dragRow){ const r = row.getBoundingClientRect(); row.parentNode.insertBefore(ph, y < r.top + r.height/2 ? row : row.nextSibling); }
+  else if (!row){ grp.querySelector('.gbody').appendChild(ph); }
+}
+function commitDrop(){
+  const row = dragRow; dragRow = null; if (!row) return;
+  row.classList.remove('dragging'); hideGhost();
+  if (ph.parentNode) ph.parentNode.insertBefore(row, ph);
+  clearTarget();
+  const order = [];
+  document.querySelectorAll('#groups .group').forEach(g => g.querySelectorAll('.prow').forEach(r => { const p = S.people.find(x => x.id === r.dataset.id); if (p){ p.groupId = g.dataset.gid; order.push(p); } }));
+  S.people.forEach(p => { if (!order.includes(p)) order.push(p); });
+  S.people = order; save(); renderAll();
+}
+function bindDrag(row, p){
+  const handle = row.querySelector('.handle');
+  handle.addEventListener('pointerdown', e => {
+    if (e.button && e.button !== 0) return;
+    e.preventDefault();
+    dragRow = row; row.classList.add('dragging'); showGhost(p, e.clientX, e.clientY);
+    try{ handle.setPointerCapture(e.pointerId); }catch(err){}
+    const mv = ev => { ev.preventDefault(); moveGhost(ev.clientX, ev.clientY); updateTarget(ev.clientX, ev.clientY); };
+    const up = () => { handle.removeEventListener('pointermove', mv); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); commitDrop(); };
+    handle.addEventListener('pointermove', mv); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
+  });
+}
+
+/* ---------- نسخة احتياطية (كل البروفايلات) ---------- */
+$('#exportBtn').addEventListener('click', () => {
+  const data = JSON.stringify({ app:'splitit', version:2, exportedAt:new Date().toISOString(), profiles: DB.profiles }, null, 2);
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type:'application/json' }));
+  a.download = `splitit-${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000); toast(`تم حفظ ${DB.profiles.length} حسبة`);
+});
+$('#importBtn').addEventListener('click', () => $('#importFile').click());
+$('#importFile').addEventListener('change', e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const x = JSON.parse(r.result);
+      let incoming = [];
+      if (x && Array.isArray(x.profiles)) incoming = x.profiles.map(normProfile);
+      else if (x && Array.isArray(x.people)) incoming = [normProfile({ name: x.name || 'حسبة مستوردة', data: x })];
+      else throw new Error('bad');
+      if (!incoming.length) throw new Error('bad');
+      incoming.forEach(p => {
+        p.id = uid();
+        if (DB.profiles.some(q => q.name.trim() && q.name.trim() === p.name.trim())) p.name = p.name.trim() + ' (مستورد)';
+        DB.profiles.push(p);
+      });
+      switchProfile(incoming[0].id);
+      toast(`تم استرجاع ${incoming.length} حسبة ودمجها ✔`);
+    }catch(err){ alert('الملف مش صالح. لازم يكون نسخة محفوظة من هاي الصفحة.'); }
+  };
+  r.readAsText(f);
+});
+
+/* ---------- الأحداث ---------- */
+function addPerson(groupId){
+  if (S.people.length >= S.maxPeople){ toast(`وصلت للحد الأقصى (${S.maxPeople})`); return; }
+  const p = { id:uid(), name:'', groupId:groupId||'', status:'in', arrived:false, skip:[], mode:'self', coverAll:true, coverGroups:[], coverPeople:[] };
+  S.people.push(p); const g = S.groups.find(g => g.id === groupId); if (g) g.closed = false; else if (!groupId) S.ungroupedClosed = false;
+  save(); renderAll();
+  document.querySelector(`.prow[data-id="${p.id}"] .name`)?.focus();
+}
+$('#themeBtn').addEventListener('click', () => applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+$('#maxPeople').addEventListener('input', e => { const v = Math.floor(+e.target.value); if (v >= 1){ S.maxPeople = v; save(); renderPeople(); } });
+$('#addCost').addEventListener('click', () => { S.costs.push({ id:uid(), name:'', amount:0, optional:false }); save(); renderPeople(); const i = document.querySelectorAll('#costs .cname'); i[i.length-1]?.focus(); });
+$('#addGroup').addEventListener('click', () => { S.groups.push({ id:uid(), name:`مجموعة ${S.groups.length+1}`, closed:false }); save(); renderAll(); const i = document.querySelectorAll('#groups .ghead input'); i[i.length-1]?.select(); });
+$('#addPerson').addEventListener('click', () => addPerson(''));
+$('#profName').addEventListener('input', e => { prof().name = e.target.value; save(); renderTabs(); });
+$('#profDate').addEventListener('change', e => { prof().date = e.target.value; save(); });
+$('#dupProfile').addEventListener('click', () => {
+  const src = prof(); const copy = normProfile({ name: (src.name.trim() || 'حسبة') + ' (نسخة)', date: new Date().toISOString().slice(0,10), data: JSON.parse(JSON.stringify(src.data)) });
+  DB.profiles.push(copy); switchProfile(copy.id); toast('تم نسخ الحسبة');
+});
+$('#delProfile').addEventListener('click', () => {
+  if (DB.profiles.length <= 1) return;
+  const pr = prof(); if (!confirm(`حذف "${pr.name.trim() || 'بدون اسم'}" بكل أشخاصها وتكاليفها؟`)) return;
+  DB.profiles = DB.profiles.filter(p => p !== pr); switchProfile(DB.profiles[0].id); toast('تم حذف الحسبة');
+});
+
+/* ---------- بدء ---------- */
+$('#year').textContent = new Date().getFullYear();
+let theme = 'light';
+try{ theme = localStorage.getItem(THEME_KEY) || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }catch(e){}
+applyTheme(theme); save(); renderAll();
+</script>
+</body>
+</html>
