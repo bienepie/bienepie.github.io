@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#4fc9d8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏖️</text></svg>">
 <title>قسّمها · Split It</title>
 <style>
   :root{
@@ -96,6 +97,8 @@
   .tab.add{border-style:dashed;background:transparent}
   .prof-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
   .prof-row input{flex:1;min-width:160px;font-weight:800}
+  .day-tag{font-weight:800;color:var(--pink-text);background:var(--pink-soft);border-radius:999px;padding:6px 12px;white-space:nowrap}
+  .day-tag:empty{display:none}
   .prof-row input[type=date]{flex:0 0 auto;width:auto;min-width:150px;padding:8px 10px;border:2px solid var(--line);border-radius:12px;background:var(--card2);color:var(--text);min-height:42px;font-weight:700}
 
   /* ---------- التكاليف ---------- */
@@ -155,7 +158,7 @@
   h3.sub{font-size:15px;font-weight:800;margin:16px 0 8px;display:flex;flex-wrap:wrap;gap:8px;align-items:baseline}
   .res.tent{grid-template-columns:auto 1fr auto auto}
   .res.tent .det{grid-column:1/3}
-  .res.tent.came,.res.refund.came{background:var(--yellow-soft)}
+  .res.tent.came,.res.came{background:var(--yellow-soft)}
   .sw{display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:12.5px;font-weight:700;color:var(--muted);user-select:none;white-space:nowrap}
   .sw input{position:absolute;opacity:0;width:0;height:0}
   .sw .knob{width:40px;height:22px;border-radius:11px;background:var(--line2);position:relative;transition:.2s;flex:none}
@@ -198,6 +201,36 @@
   details.how{margin-top:12px;font-size:13px;color:var(--muted)}
   details.how summary{cursor:pointer;font-weight:700;color:var(--accent)}
   details.how ul{margin:6px 0 0;padding-right:18px}
+  .btn.danger{background:var(--danger);color:#fff;width:100%;justify-content:center;margin-top:6px}
+  .modal{position:fixed;inset:0;background:rgba(15,63,74,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;backdrop-filter:blur(3px)}
+  .modal[hidden]{display:none}
+  .modal-card{background:var(--card);border-radius:20px;padding:20px;width:100%;max-width:420px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px}
+  .modal-card h3{margin:0;font-size:17px}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-start;margin-top:4px}
+  .modal-actions .btn{flex:1;justify-content:center}
+  .check-list{display:flex;flex-direction:column;gap:6px;max-height:40vh;overflow:auto}
+  .chk{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:var(--card2);cursor:pointer;font-weight:700}
+  .chk input{accent-color:var(--pink);width:18px;height:18px}
+  .chk .meta{font-size:12px;color:var(--muted);font-weight:600;margin-inline-start:auto}
+  .settle-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .res .amt.pay{color:var(--danger)} .res .amt.zero{color:var(--muted)}
+  .res input.paid{width:110px;min-height:34px;padding:5px 10px;border-radius:9px;font-weight:800;font-size:14px;padding-left:10px}
+  /* ---------- الذكريات ---------- */
+  .board{display:flex;flex-wrap:wrap;gap:22px 18px;justify-content:center;padding:16px 6px 10px;
+    background-image:radial-gradient(var(--line) 1.2px, transparent 1.2px);background-size:18px 18px;border-radius:16px}
+  .polaroid{position:relative;background:#fff;padding:10px 10px 12px;border-radius:10px;box-shadow:0 10px 24px rgba(0,0,0,.18);width:200px;transform:rotate(var(--rot));transition:transform .2s,box-shadow .2s}
+  .polaroid:hover{transform:rotate(0) scale(1.04);box-shadow:0 16px 34px rgba(0,0,0,.25);z-index:2}
+  .polaroid img{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:6px;background:var(--line)}
+  .polaroid .cap{width:100%;border:0;background:transparent;text-align:center;font-family:"Segoe Script","Comic Sans MS",cursive;font-size:15px;color:#2b2b2b;padding:8px 2px 0;min-height:32px;resize:none;overflow:hidden;line-height:1.35}
+  .polaroid .cap::placeholder{color:#bbb}
+  .polaroid .cap:focus{outline:0}
+  .polaroid.note{background:#fff7c2;padding:22px 14px 16px;min-height:150px;width:190px}
+  .polaroid.note .cap{min-height:100px;font-size:16px;color:#4a3a00;padding-top:0}
+  .polaroid.note::before,.polaroid::before{content:"";position:absolute;top:-10px;left:50%;transform:translateX(-50%) rotate(-3deg);width:70px;height:20px;background:rgba(243,143,181,.55);border-radius:3px}
+  .polaroid .del{position:absolute;top:-8px;right:-8px;width:26px;height:26px;border-radius:50%;background:var(--danger);color:#fff;font-size:14px;line-height:1;display:none;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+  .polaroid:hover .del{display:grid;place-items:center}
+  html[data-theme=dark] .polaroid{background:#e9eef5}
+  .board:empty::after{content:"ما في صور بعد. ضيف صورة أو ورقة ذكريات ✨";color:var(--muted);font-size:13px;padding:20px}
   #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--card);padding:10px 20px;border-radius:999px;font-size:14px;font-weight:700;opacity:0;transition:.3s;pointer-events:none;z-index:9}
   #toast.show{opacity:1;transform:translateX(-50%)}
 
@@ -217,6 +250,7 @@
     .cost .cname{grid-column:1;grid-row:1} .cost .inp{grid-column:2;grid-row:1} .cost .x{grid-column:3;grid-row:1}
     .cost .opt{grid-column:1/-1;grid-row:2;justify-self:start;padding:0 2px}
     .prof-row{flex-wrap:wrap} .prof-row input{min-width:0} .prof-row input[type=date]{flex:1;min-width:0}
+    .polaroid{width:150px} .polaroid.note{width:150px}
     .pl{grid-template-columns:28px auto 1fr auto;grid-template-rows:auto auto auto}
     .pl .handle{grid-row:1/4}
     .pl .avatar{grid-row:1}
@@ -282,8 +316,8 @@
   </svg>
   <div class="hero-inner">
     <div class="toolbar">
-      <button class="tool" id="exportBtn" title="حفظ نسخة احتياطية (كل البروفايلات)"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg></button>
-      <button class="tool" id="importBtn" title="استرجاع نسخة احتياطية ودمجها"><svg class="i" viewBox="0 0 24 24"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg></button>
+      <button class="tool" id="exportBtn" title="تصدير نسخة احتياطية"><svg class="i" viewBox="0 0 24 24"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg></button>
+      <button class="tool" id="importBtn" title="استيراد نسخة احتياطية ودمجها"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg></button>
       <button class="tool" id="themeBtn" title="الوضع الليلي / النهاري">🌙</button>
       <input type="file" id="importFile" accept=".json,application/json" hidden>
     </div>
@@ -301,8 +335,9 @@
     <div class="prof-row">
       <input type="text" id="profName" placeholder="اسم الحسبة (مثلاً: شاليه آب، رحلة العقبة)">
       <input type="date" id="profDate" title="تاريخ الحسبة">
+      <span class="day-tag" id="profDay"></span>
       <button class="btn ghost sm" id="dupProfile" title="نسخة من هالحسبة بنفس الأشخاص">⧉ نسخ</button>
-      <button class="x" id="delProfile" title="حذف هالحسبة">×</button>
+      <button class="btn ghost sm" id="settingsBtn" title="إعدادات الحسبة (أو اضغط مرتين على التاب)">⚙</button>
     </div>
   </section>
 
@@ -330,10 +365,11 @@
     <div id="tentSec" hidden>
       <h3 class="sub">غير مؤكدين <span class="hint">محسوبين برا الحسبة. لو حدا إجا باللحظة الأخيرة أشّر عليه</span></h3>
       <div class="results" id="tent"></div>
-      <div id="refundSec" hidden>
-        <h3 class="sub">المرتجعات <span class="hint" id="refundHead"></span></h3>
-        <div class="results" id="refunds"></div>
-      </div>
+    </div>
+    <div id="settleSec">
+      <h3 class="sub">التسوية <span class="hint">مين بيدفع زيادة ومين بيرجعله: بسبب الي وصلوا باللحظة الأخيرة، أو لو عدّلت تكلفة فوق بعد ما الناس دفعت (اضغط "سجّل" أول ما يدفعوا)</span></h3>
+      <div class="settle-actions"><button class="btn sm yellow" id="snapPaid">📌 سجّل: الناس دفعوا حسب الحسبة الحالية</button><button class="btn sm ghost" id="clearPaid" hidden>إلغاء التسجيل</button></div><p class="hint" id="settleInfo"></p>
+      <div class="results" id="settle"></div>
     </div>
     <details class="how">
       <summary>كيف بتنحسب؟</summary>
@@ -346,7 +382,41 @@
       </ul>
     </details>
   </section>
+
+  <!-- الذكريات -->
+  <section class="card memories">
+    <h2><span class="t"><span class="badge-n">📷</span>ذكريات <span class="hint" id="memCount"></span></span>
+      <span style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn ghost" id="memToggle">👁 إظهار</button>
+        <span id="memTools" hidden style="display:flex;gap:6px"><button class="btn pink" id="addPhoto">＋ صورة</button><button class="btn yellow" id="addNote">＋ ورقة</button></span>
+        <input type="file" id="photoFile" accept="image/*" multiple hidden>
+      </span></h2>
+    <p class="hint" id="memHint">الصور مخفية افتراضياً. اضغط "إظهار" لتشوفها أو تضيف عليها.</p>
+    <div class="board" id="board" hidden></div>
+  </section>
 </main>
+
+<!-- نافذة التصدير -->
+<div class="modal" id="exportModal" hidden>
+  <div class="modal-card">
+    <h3>تصدير نسخة احتياطية</h3>
+    <p class="hint">اختر الحسبات اللي بدك تصدّرها:</p>
+    <div class="check-list" id="exportList"></div>
+    <label class="chk"><input type="checkbox" id="exportPhotos" checked> مع الصور والأوراق</label>
+    <div class="modal-actions"><button class="btn" id="exportGo">تصدير</button><button class="btn ghost" data-close>إلغاء</button></div>
+  </div>
+</div>
+
+<!-- نافذة إعدادات الحسبة -->
+<div class="modal" id="tabModal" hidden>
+  <div class="modal-card">
+    <h3>إعدادات الحسبة</h3>
+    <input type="text" id="tabName" placeholder="اسم الحسبة">
+    <input type="date" id="tabDate">
+    <div class="modal-actions"><button class="btn" id="tabSave">حفظ</button><button class="btn ghost" data-close>إلغاء</button></div>
+    <button class="btn danger" id="tabDelete">🗑️ حذف الحسبة بالكامل</button>
+  </div>
+</div>
 
 <div class="site-footer">قسّمها &copy; <span id="year"></span> | <a href="https://bienepie.github.io/PrivacyPolicy" target="_blank" rel="noopener noreferrer">Privacy Policy</a></div>
 <div id="toast"></div>
@@ -403,6 +473,8 @@ function normData(x){
   }
   return {
     maxPeople: Math.max(1, Math.floor(+x.maxPeople) || 20),
+    paid: (x.paid && typeof x.paid === 'object') ? (x.paid.amounts ? { at: x.paid.at || '', costs: Array.isArray(x.paid.costs) ? x.paid.costs.map(c => ({ name:String(c.name ?? ''), amount:+c.amount || 0 })) : [], amounts: Object.fromEntries(Object.entries(x.paid.amounts).map(([k,v]) => [String(k), +v || 0])) } : { at:'', costs:[], amounts: Object.fromEntries(Object.entries(x.paid).map(([k,v]) => [String(k), +v || 0])) }) : null,
+    photos: Array.isArray(x.photos) ? x.photos.filter(m => m && m.id).map(m => ({ id:String(m.id), src: typeof m.src === 'string' ? m.src : '', text:String(m.text ?? ''), rot: +m.rot || 0 })) : [],
     ungroupedClosed: !!x.ungroupedClosed,
     costs,
     groups: Array.isArray(x.groups) ? x.groups.filter(g => g && g.id).map(g => ({ id:String(g.id), name:String(g.name ?? ''), closed: !!g.closed })) : [],
@@ -422,6 +494,7 @@ function normProfile(p){
   const createdAt = p?.createdAt || new Date().toISOString();
   return { id: String(p?.id || uid()), name: String(p?.name ?? ''), createdAt, date: /^\d{4}-\d{2}-\d{2}$/.test(p?.date || '') ? p.date : createdAt.slice(0,10), data: normData(p?.data) };
 }
+function dayName(d){ if (!/^\d{4}-\d{2}-\d{2}$/.test(d || '')) return ''; try{ return new Date(d + 'T12:00:00').toLocaleDateString('ar', { weekday:'long' }); }catch(e){ return ''; } }
 function newProfile(name){ const now = new Date().toISOString(); return { id: uid(), name: name || '', createdAt: now, date: now.slice(0,10), data: normData({}) }; }
 function load(){
   try{
@@ -440,8 +513,9 @@ function load(){
 let DB = load();
 let S = DB.profiles.find(p => p.id === DB.activeId).data;
 const prof = () => DB.profiles.find(p => p.id === DB.activeId);
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){} }
-function switchProfile(id){ DB.activeId = id; S = prof().data; openPickers.clear(); save(); renderAll(); }
+let saveWarned = false;
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){ if(!saveWarned){ saveWarned = true; alert('ما قدرت أحفظ: مساحة تخزين المتصفح ممتلئة (غالباً بسبب الصور). احذف كم صورة أو صدّر نسخة احتياطية.'); } } }
+function switchProfile(id){ DB.activeId = id; S = prof().data; openPickers.clear(); memShown = false; save(); renderAll(); }
 
 /* ---------- الحساب ---------- */
 const participates = (p, c) => p.mode !== 'exempt' && (!c.optional || !p.skip.includes(c.id));
@@ -541,7 +615,7 @@ function renderTabs(){
   const box = $('#tabs'); box.innerHTML = '';
   DB.profiles.forEach(p => {
     const b = document.createElement('button'); b.className = 'tab' + (p.id === DB.activeId ? ' active' : '');
-    b.textContent = p.name.trim() || 'بدون اسم'; b.addEventListener('click', () => switchProfile(p.id)); box.appendChild(b);
+    b.textContent = p.name.trim() || 'بدون اسم'; b.addEventListener('click', () => switchProfile(p.id)); b.addEventListener('dblclick', () => openTabModal(p.id)); box.appendChild(b);
   });
   const add = document.createElement('button'); add.className = 'tab add'; add.textContent = '＋ حسبة جديدة';
   add.addEventListener('click', () => { const p = newProfile(''); DB.profiles.push(p); switchProfile(p.id); $('#profName').focus(); });
@@ -549,10 +623,17 @@ function renderTabs(){
   const pr = prof();
   if (document.activeElement !== $('#profName')) $('#profName').value = pr.name;
   $('#profDate').value = pr.date || '';
-  $('#delProfile').disabled = DB.profiles.length <= 1;
+  $('#profDay').textContent = dayName(pr.date);
+
 }
 
 /* ---------- الرسم: التكاليف ---------- */
+function renderCostStats(R){
+  $('#costStats').innerHTML = `
+    <div class="stat"><div class="l">المجموع الكلي</div><div class="v">${fmt(R.total)} <small>${CUR}</small></div></div>
+    <div class="stat pink"><div class="l">محسوبين</div><div class="v">${R.counted}</div></div>
+    ${R.costInfo.map((ci,i) => `<div class="stat ${ci.c.optional?'yellow':'pink'}"><div class="l">حصة ${esc(cname(ci.c))} <span style="opacity:.7">(${ci.n})</span></div><div class="v">${fmt2(ci.share)} <small>${CUR}</small></div></div>`).join('')}`;
+}
 function renderCosts(R){
   $('#maxPeople').value = S.maxPeople;
   const box = $('#costs'); box.innerHTML = '';
@@ -563,16 +644,13 @@ function renderCosts(R){
       <div class="inp"><input type="number" class="camt" min="0" step="1" inputmode="numeric" value="${c.amount || ''}" placeholder="0"><span>${CUR}</span></div>
       <label class="opt ${c.optional?'on':''}" title="بس الي مأشّرين عليها بالأشخاص بيدفعوها"><input type="checkbox" ${c.optional?'checked':''}>اختيارية</label>
       <button class="x" title="حذف">×</button>`;
-    el.querySelector('.cname').addEventListener('input', e => { c.name = e.target.value; save(); renderPeople(); });
-    el.querySelector('.camt').addEventListener('input', e => { c.amount = +e.target.value || 0; save(); renderPeople(); });
+    el.querySelector('.cname').addEventListener('input', e => { c.name = e.target.value; save(); renderPeople(false); });
+    el.querySelector('.camt').addEventListener('input', e => { c.amount = +e.target.value || 0; save(); renderPeople(false); });
     el.querySelector('.opt input').addEventListener('change', e => { c.optional = e.target.checked; save(); renderAll(); });
     el.querySelector('.x').addEventListener('click', () => { if (c.amount && !confirm(`حذف "${cname(c)}"؟`)) return; S.costs = S.costs.filter(y => y !== c); S.people.forEach(p => p.skip = p.skip.filter(id => id !== c.id)); save(); renderAll(); });
     box.appendChild(el);
   });
-  $('#costStats').innerHTML = `
-    <div class="stat"><div class="l">المجموع الكلي</div><div class="v">${fmt(R.total)} <small>${CUR}</small></div></div>
-    <div class="stat pink"><div class="l">محسوبين</div><div class="v">${R.counted}</div></div>
-    ${R.costInfo.map((ci,i) => `<div class="stat ${ci.c.optional?'yellow':'pink'}"><div class="l">حصة ${esc(cname(ci.c))} <span style="opacity:.7">(${ci.n})</span></div><div class="v">${fmt2(ci.share)} <small>${CUR}</small></div></div>`).join('')}`;
+  renderCostStats(R);
 }
 
 /* ---------- الرسم: الأشخاص ---------- */
@@ -672,9 +750,9 @@ function groupBlock(g, members, R){
   head.querySelector('.addp').addEventListener('click', () => addPerson(g ? g.id : ''));
   return el;
 }
-function renderPeople(){
+function renderPeople(rebuildCosts = true){
   const R = compute();
-  renderCosts(R);
+  if (rebuildCosts) renderCosts(R); else renderCostStats(R);
   const box = $('#groups'); box.innerHTML = '';
   $('#countHint').textContent = `${S.people.length} / ${S.maxPeople}`;
   const full = S.people.length >= S.maxPeople;
@@ -708,6 +786,7 @@ function renderResult(R){
   if (!shown.length) box.innerHTML = '<div class="empty-state">ما في مشاركين مؤكدين بالحسبة.</div>';
   else box.insertAdjacentHTML('beforeend', `<div class="total-row"><span>المجموع${offN ? ` <span style="font-size:12px;opacity:.9">(${offN} معطّل)</span>` : ''}</span><span>${fmt(R.sum)} ${CUR}</span></div>`);
   renderTentative(R);
+  renderSettle(R);
   const diff = R.sum - R.total, uncovered = Object.keys(R.errors).length;
   $('#resultStats').innerHTML = `
     <div class="stat"><div class="l">المجموع بعد الجبر</div><div class="v">${fmt(R.sum)} <small>${CUR}</small></div></div>
@@ -716,8 +795,8 @@ function renderResult(R){
     ${!uncovered && diff < 0 ? `<div class="stat warn"><div class="l">تنبيه</div><div class="v">المجموع أقل من الأصلي</div></div>` : ''}`;
 }
 function renderTentative(R){
-  const sec = $('#tentSec'); const box = $('#tent'); const rbox = $('#refunds');
-  box.innerHTML = ''; rbox.innerHTML = '';
+  const sec = $('#tentSec'); const box = $('#tent');
+  box.innerHTML = '';
   if (!R.tent.length){ sec.hidden = true; return; }
   sec.hidden = false;
   R.tent.forEach(x => {
@@ -730,22 +809,93 @@ function renderTentative(R){
     el.querySelector('input').addEventListener('change', e => { p.arrived = e.target.checked; save(); renderAll(); });
     box.appendChild(el);
   });
-  const came = R.tent.filter(x => x.p.arrived);
-  if (!came.length){ $('#refundSec').hidden = true; return; }
-  $('#refundSec').hidden = false;
-  $('#refundHead').textContent = `المحصّل الكلي ${fmt(R.sum + R.collected)} ${CUR} (منها ${fmt(R.collected)} من ${came.map(x => pname(x.p)).join('، ')}) · التكاليف ${fmt(R.total)} ${CUR}`;
-  [...R.refunds].sort((a,b) => b.paid - a.paid).forEach(r => {
-    const el = document.createElement('div'); el.className = 'res refund' + (r.arrived ? ' came' : '');
-    el.innerHTML = `<div class="name"><span class="avatar" style="background:${colorOf(r.p)}">${esc(initial(r.p))}</span>${esc(pname(r.p))} ${r.arrived ? '<span class="tag maybe">إجا باللحظة الأخيرة</span>' : ''}</div>
-      <div class="det">دفع ${fmt(r.paid)} · بعد الإرجاع بيصير <b>${fmt(r.net)}</b></div>
-      <div class="amt back">${fmt(r.refund)} ${CUR}<small>بيرجعله</small></div>`;
-    rbox.appendChild(el);
-  });
-  const extra = R.netSum - R.sum;
-  rbox.insertAdjacentHTML('beforeend', `<div class="total-row green"><span>مجموع المرتجع${extra ? ` <span style="font-size:12px;opacity:.9">(باقي ${fmt(extra)} ${CUR} بسبب الجبر)</span>` : ''}</span><span>${fmt(R.refundSum)} ${CUR}</span></div>
-    <div class="total-row"><span>الباقي مع الجميع بعد الإرجاع${extra ? ` <span style="font-size:12px;opacity:.9">(التكاليف ${fmt(R.total)} + ${fmt(extra)} جبر)</span>` : ' = التكاليف'}</span><span>${fmt(R.netSum)} ${CUR}</span></div>`);
 }
-function renderAll(){ renderTabs(); renderPeople(); }
+/* المبلغ اللي لازم يكون مع كل شخص حالياً: بعد الترجيع لو في واصلين، وإلا حصته */
+function expectedNow(R){
+  const m = {};
+  if (R.tent.some(x => x.p.arrived)) R.refunds.forEach(r => { m[r.p.id] = r.net; });
+  else S.people.forEach(p => { if (p.status === 'in' && R.final[p.id] > 0) m[p.id] = R.final[p.id]; });
+  return m;
+}
+/* المدفوع فعلياً: المسجّل لو في تسجيل، وإلا حصة كل مؤكد + مبلغ الواصل باللحظة الأخيرة */
+function paidNow(R){
+  const m = {};
+  S.people.forEach(p => { if (p.status === 'in' && R.final[p.id] > 0) m[p.id] = R.final[p.id]; });
+  R.tent.forEach(x => { if (x.p.arrived && x.pay > 0) m[x.p.id] = x.pay; });
+  if (S.paid) Object.entries(S.paid.amounts).forEach(([id, v]) => { if (S.people.some(p => p.id === id)) m[id] = v; });
+  return m;
+}
+function renderSettle(R){
+  const box = $('#settle'); box.innerHTML = '';
+  const has = !!S.paid;
+  $('#clearPaid').hidden = !has;
+  $('#snapPaid').textContent = has ? '📌 حدّث التسجيل للحسبة الحالية' : '📌 سجّل: الناس دفعوا حسب الحسبة الحالية';
+  const info = $('#settleInfo'); const bits = [];
+  const came = R.tent.filter(x => x.p.arrived);
+  if (came.length) bits.push(`وصلوا باللحظة الأخيرة: ${came.map(x => `${esc(pname(x.p))} (${fmt(x.pay)})`).join('، ')} · المحصّل الكلي ${fmt(R.sum + R.collected)} والتكاليف ${fmt(R.total)} ${CUR}`);
+  if (has){
+    const when = S.paid.at ? new Date(S.paid.at).toLocaleDateString('ar', { weekday:'long', day:'numeric', month:'long' }) : '';
+    const then = S.paid.costs.map(c => `${c.name || 'تكلفة'} ${fmt(c.amount)}`).join('، ');
+    const nowCosts = S.costs.map(c => `${cname(c)} ${fmt(+c.amount || 0)}`).join('، ');
+    bits.push(`وقت الدفع${when ? ' (' + esc(when) + ')' : ''}: ${esc(then || 'بدون تكاليف')}${then !== nowCosts ? `<br>الآن: ${esc(nowCosts || 'بدون تكاليف')}` : ' · <b>التكاليف ما تغيّرت</b>'}`);
+  }
+  info.innerHTML = bits.join('<br>');
+  const paid = paidNow(R), now = expectedNow(R);
+  const ids = [...new Set([...Object.keys(paid), ...Object.keys(now)])].filter(id => S.people.some(p => p.id === id));
+  const rows = ids.map(id => ({ id, paid: paid[id] || 0, need: now[id] || 0, d: (now[id] || 0) - (paid[id] || 0) })).sort((a,b) => Math.abs(b.d) - Math.abs(a.d));
+  if (!rows.some(r => r.d !== 0)){ if (has || came.length) box.innerHTML = '<div class="empty-state">كل شي متوازن، ما حدا بيدفع زيادة ولا بيرجعله ✔</div>'; return; }
+  let more = 0, back = 0;
+  rows.forEach(({ id, paid: pd, need, d }) => {
+    const p = S.people.find(q => q.id === id); const arrived = came.some(x => x.p === p);
+    if (d > 0) more += d; else back -= d;
+    const el = document.createElement('div'); el.className = 'res' + (arrived ? ' came' : '');
+    el.innerHTML = `<div class="name"><span class="avatar" style="background:${colorOf(p)}">${esc(initial(p))}</span>${esc(pname(p))} ${arrived ? '<span class="tag maybe">إجا باللحظة الأخيرة</span>' : ''}</div>
+      <div class="det">دفع ${fmt(pd)} · لازم يكون دافع <b>${fmt(need)}</b></div>
+      <div class="amt ${d > 0 ? 'pay' : d < 0 ? 'back' : 'zero'}">${d > 0 ? '+' : ''}${fmt(d)} ${CUR}<small>${d > 0 ? 'لازم يدفع زيادة' : d < 0 ? 'بيرجعله' : 'تمام'}</small></div>`;
+    box.appendChild(el);
+  });
+  const extra = R.netSum !== undefined && came.length ? R.netSum - R.sum : 0;
+  box.insertAdjacentHTML('beforeend', `<div class="total-row"><span>يُجمع ${fmt(more)} ${CUR} · يُرجَع ${fmt(back)} ${CUR}${extra ? ` <span style="font-size:12px;opacity:.9">(باقي ${fmt(extra)} ${CUR} جبر)</span>` : ''}</span><span>${more === back ? 'متوازن ✔' : (more > back ? '+' : '') + fmt(more - back) + ' ' + CUR}</span></div>`);
+}
+$('#snapPaid').addEventListener('click', () => { S.paid = { at: new Date().toISOString(), costs: S.costs.map(c => ({ name: cname(c), amount: +c.amount || 0 })), amounts: expectedNow(compute()) }; save(); renderSettle(compute()); toast('تم تسجيل المبالغ المدفوعة. عدّل أي تكلفة وشوف الفرق'); });
+$('#clearPaid').addEventListener('click', () => { if (!confirm('إلغاء تسجيل المدفوع؟')) return; S.paid = null; save(); renderSettle(compute()); });
+
+/* ---------- الذكريات ---------- */
+let memShown = false;
+function shrinkImage(file){
+  return new Promise(res => {
+    const img = new Image(); const url = URL.createObjectURL(file);
+    img.onload = () => { const M = 900; const k = Math.min(1, M / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', .78)); };
+    img.onerror = () => { URL.revokeObjectURL(url); res(''); };
+    img.src = url;
+  });
+}
+function autoGrow(t){ t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }
+function renderMemories(){
+  const board = $('#board'); board.innerHTML = '';
+  $('#memCount').textContent = S.photos.length ? `(${S.photos.length})` : '';
+  board.hidden = !memShown; $('#memTools').hidden = !memShown; $('#memHint').hidden = memShown;
+  $('#memToggle').textContent = memShown ? '🙈 إخفاء' : '👁 إظهار';
+  if (!memShown) return;
+  S.photos.forEach(m => {
+    const el = document.createElement('div'); el.className = 'polaroid' + (m.src ? '' : ' note'); el.style.setProperty('--rot', m.rot + 'deg');
+    el.innerHTML = `${m.src ? `<img src="${m.src}" alt="">` : ''}<textarea class="cap" rows="1" placeholder="${m.src ? 'اكتب شي…' : 'اكتب ذكرى…'}">${esc(m.text)}</textarea><button class="del" title="حذف">×</button>`;
+    const ta = el.querySelector('.cap');
+    ta.addEventListener('input', () => { m.text = ta.value; autoGrow(ta); save(); });
+    el.querySelector('.del').addEventListener('click', () => { if (!confirm('حذف هالذكرى؟')) return; S.photos = S.photos.filter(x => x !== m); save(); renderMemories(); });
+    board.appendChild(el); autoGrow(ta);
+  });
+}
+const rndRot = () => Math.round((Math.random() * 12 - 6) * 10) / 10;
+$('#memToggle').addEventListener('click', () => { memShown = !memShown; renderMemories(); });
+$('#addNote').addEventListener('click', () => { S.photos.push({ id: uid(), src: '', text: '', rot: rndRot() }); save(); renderMemories(); const t = document.querySelectorAll('#board .cap'); t[t.length-1]?.focus(); });
+$('#addPhoto').addEventListener('click', () => $('#photoFile').click());
+$('#photoFile').addEventListener('change', async e => {
+  const files = [...e.target.files]; e.target.value = ''; if (!files.length) return;
+  for (const f of files){ const src = await shrinkImage(f); if (src) S.photos.push({ id: uid(), src, text: '', rot: rndRot() }); }
+  save(); renderMemories(); toast(`أضفت ${files.length} صورة`);
+});
+function renderAll(){ renderTabs(); renderPeople(); renderMemories(); }
 
 /* ---------- السحب والإفلات (أسلوب PuzzelDrop: شبح ثابت + elementFromPoint + تنفيذ عند الإفلات) ---------- */
 const ghost = document.getElementById('drag-ghost');
@@ -789,10 +939,27 @@ function bindDrag(row, p){
 
 /* ---------- نسخة احتياطية (كل البروفايلات) ---------- */
 $('#exportBtn').addEventListener('click', () => {
-  const data = JSON.stringify({ app:'splitit', version:2, exportedAt:new Date().toISOString(), profiles: DB.profiles }, null, 2);
+  const list = $('#exportList'); list.innerHTML = '';
+  DB.profiles.forEach(p => {
+    const l = document.createElement('label'); l.className = 'chk';
+    l.innerHTML = `<input type="checkbox" value="${p.id}" ${p.id === DB.activeId ? 'checked' : ''}> ${esc(p.name.trim() || 'بدون اسم')}<span class="meta">${esc(p.date || '')} · ${p.data.people.length} شخص${p.data.photos.length ? ' · ' + p.data.photos.length + ' صورة' : ''}</span>`;
+    list.appendChild(l);
+  });
+  const all = document.createElement('label'); all.className = 'chk'; all.innerHTML = '<input type="checkbox" id="exportAll"> <b>الكل</b>';
+  all.querySelector('input').addEventListener('change', e => list.querySelectorAll('input[value]').forEach(c => c.checked = e.target.checked));
+  list.prepend(all);
+  $('#exportModal').hidden = false;
+});
+$('#exportGo').addEventListener('click', () => {
+  const ids = [...document.querySelectorAll('#exportList input[value]:checked')].map(c => c.value);
+  if (!ids.length){ toast('اختر حسبة وحدة على الأقل'); return; }
+  const withPhotos = $('#exportPhotos').checked;
+  const profiles = DB.profiles.filter(p => ids.includes(p.id)).map(p => withPhotos ? p : { ...p, data: { ...p.data, photos: [] } });
+  const data = JSON.stringify({ app:'splitit', version:2, exportedAt:new Date().toISOString(), profiles }, null, 2);
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type:'application/json' }));
-  a.download = `splitit-${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000); toast(`تم حفظ ${DB.profiles.length} حسبة`);
+  const nm = profiles.length === 1 ? (profiles[0].name.trim() || 'حسبة').replace(/[\\/:*?"<>|]/g, '-') : `${profiles.length}-حسبات`;
+  a.download = `splitit-${nm}-${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000); $('#exportModal').hidden = true; toast(`تم تصدير ${profiles.length} حسبة`);
 });
 $('#importBtn').addEventListener('click', () => $('#importFile').click());
 $('#importFile').addEventListener('change', e => {
@@ -827,21 +994,41 @@ function addPerson(groupId){
   document.querySelector(`.prow[data-id="${p.id}"] .name`)?.focus();
 }
 $('#themeBtn').addEventListener('click', () => applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
-$('#maxPeople').addEventListener('input', e => { const v = Math.floor(+e.target.value); if (v >= 1){ S.maxPeople = v; save(); renderPeople(); } });
+$('#maxPeople').addEventListener('input', e => { const v = Math.floor(+e.target.value); if (v >= 1){ S.maxPeople = v; save(); renderPeople(false); } });
 $('#addCost').addEventListener('click', () => { S.costs.push({ id:uid(), name:'', amount:0, optional:false }); save(); renderPeople(); const i = document.querySelectorAll('#costs .cname'); i[i.length-1]?.focus(); });
 $('#addGroup').addEventListener('click', () => { S.groups.push({ id:uid(), name:`مجموعة ${S.groups.length+1}`, closed:false }); save(); renderAll(); const i = document.querySelectorAll('#groups .ghead input'); i[i.length-1]?.select(); });
 $('#addPerson').addEventListener('click', () => addPerson(''));
 $('#profName').addEventListener('input', e => { prof().name = e.target.value; save(); renderTabs(); });
-$('#profDate').addEventListener('change', e => { prof().date = e.target.value; save(); });
+$('#profDate').addEventListener('change', e => { prof().date = e.target.value; save(); $('#profDay').textContent = dayName(prof().date); });
 $('#dupProfile').addEventListener('click', () => {
   const src = prof(); const copy = normProfile({ name: (src.name.trim() || 'حسبة') + ' (نسخة)', date: new Date().toISOString().slice(0,10), data: JSON.parse(JSON.stringify(src.data)) });
   DB.profiles.push(copy); switchProfile(copy.id); toast('تم نسخ الحسبة');
 });
-$('#delProfile').addEventListener('click', () => {
-  if (DB.profiles.length <= 1) return;
-  const pr = prof(); if (!confirm(`حذف "${pr.name.trim() || 'بدون اسم'}" بكل أشخاصها وتكاليفها؟`)) return;
-  DB.profiles = DB.profiles.filter(p => p !== pr); switchProfile(DB.profiles[0].id); toast('تم حذف الحسبة');
+/* نافذة إعدادات الحسبة (مثل Ta3reesometer: اضغط مرتين على التاب) */
+let editingTabId = null;
+function openTabModal(id){
+  editingTabId = id; const pr = DB.profiles.find(p => p.id === id); if (!pr) return;
+  $('#tabName').value = pr.name; $('#tabDate').value = pr.date || '';
+  $('#tabDelete').disabled = DB.profiles.length <= 1;
+  $('#tabModal').hidden = false; $('#tabName').focus();
+}
+$('#settingsBtn').addEventListener('click', () => openTabModal(DB.activeId));
+$('#tabSave').addEventListener('click', () => {
+  const pr = DB.profiles.find(p => p.id === editingTabId); if (!pr) return;
+  pr.name = $('#tabName').value; if (/^\d{4}-\d{2}-\d{2}$/.test($('#tabDate').value)) pr.date = $('#tabDate').value;
+  save(); $('#tabModal').hidden = true; renderTabs();
 });
+$('#tabDelete').addEventListener('click', () => {
+  if (DB.profiles.length <= 1) return;
+  const pr = DB.profiles.find(p => p.id === editingTabId); if (!pr) return;
+  if (!confirm(`متأكد بدك تحذف "${pr.name.trim() || 'بدون اسم'}" بكل أشخاصها وتكاليفها وصورها؟`)) return;
+  DB.profiles = DB.profiles.filter(p => p !== pr);
+  $('#tabModal').hidden = true;
+  if (DB.activeId === pr.id) switchProfile(DB.profiles[0].id); else { save(); renderTabs(); }
+  toast('تم حذف الحسبة');
+});
+document.querySelectorAll('.modal [data-close]').forEach(b => b.addEventListener('click', () => b.closest('.modal').hidden = true));
+document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.hidden = true; }));
 
 /* ---------- بدء ---------- */
 $('#year').textContent = new Date().getFullYear();
