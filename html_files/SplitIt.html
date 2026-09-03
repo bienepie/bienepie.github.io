@@ -497,6 +497,7 @@ function normData(x){
       received: !!p.received,
       recv: (p.recv === null || p.recv === undefined || p.recv === '') ? null : (+p.recv || 0),
       refunded: !!p.refunded,
+      settled: !!p.settled,
       skip: Array.isArray(p.skip) ? p.skip.map(String) : (legacy && p.transport === false ? ['transport'] : []),
       mode: ['self','covered','exempt'].includes(p.mode) ? p.mode : 'self',
       coverAll: p.coverAll !== undefined ? !!p.coverAll : (p.coverType === 'all' || !p.coverType),
@@ -795,10 +796,10 @@ function renderResult(R){
     const el = document.createElement('div'); el.className = 'res' + (gotIt ? (diffR >= 0 ? ' got' : ' part') : '');
     el.innerHTML = `<div class="name">${payer ? `<label class="rcv" title="${p.received ? 'استلمت منه' : 'أشّر لما تستلم منه'}"><input type="checkbox" ${p.received ? 'checked' : ''}><span class="box"></span></label>` : ''}<span class="avatar" style="background:${colorOf(p)}">${esc(initial(p))}</span>${esc(pname(p))} ${modeName[p.mode]||''}</div>
       <div class="det">${esc(bits.join(' · '))}${R.errors[p.id] ? ` <span class="err">⚠ ${R.errors[p.id]}</span>` : ''}</div>
-      <div class="amt">${fmt(R.final[p.id])} ${CUR}<small>${gotIt ? (diffR === 0 ? '✔ مستلم بالكامل' : diffR > 0 ? `✔ مستلم · زيادة ${fmt(diffR)} بترجعها` : `استلمت ${fmt(rv)} · باقي ${fmt(-diffR)}`) : pct.toFixed(1) + '٪ من المجموع'}</small>
+      <div class="amt">${fmt(R.final[p.id])} ${CUR}<small>${gotIt ? (p.settled ? '✔ كمّل حسابه' : diffR === 0 ? '✔ مستلم بالكامل' : diffR > 0 ? `✔ مستلم · زيادة ${fmt(diffR)} بترجعها` : `استلمت ${fmt(rv)} · باقي ${fmt(-diffR)}`) : pct.toFixed(1) + '٪ من المجموع'}</small>
         ${payer ? `<div class="inp recvwrap"><input type="number" class="recv" min="0" step="1" inputmode="numeric" placeholder="كم استلمت؟" value="${p.recv != null ? p.recv : (p.received ? R.final[p.id] : '')}"><span>${CUR}</span></div>` : ''}</div>
       <div class="bar"><i style="width:${(R.final[p.id]/maxV*100).toFixed(1)}%"></i></div>`;
-    el.querySelector('.rcv input')?.addEventListener('change', e => { p.received = e.target.checked; p.recv = null; if (!p.received) p.refunded = false; save(); renderResult(); });
+    el.querySelector('.rcv input')?.addEventListener('change', e => { p.received = e.target.checked; p.recv = null; if (!p.received){ p.refunded = false; p.settled = false; } save(); renderResult(); });
     const onRecv = e => { const v = e.target.value; p.recv = v === '' ? null : Math.max(0, +v || 0); if (p.recv != null) p.received = p.recv > 0; save(); };
     el.querySelector('.recv')?.addEventListener('input', e => { onRecv(e); renderResultStats(compute()); });
     el.querySelector('.recv')?.addEventListener('change', e => { onRecv(e); renderResult(); });
@@ -854,8 +855,8 @@ function expectedNow(R){
 }
 /* المدفوع فعلياً: المسجّل لو في تسجيل، وإلا حصة كل مؤكد + مبلغ الواصل باللحظة الأخيرة */
 /* المستلم فعلياً من الشخص: الرقم المكتوب، وإلا حصته لو مأشّر استلمت، وإلا صفر */
-const recvOf = (p, R) => p.recv != null ? p.recv : (p.received ? (R.final[p.id] || 0) : 0);
-const hasRecv = p => p.recv != null || !!p.received;
+const recvOf = (p, R) => p.settled ? (R.final[p.id] || 0) : p.recv != null ? p.recv : (p.received ? (R.final[p.id] || 0) : 0);
+const hasRecv = p => p.recv != null || !!p.received || !!p.settled;
 function paidNow(R){
   const m = {};
   S.people.forEach(p => { if (p.status === 'in' && R.final[p.id] > 0) m[p.id] = R.final[p.id]; });
@@ -883,17 +884,21 @@ function renderSettle(R){
   const paid = paidNow(R), now = expectedNow(R);
   const ids = [...new Set([...Object.keys(paid), ...Object.keys(now)])].filter(id => S.people.some(p => p.id === id));
   const rows = ids.map(id => ({ id, paid: paid[id] || 0, need: now[id] || 0, d: (now[id] || 0) - (paid[id] || 0) })).sort((a,b) => Math.abs(b.d) - Math.abs(a.d));
-  if (!rows.some(r => r.d !== 0)){ if (has || came.length) box.innerHTML = '<div class="empty-state">كل شي متوازن، ما حدا بيدفع زيادة ولا بيرجعله ✔</div>'; return; }
+  const marked = id => { const p = S.people.find(q => q.id === id); return p && (p.refunded || p.settled); };
+  if (!rows.some(r => r.d !== 0 || marked(r.id))){ if (has || came.length) box.innerHTML = '<div class="empty-state">كل شي متوازن، ما حدا بيدفع زيادة ولا بيرجعله ✔</div>'; return; }
   let more = 0, back = 0;
   rows.forEach(({ id, paid: pd, need, d }) => {
     const p = S.people.find(q => q.id === id); const arrived = came.some(x => x.p === p);
     if (d > 0) more += d; else back -= d;
-    const done = d < 0 && p.refunded;
+    const refunded = d < 0 && p.refunded, settled = !!p.settled && d >= 0;
+    const done = refunded || settled;
     const el = document.createElement('div'); el.className = 'res' + (arrived ? ' came' : '') + (done ? ' got' : '');
-    el.innerHTML = `<div class="name">${d < 0 ? `<label class="rcv" title="${done ? 'رجّعت له' : 'أشّر لما ترجّع له'}"><input type="checkbox" ${done ? 'checked' : ''}><span class="box"></span></label>` : ''}<span class="avatar" style="background:${colorOf(p)}">${esc(initial(p))}</span>${esc(pname(p))} ${arrived ? '<span class="tag maybe">إجا باللحظة الأخيرة</span>' : ''}</div>
-      <div class="det">${hasRecv(p) && p.status === 'in' ? 'استلمت منه' : 'دفع'} ${fmt(pd)} · لازم يكون دافع <b>${fmt(need)}</b></div>
-      <div class="amt ${d > 0 ? 'pay' : d < 0 ? 'back' : 'zero'}">${d > 0 ? '+' : ''}${fmt(d)} ${CUR}<small>${d > 0 ? 'لازم يدفع زيادة' : d < 0 ? (done ? '✔ رجّعت له' : 'بيرجعله') : 'تمام'}</small></div>`;
-    el.querySelector('.rcv input')?.addEventListener('change', e => { p.refunded = e.target.checked; save(); renderSettle(compute()); });
+    const showBox = d < 0 || d > 0 || settled;
+    const title = d < 0 ? (refunded ? 'رجّعت له' : 'أشّر لما ترجّع له') : (settled ? 'كمّل حسابه' : 'أشّر لما يكمّل حسابه');
+    el.innerHTML = `<div class="name">${showBox ? `<label class="rcv" title="${title}"><input type="checkbox" ${done ? 'checked' : ''}><span class="box"></span></label>` : ''}<span class="avatar" style="background:${colorOf(p)}">${esc(initial(p))}</span>${esc(pname(p))} ${arrived ? '<span class="tag maybe">إجا باللحظة الأخيرة</span>' : ''}</div>
+      <div class="det">${settled ? `كان باقي عليه ${fmt(Math.max(0, need - (p.recv != null ? p.recv : 0)))} وكمّلهم` : `${hasRecv(p) && p.status === 'in' ? 'استلمت منه' : 'دفع'} ${fmt(pd)} · لازم يكون دافع <b>${fmt(need)}</b>`}</div>
+      <div class="amt ${d > 0 ? 'pay' : d < 0 ? 'back' : 'zero'}">${d > 0 ? '+' : ''}${fmt(d)} ${CUR}<small>${d > 0 ? 'لازم يدفع زيادة' : d < 0 ? (refunded ? '✔ رجّعت له' : 'بيرجعله') : settled ? '✔ كمّل حسابه' : 'تمام'}</small></div>`;
+    el.querySelector('.rcv input')?.addEventListener('change', e => { if (d < 0) p.refunded = e.target.checked; else p.settled = e.target.checked; save(); renderAll(); });
     box.appendChild(el);
   });
   const extra = R.netSum !== undefined && came.length ? R.netSum - R.sum : 0;
