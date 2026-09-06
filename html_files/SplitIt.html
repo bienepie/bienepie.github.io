@@ -286,6 +286,15 @@
   @keyframes lbFade{from{opacity:0}to{opacity:1}}
   @keyframes lbScale{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
   @media (max-width:640px){ .lb-cap{display:none} .lb-bottom{font-size:11px;text-align:center} }
+  .pin{position:relative;height:56px;margin:4px 0}
+  .pin input{position:absolute;inset:0;opacity:0;font-size:24px;letter-spacing:1em;text-align:center}
+  .pin .dots{display:flex;justify-content:center;gap:12px;height:100%;align-items:center;pointer-events:none;direction:ltr}
+  .pin .dots i{width:40px;height:48px;border-radius:12px;border:2px solid var(--line2);background:var(--card2);display:grid;place-items:center;transition:.15s}
+  .pin .dots i.on::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--text)}
+  .pin.focus .dots i.cur{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .pin.shake .dots{animation:shake .4s}
+  @keyframes shake{20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+  .hint.warn{color:var(--warn);font-weight:700}
   .lockmsg{text-align:center;padding:26px 10px;color:var(--muted);border:2px dashed var(--line2);border-radius:16px;font-size:13px}
   .polaroid img{-webkit-user-drag:none;user-select:none}
   .board:empty::after{content:"ما في صور بعد. ضيف صورة أو ورقة ذكريات ✨";color:var(--muted);font-size:13px;padding:20px}
@@ -438,7 +447,7 @@
         <li>حصة الشخص المحاسب عنه بتتوزع بالتساوي على الي بيحاسبوا عنه.</li>
         <li>الجبر: المجموع النهائي = أقرب عدد صحيح فوق المجموع الحقيقي. الزيادات بتروح لأصحاب الكسور الأكبر، والي حصتهم متساوية بيدفعوا نفس المبلغ.</li>
         <li>الشخص المعطّل بيتجاهل تماماً بس بيضل موجود مشان ترجّعه بكبسة.</li>
-        <li>الصور والأوراق مشفّرة AES-256 بمفتاح مشتق من كلمة سرك على جهازك. السحابة والنسخ الاحتياطية فيها شفرة فقط، وما في أي طريقة لاستعادة كلمة السر.</li>
+        <li>الصور والأوراق مشفّرة AES-256 بمفتاح مشتق من رمز الـ 6 أرقام + سر عشوائي طويل محفوظ بحسابك على Google. النسخ الاحتياطية والملف لحالهم ما بينفتحوا أبداً، وبعد 3 محاولات غلط في انتظار بيتضاعف. ما في طريقة لاستعادة الرمز.</li>
         <li>غير المؤكد ما بينحسب بالحصص. لو إجا باللحظة الأخيرة بيدفع نفس مبلغ أقرب شخص مؤكد لحصته المفترضة، وبعدين بيترجع الفرق للجميع (المؤكدين والي وصلوا) كل واحد حسب ما دفع، بحيث الباقي مع الكل بعد الإرجاع = التكاليف بالضبط (مع نفس قاعدة الجبر).</li>
       </ul>
     </details>
@@ -468,16 +477,17 @@
 <!-- نافذة كلمة سر الصور -->
 <div class="modal" id="vaultModal" hidden>
   <div class="modal-card">
-    <h3 id="vaultTitle">🔒 كلمة سر الصور</h3>
+    <h3 id="vaultTitle">🔒 رمز الصور</h3>
     <p class="hint" id="vaultText"></p>
-    <input type="password" id="vaultPass" placeholder="كلمة السر" autocomplete="off">
-    <input type="password" id="vaultPass2" placeholder="أعد كتابة كلمة السر" autocomplete="off" hidden>
     <input type="text" id="vaultHint" placeholder="تلميح يذكّرك (اختياري): مثلاً «عيد ميلاد قطتي»" autocomplete="off" hidden>
-    <p class="hint" id="vaultHintNote" hidden>التلميح بينحفظ بدون تشفير وبيظهر بس لما تكون مسجّلة الدخول بحسابك. لا تكتبي كلمة السر نفسها.</p>
+    <p class="hint" id="vaultHintNote" hidden>التلميح بينحفظ بدون تشفير وبيظهر بس لما تكوني مسجّلة الدخول بحسابك. لا تكتبي الرمز نفسه.</p>
+    <p class="hint" id="vaultStep" hidden></p>
+    <div class="pin" id="pinBox"><input type="tel" id="vaultPin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" aria-label="رمز من 6 أرقام"><div class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
     <p class="err" id="vaultErr" hidden></p>
-    <button class="btn ghost sm" id="vaultForgot" hidden>نسيت كلمة السر؟</button>
+    <p class="hint warn" id="vaultWait" hidden></p>
+    <button class="btn ghost sm" id="vaultForgot" hidden>نسيت الرمز؟</button>
     <p class="hint" id="vaultHintShow" hidden></p>
-    <div class="modal-actions"><button class="btn" id="vaultGo">فتح</button><button class="btn ghost" data-close>إلغاء</button></div>
+    <div class="modal-actions"><button class="btn ghost" data-close>إلغاء</button></div>
   </div>
 </div>
 
@@ -559,7 +569,7 @@ function normData(x){
   return {
     maxPeople: Math.max(1, Math.floor(+x.maxPeople) || 20),
     paid: (x.paid && typeof x.paid === 'object') ? (x.paid.amounts ? { at: x.paid.at || '', costs: Array.isArray(x.paid.costs) ? x.paid.costs.map(c => ({ name:String(c.name ?? ''), amount:+c.amount || 0 })) : [], amounts: Object.fromEntries(Object.entries(x.paid.amounts).map(([k,v]) => [String(k), +v || 0])) } : { at:'', costs:[], amounts: Object.fromEntries(Object.entries(x.paid).map(([k,v]) => [String(k), +v || 0])) }) : null,
-    photoSalt: typeof x.photoSalt === 'string' ? x.photoSalt : '', photoCheck: typeof x.photoCheck === 'string' ? x.photoCheck : '', photoHint: typeof x.photoHint === 'string' ? x.photoHint.slice(0, 200) : '',
+    photoSalt: typeof x.photoSalt === 'string' ? x.photoSalt : '', photoCheck: typeof x.photoCheck === 'string' ? x.photoCheck : '', photoHint: typeof x.photoHint === 'string' ? x.photoHint.slice(0, 200) : '', photoV: +x.photoV || 1, photoFails: Math.max(0, Math.floor(+x.photoFails) || 0), photoLockUntil: +x.photoLockUntil || 0,
     photos: Array.isArray(x.photos) ? x.photos.filter(m => m && m.id).map(m => typeof m.enc === 'string' && m.enc ? { id:String(m.id), enc:m.enc, rot: +m.rot || 0 } : { id:String(m.id), src: typeof m.src === 'string' ? m.src : '', text:String(m.text ?? ''), rot: +m.rot || 0 }) : [],
     ungroupedClosed: !!x.ungroupedClosed,
     costs,
@@ -999,8 +1009,9 @@ const vault = { key: null, cache: new Map(), timer: null, tries: 0 };
 const b64 = u8 => { let t = ''; for (let i = 0; i < u8.length; i += 0x8000) t += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(t); };
 const unb64 = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
 const cryptoOk = () => !!(window.crypto && crypto.subtle);
-async function deriveKey(pass, saltB64){
-  const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass.normalize('NFKC')), 'PBKDF2', false, ['deriveKey']);
+async function deriveKey(pass, saltB64, pepper){
+  /* المفتاح = PBKDF2(الرمز + سر الحساب): بدون سر الحساب (اللي بيعيش بحسابك على Firebase فقط) الشفرة ما بتنفتح ولو جرّبوا المليون رمز */
+  const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass.normalize('NFKC') + (pepper ? '\u0000' + pepper : '')), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey({ name:'PBKDF2', salt: unb64(saltB64), iterations: PBKDF_ITER, hash:'SHA-256' }, km, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
 }
 async function encObj(key, obj){
@@ -1021,77 +1032,107 @@ addEventListener('pagehide', () => lockVault(true));
 ['pointerdown','keydown'].forEach(ev => document.addEventListener(ev, touchVault, { passive: true }));
 
 /* نافذة كلمة السر: mode = 'unlock' | 'set' | 'change' */
+/* الانتظار بعد المحاولات الخاطئة: 3 مجانية ثم 30ث، 1د، 5د، 15د، 1س، ثم 1س لكل محاولة */
+const LOCK_STEPS = [0, 0, 0, 30, 60, 300, 900, 3600];
+const lockWait = fails => (LOCK_STEPS[Math.min(fails, LOCK_STEPS.length - 1)]) * 1000;
+const fmtWait = ms => { const sec = Math.ceil(ms / 1000); return sec >= 3600 ? `${Math.ceil(sec/3600)} ساعة` : sec >= 60 ? `${Math.ceil(sec/60)} دقيقة` : `${sec} ثانية`; };
+
+/* mode = 'unlock' | 'set' | 'change' — الرمز 6 أرقام، بيتأكد لحاله أول ما تكمّليه */
 function askPass(mode){
   return new Promise(resolve => {
-    const m = $('#vaultModal'), p1 = $('#vaultPass'), p2 = $('#vaultPass2'), err = $('#vaultErr'), go = $('#vaultGo');
+    const m = $('#vaultModal'), pin = $('#vaultPin'), box = $('#pinBox'), dots = [...box.querySelectorAll('.dots i')], err = $('#vaultErr'), wait = $('#vaultWait'), step = $('#vaultStep');
     const hintIn = $('#vaultHint'), hintNote = $('#vaultHintNote'), forgot = $('#vaultForgot'), hintShow = $('#vaultHintShow');
-    const set = mode !== 'unlock';
-    hintIn.hidden = hintNote.hidden = !set; hintIn.value = set ? (S.photoHint || '') : ''; hintShow.hidden = true; hintShow.textContent = '';
-    forgot.hidden = !(mode === 'unlock');
+    const set = mode !== 'unlock'; let first = null, tick = null;
+    hintIn.hidden = hintNote.hidden = !set; hintIn.value = set ? (S.photoHint || '') : ''; hintShow.hidden = true; hintShow.textContent = ''; err.hidden = true; wait.hidden = true;
+    forgot.hidden = mode !== 'unlock';
     forgot.onclick = () => { hintShow.hidden = false; hintShow.textContent = !window.__cloud?.signedIn?.() ? 'سجّلي الدخول بحسابك (زر 👤 فوق) مشان يظهر التلميح.' : (S.photoHint ? '💡 التلميح: ' + S.photoHint : 'ما في تلميح محفوظ لهالحسبة.'); };
-    $('#vaultTitle').textContent = mode === 'unlock' ? '🔒 كلمة سر الصور' : mode === 'set' ? '🔐 حماية الصور بكلمة سر' : '🔑 تغيير كلمة سر الصور';
-    $('#vaultText').textContent = mode === 'unlock' ? 'الصور مشفّرة على جهازك. أدخل كلمة السر لعرضها هالمرة (بتنقفل لحالها بعد ٣ دقائق أو لما تترك الصفحة).'
-      : 'اختر كلمة سر قوية (٨ أحرف على الأقل، والأفضل جملة). ما في طريقة لاستعادتها: لو نسيتها الصور بتضيع نهائياً، لأن لا نحن ولا Google نقدر نفتحها.';
-    p1.value = ''; p2.value = ''; p2.hidden = !set; err.hidden = true; go.textContent = mode === 'unlock' ? 'فتح' : 'حفظ';
-    m.hidden = false; setTimeout(() => p1.focus(), 50);
-    const done = v => { m.hidden = true; go.onclick = null; p1.onkeydown = p2.onkeydown = hintIn.onkeydown = null; forgot.onclick = null; m.querySelector('[data-close]').onclick = null; resolve(v === null ? null : { pass: v, hint: hintIn.value.trim().slice(0, 200) }); };
-    const submit = () => {
-      const v = p1.value;
-      if (set && v.length < 8){ err.textContent = 'كلمة السر قصيرة، ٨ أحرف على الأقل.'; err.hidden = false; return; }
-      if (set && v !== p2.value){ err.textContent = 'الكلمتان مش متطابقتان.'; err.hidden = false; return; }
-      if (!v){ err.textContent = 'اكتب كلمة السر.'; err.hidden = false; return; }
-      if (set && v.trim() && hintIn.value.trim() && hintIn.value.trim().toLowerCase().includes(v.trim().toLowerCase())){ err.textContent = 'التلميح ما لازم يحتوي كلمة السر نفسها.'; err.hidden = false; return; }
+    $('#vaultTitle').textContent = mode === 'unlock' ? '🔒 رمز الصور' : mode === 'set' ? '🔐 حماية الصور برمز' : '🔑 تغيير رمز الصور';
+    $('#vaultText').textContent = mode === 'unlock' ? 'أدخلي رمز الـ 6 أرقام. الصور بتنقفل لحالها بعد ٣ دقائق أو لما تتركي الصفحة.'
+      : 'اختاري رمزاً من 6 أرقام. الرمز مربوط بحسابك على Google: لازم تكوني مسجّلة الدخول مشان تفتحي الصور. ما في طريقة لاستعادته لو نسيتيه.';
+    const render = () => { const v = pin.value; dots.forEach((d, i) => { d.classList.toggle('on', i < v.length); d.classList.toggle('cur', i === v.length); }); };
+    const reset = () => { pin.value = ''; render(); };
+    step.hidden = !set; step.textContent = set ? 'أدخلي الرمز' : '';
+    /* الانتظار لو في قفل مؤقت */
+    const locked = () => Math.max(0, (S.photoLockUntil || 0) - Date.now());
+    const showWait = () => { const ms = locked(); if (ms > 0){ wait.hidden = false; wait.textContent = `⏳ محاولات كتير غلط. استني ${fmtWait(ms)} قبل ما تجرّبي.`; pin.disabled = true; } else { wait.hidden = true; pin.disabled = false; if (document.activeElement !== pin) pin.focus(); } };
+    if (mode === 'unlock'){ showWait(); tick = setInterval(showWait, 1000); }
+    m.hidden = false; reset(); setTimeout(() => pin.focus(), 50);
+    const done = v => { clearInterval(tick); m.hidden = true; pin.oninput = null; pin.onfocus = pin.onblur = null; forgot.onclick = null; m.querySelector('[data-close]').onclick = null; box.classList.remove('focus'); resolve(v === null ? null : { pass: v, hint: hintIn.value.trim().slice(0, 200) }); };
+    pin.onfocus = () => box.classList.add('focus'); pin.onblur = () => box.classList.remove('focus');
+    pin.oninput = () => {
+      pin.value = pin.value.replace(/\D/g, '').slice(0, 6); err.hidden = true; render();
+      if (pin.value.length < 6) return;
+      const v = pin.value;
+      if (!set){ done(v); return; }
+      if (first === null){ first = v; step.textContent = 'أعيدي كتابة الرمز للتأكيد'; reset(); return; }
+      if (v !== first){ err.textContent = 'الرمزان مش متطابقان، من جديد.'; err.hidden = false; box.classList.add('shake'); setTimeout(() => box.classList.remove('shake'), 400); first = null; step.textContent = 'أدخلي الرمز'; reset(); return; }
+      if (hintIn.value.trim().includes(v)){ err.textContent = 'التلميح ما لازم يحتوي الرمز نفسه.'; err.hidden = false; first = null; step.textContent = 'أدخلي الرمز'; reset(); return; }
       done(v);
     };
-    go.onclick = submit; p1.onkeydown = p2.onkeydown = hintIn.onkeydown = e => { if (e.key === 'Enter') submit(); };
     m.querySelector('[data-close]').onclick = () => done(null);
   });
 }
 async function withBusy(label, fn){ const b = $('#memToggle'); const old = b.textContent; b.disabled = true; b.textContent = label; try{ return await fn(); } finally { b.disabled = false; b.textContent = old; } }
 
 /* فتح الخزنة: يطلب كلمة السر، أو ينشئها أول مرة، ويشفّر أي صور قديمة غير مشفّرة */
+async function getPepper(){
+  const c = window.__cloud;
+  if (!c?.signedIn?.()){ alert('لازم تكوني مسجّلة الدخول بحسابك (زر 👤 فوق) مشان تفتحي الصور أو تحميها. الرمز مربوط بحسابك.'); return null; }
+  try{ return await c.getPepper(); }catch(e){ console.error(e); alert('ما قدرت أجيب مفتاح الحساب من السحابة. تأكدي من الاتصال وجرّبي.'); return null; }
+}
 async function openVault(){
   if (!cryptoOk()){ alert('المتصفح ما بيدعم التشفير هون (لازم https أو localhost).'); return; }
   const hasPlain = S.photos.some(m => !m.enc);
   if (!S.photoSalt || !S.photoCheck){
-    const r = await askPass('set'); if (!r) return; const pass = r.pass;
+    const pepper = await getPepper(); if (!pepper) return;
+    const r = await askPass('set'); if (!r) return;
     await withBusy('يشفّر…', async () => {
       const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
-      const key = await deriveKey(pass, salt);
-      S.photoSalt = salt; S.photoCheck = await encObj(key, { ok: true, t: Date.now() }); S.photoHint = r.hint;
+      const key = await deriveKey(r.pass, salt, pepper);
+      S.photoSalt = salt; S.photoCheck = await encObj(key, { ok: true, t: Date.now() }); S.photoHint = r.hint; S.photoV = 2; S.photoFails = 0; S.photoLockUntil = 0;
       vault.key = key;
       for (const m of S.photos){ if (!m.enc){ vault.cache.set(m.id, { src: m.src || '', text: m.text || '' }); m.enc = await encObj(key, { src: m.src || '', text: m.text || '' }); delete m.src; delete m.text; } }
       save();
     });
-    toast(hasPlain ? 'تم تشفير الصور الموجودة 🔐' : 'تم ضبط كلمة السر 🔐');
+    toast(hasPlain ? 'تم تشفير الصور الموجودة 🔐' : 'تم ضبط الرمز 🔐');
   } else {
-    const r = await askPass('unlock'); if (!r) return; const pass = r.pass;
+    if (S.photoV !== 2){ alert('هالحسبة مشفّرة بكلمة سر من النسخة القديمة. صدّري نسخة احتياطية قبل، ثم احذفي الصور من هالحسبة وارفعيها من جديد بالرمز.'); return; }
+    const pepper = await getPepper(); if (!pepper) return;
+    if ((S.photoLockUntil || 0) > Date.now()){ toast(`⏳ استني ${fmtWait(S.photoLockUntil - Date.now())}`); }
+    const r = await askPass('unlock'); if (!r) return;
+    if ((S.photoLockUntil || 0) > Date.now()) return;
     const ok = await withBusy('يفتح…', async () => {
-      const key = await deriveKey(pass, S.photoSalt);
+      const key = await deriveKey(r.pass, S.photoSalt, pepper);
       try{ await decObj(key, S.photoCheck); }catch(e){ return false; }
       vault.key = key;
       for (const m of S.photos){
         if (m.enc){ try{ vault.cache.set(m.id, await decObj(key, m.enc)); }catch(e){ vault.cache.set(m.id, { src:'', text:'⚠ تعذّر فك تشفير هالعنصر' }); } }
         else { vault.cache.set(m.id, { src: m.src || '', text: m.text || '' }); m.enc = await encObj(key, { src: m.src || '', text: m.text || '' }); delete m.src; delete m.text; }
       }
-      if (hasPlain) save();
       return true;
     });
-    if (!ok){ vault.tries++; await new Promise(r => setTimeout(r, Math.min(5000, 800 * vault.tries))); toast('كلمة السر غلط ❌'); return; }
-    vault.tries = 0;
+    if (!ok){
+      S.photoFails = (S.photoFails || 0) + 1; const w = lockWait(S.photoFails); if (w) S.photoLockUntil = Date.now() + w; save();
+      toast(w ? `الرمز غلط ❌ استني ${fmtWait(w)}` : `الرمز غلط ❌ (${3 - S.photoFails} محاولات قبل الانتظار)`);
+      if (!w) openVault(); /* رجّعي النافذة فوراً للمحاولات المجانية */
+      return;
+    }
+    if (S.photoFails || S.photoLockUntil){ S.photoFails = 0; S.photoLockUntil = 0; }
+    save();
   }
   memShown = true; touchVault(); renderMemories();
 }
 async function changePass(){
   if (!vault.key) return;
-  const r = await askPass('change'); if (!r) return; const pass = r.pass;
+  const pepper = await getPepper(); if (!pepper) return;
+  const r = await askPass('change'); if (!r) return;
   await withBusy('يعيد التشفير…', async () => {
     const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
-    const key = await deriveKey(pass, salt);
+    const key = await deriveKey(r.pass, salt, pepper);
     for (const m of S.photos){ const plain = vault.cache.get(m.id) || { src:'', text:'' }; m.enc = await encObj(key, plain); }
-    S.photoSalt = salt; S.photoCheck = await encObj(key, { ok: true, t: Date.now() }); S.photoHint = r.hint; vault.key = key; save();
+    S.photoSalt = salt; S.photoCheck = await encObj(key, { ok: true, t: Date.now() }); S.photoHint = r.hint; S.photoV = 2; S.photoFails = 0; S.photoLockUntil = 0; vault.key = key; save();
   });
-  toast('تم تغيير كلمة السر وإعادة تشفير كل الصور 🔑');
+  toast('تم تغيير الرمز وإعادة تشفير كل الصور 🔑');
 }
 async function reEncrypt(m){ const plain = vault.cache.get(m.id); if (!plain || !vault.key) return; m.enc = await encObj(vault.key, plain); save(); }
 
@@ -1219,6 +1260,7 @@ function bindPhotoDrag(el, m){
 }
 $('#memToggle').addEventListener('click', () => { if (memShown && vault.key) lockVault(); else openVault(); });
 $('#changePass').addEventListener('click', changePass);
+$('#changePass').title = 'تغيير رمز الصور';
 $('#addNote').addEventListener('click', async () => {
   if (!vault.key) return;
   const m = { id: uid(), rot: rndRot() }; const plain = { src:'', text:'' };
@@ -1378,7 +1420,7 @@ applyTheme(theme); save(); renderAll();
 /* ---------- المزامنة عبر Firebase (Auth + Firestore) ---------- */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, writeBatch, getDocFromServer } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, writeBatch, getDocFromServer, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDENYZgA09x32f0vSNmqXWvBBXFCUa8YX8",
@@ -1543,7 +1585,7 @@ function listen(){
   unsubs.push(onSnapshot(collection(base, 'photos'), snap => { cloudPh = {}; snap.forEach(d => { cloudPh[d.id] = { id: d.id, ...d.data() }; }); mergeCloud(); },
     e => fail(e, 'photos')));
 }
-function stop(){ unsubs.forEach(u => u()); unsubs = []; cloudP = cloudPh = null; pushed.p = {}; pushed.ph = {}; pending = false; clearTimeout(watchdog); }
+function stop(){ if (typeof lockVault === 'function') lockVault(true); unsubs.forEach(u => u()); unsubs = []; cloudP = cloudPh = null; pushed.p = {}; pushed.ph = {}; pending = false; clearTimeout(watchdog); }
 
 /* ---- الزر والحالة ---- */
 function renderAuth(){
@@ -1572,12 +1614,24 @@ authBtn.addEventListener('click', async () => {
 if (auth){
   getRedirectResult(auth).catch(e => console.error(e));
   onAuthStateChanged(auth, async u => {
-    stop(); user = u; pill.className = 'sync off'; renderAuth();
+    stop(); user = u; pepperCache = null; pill.className = 'sync off'; renderAuth();
     if (u){ setPill('busy', `يتزامن… (${u.email})`); pill.title = u.email; if (await probe()) listen(); }
   });
 } else renderAuth();
 
-window.__cloud = { schedule, merge3, signedIn: () => !!user };
+/* سر الحساب: 32 بايت عشوائي بيتولّد مرة وحدة وبينحفظ بـ users/{uid}/meta/vault. ما بيطلع من الحساب ولا بينحفظ بالملف أو النسخة الاحتياطية */
+let pepperCache = null;
+async function getPepper(){
+  if (!user || !db) throw new Error('signed-out');
+  if (pepperCache) return pepperCache;
+  const ref = doc(db, 'users', user.uid, 'meta', 'vault');
+  const snap = await getDoc(ref);
+  if (snap.exists() && typeof snap.data().pepper === 'string' && snap.data().pepper.length >= 32){ pepperCache = snap.data().pepper; return pepperCache; }
+  const bytes = crypto.getRandomValues(new Uint8Array(32)); const pepper = [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+  await setDoc(ref, { pepper, createdAt: Date.now() }, { merge: true });
+  pepperCache = pepper; return pepper;
+}
+window.__cloud = { schedule, merge3, signedIn: () => !!user, getPepper };
 </script>
 </body>
 </html>
