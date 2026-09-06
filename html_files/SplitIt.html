@@ -282,8 +282,9 @@
   .lb-tools i{width:1px;height:24px;background:rgba(255,255,255,.2);margin:0 8px}
   .lb-stage{width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:grab;touch-action:none}
   .lb-stage.drag{cursor:grabbing}
-  #lbImg{max-height:85vh;max-width:90vw;border-radius:10px;user-select:none;-webkit-user-drag:none;transition:transform .2s ease-out;animation:lbScale .25s ease-out;will-change:transform}
-  .lb-stage.drag #lbImg{transition:none}
+  #lbImg,#lbVid{max-height:85vh;max-width:90vw;border-radius:10px;user-select:none;-webkit-user-drag:none;transition:transform .2s ease-out;animation:lbScale .25s ease-out;will-change:transform}
+  #lbImg[hidden],#lbVid[hidden]{display:none}
+  .lb-stage.drag #lbImg,.lb-stage.drag #lbVid{transition:none}
   @keyframes lbFade{from{opacity:0}to{opacity:1}}
   @keyframes lbScale{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
   @media (max-width:640px){ .lb-cap{display:none} .lb-bottom{font-size:11px;text-align:center} }
@@ -297,7 +298,13 @@
   @keyframes shake{20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
   .hint.warn{color:var(--warn);font-weight:700}
   .lockmsg{text-align:center;padding:26px 10px;color:var(--muted);border:2px dashed var(--line2);border-radius:16px;font-size:13px}
-  .polaroid img{-webkit-user-drag:none;user-select:none}
+  .polaroid img,.polaroid video{-webkit-user-drag:none;user-select:none}
+  .polaroid video{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:6px;background:#000;cursor:zoom-in}
+  .polaroid .upl{position:absolute;bottom:8px;left:8px;background:rgba(15,63,74,.85);color:#fff;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;display:flex;align-items:center;gap:5px;font-family:"Segoe UI",Tahoma,sans-serif}
+  .polaroid .upl::before{content:"";width:8px;height:8px;border-radius:50%;border:2px solid #fff;border-top-color:transparent;animation:spin .8s linear infinite}
+  .polaroid .upl.done::before{display:none}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .polaroid.temp{outline:2px dashed var(--yellow);outline-offset:-2px}
   .board:empty::after{content:"ما في صور بعد. ضيف صورة أو ورقة ذكريات ✨";color:var(--muted);font-size:13px;padding:20px}
   #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--card);padding:10px 20px;border-radius:999px;font-size:14px;font-weight:700;opacity:0;transition:.3s;pointer-events:none;z-index:9}
   #toast.show{opacity:1;transform:translateX(-50%)}
@@ -471,8 +478,8 @@
 <div id="lb" hidden>
   <div class="lb-top"><span class="lb-cap" id="lbCap"></span>
     <span class="lb-tools"><button id="lbOut" title="تصغير">−</button><button id="lbPct" title="إعادة الضبط">100%</button><button id="lbIn" title="تكبير">+</button><i></i><button id="lbClose" title="إغلاق (Esc)">✕</button></span></div>
-  <div class="lb-stage" id="lbStage"><img id="lbImg" alt="" draggable="false"></div>
-  <div class="lb-bottom">عجلة الماوس أو إصبعين للزوم · نقرة مزدوجة للتبديل · اسحب للتحريك · Esc للإغلاق</div>
+  <div class="lb-stage" id="lbStage"><img id="lbImg" alt="" draggable="false"><video id="lbVid" muted autoplay loop playsinline draggable="false" hidden></video></div>
+  <div class="lb-bottom">عجلة الماوس أو إصبعين للزوم · نقرة مزدوجة للتبديل · اسحبي للتحريك · Esc للإغلاق</div>
 </div>
 
 <!-- نافذة كلمة سر الصور -->
@@ -1009,7 +1016,7 @@ $('#clearPaid').addEventListener('click', () => { if (!confirm('إلغاء تس�
    كلمة السر والمفتاح بيعيشوا بالذاكرة فقط أثناء الفتح، ولا يُحفظان أبداً. كل صورة/ورقة لها IV عشوائي. */
 let memShown = false;
 const PBKDF_ITER = 600000;
-const vault = { key: null, cache: new Map(), timer: null, tries: 0 };
+const vault = { key: null, cache: new Map(), timer: null, tries: 0, temp: new Map() };
 const b64 = u8 => { let t = ''; for (let i = 0; i < u8.length; i += 0x8000) t += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(t); };
 const unb64 = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
 const cryptoOk = () => !!(window.crypto && crypto.subtle);
@@ -1027,6 +1034,7 @@ async function decObj(key, t){ const u = unb64(t); return JSON.parse(new TextDec
 
 function lockVault(silent){
   closeLightbox();
+  vault.temp.forEach(t => URL.revokeObjectURL(t.url)); vault.temp.clear();
   vault.key = null; vault.cache.clear(); clearTimeout(vault.timer); vault.timer = null; memShown = false;
   if (!silent) renderMemories();
 }
@@ -1147,79 +1155,152 @@ function isAnimatedBytes(u8, type){
   if (u8.length > 8 && u8[0] === 0x89 && str(1, 4) === 'PNG'){ const head = str(8, Math.min(u8.length, 200)); return head.includes('acTL'); }
   return false;
 }
+const ANIM_KEEP = 250 * 1024; /* الصور المتحركة الصغيرة بتنحفظ كما هي */
 const ANIM_MAX = 480 * 1024; /* الصور المتحركة بتنحفظ كما هي (الكانفس بيقتل الحركة). حد مستند Firestore 1MB، والملف بيكبر ~1.85× (base64 ثم تشفير ثم base64) */
 const DOC_MAX = 1000 * 1024;   /* أقصى حجم للعنصر المشفّر */
-function loadImage(file){
+function loadImage(file, onState){
   return new Promise(async res => {
     try{
       const u8 = new Uint8Array(await file.slice(0, 256 * 1024).arrayBuffer());
       if (isAnimatedBytes(u8, file.type)){
-        if (file.size > ANIM_MAX){
-          /* كبيرة: نضغطها هون بأعلى جودة ممكنة تحت الحد (تصغير الأبعاد، ثم تقليل الإطارات، ثم الألوان) */
-          try{ const out = await compressAnimated(file, ANIM_MAX); res({ src: out.dataUrl, animated: true, note: out.note }); }
+        if (file.size > ANIM_KEEP){
+          /* أكبر من الحد الصغير: نحوّلها لفيديو بجودة عالية (أو GIF محسّن لو المتصفح قديم) */
+          try{ const out = await compressAnimated(file, ANIM_MAX, onState); res({ src: out.dataUrl, animated: true, note: out.note }); }
           catch(e){ console.error(e); res({ error: `«${file.name}» متحركة وكبيرة (${Math.round(file.size/1024)} كيلوبايت) و${e.message || 'ما قدرت أضغطها'}.` }); }
           return;
         }
         const fr = new FileReader(); fr.onload = () => res({ src: fr.result, animated: true }); fr.onerror = () => res({ error: 'ما قدرت أقرأ الملف' }); fr.readAsDataURL(file); return;
       }
     }catch(e){}
-    let src = await shrinkImage(file);
-    if (src && src.length * 1.4 > DOC_MAX) src = await shrinkImage(file, 700, .6); /* صورة معقّدة: صغّرها أكثر */
-    res({ src });
+    try{ onState?.('يجهّز…'); res({ src: await shrinkAdaptive(file) }); }catch(e){ console.error(e); res({ error: `«${file.name}»: ${e.message || 'ما قدرت أجهّز الصورة'}` }); }
   });
 }
-/* ضغط الصور المتحركة داخل المتصفح: فك الإطارات بـ ImageDecoder وإعادة الترميز GIF بـ gifenc، مع بحث عن أكبر حجم أبعاد يمرّ تحت الحد */
-let gifencMod = null;
-async function compressAnimated(file, limit){
-  if (!('ImageDecoder' in window)) throw new Error('المتصفح ما بيدعم ضغط الصور المتحركة (جرّبي Chrome أو Edge)');
-  gifencMod ||= await import('https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js');
-  const { GIFEncoder, quantize, applyPalette } = gifencMod;
+/* ---------- ضغط الصور المتحركة ----------
+   الفكرة (نفس اللي بتعمله تويتر وإيمجر وجيفي): الصورة المتحركة بتتحوّل لفيديو صامت قصير (H.264 أو VP9) بدل GIF.
+   الفيديو بيحتفظ بكل الألوان وبيطلع أصغر بكثير، فما نحتاج نصغّر الأبعاد إلا لو الملف كبير جداً، وساعتها بنصغّر شوي شوي (80% كل مرة)
+   مع جودة معتدلة بدل ما "نحرق" التفاصيل بالضغط وحده، تماماً مثل حيلة Resize ثم Optimize بـ Ezgif. */
+let gifencMod = null, gifuctMod = null, muxMods = {};
+const cdn = u => import(u);
+async function decodeFrames(file){
   const buf = await file.arrayBuffer();
-  const dec = new ImageDecoder({ data: buf, type: file.type || 'image/gif' });
-  await dec.tracks.ready; const track = dec.tracks.selectedTrack; const n = track.frameCount || 1;
-  /* فك كل الإطارات مرة وحدة بالحجم الأصلي */
-  const frames = []; let W = 0, H = 0;
-  for (let i = 0; i < n; i++){
-    const { image } = await dec.decode({ frameIndex: i });
-    W = image.displayWidth; H = image.displayHeight;
-    const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(image, 0, 0);
-    frames.push({ c, delay: Math.max(20, Math.round((image.duration || 100000) / 1000)) }); image.close();
+  if ('ImageDecoder' in window){
+    const dec = new ImageDecoder({ data: buf, type: file.type || 'image/gif' });
+    await dec.tracks.ready; const n = dec.tracks.selectedTrack.frameCount || 1; const frames = []; let W = 0, H = 0;
+    for (let i = 0; i < n; i++){
+      const { image } = await dec.decode({ frameIndex: i }); W = image.displayWidth; H = image.displayHeight;
+      const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.drawImage(image, 0, 0);
+      frames.push({ c, delay: Math.max(20, Math.round((image.duration || 100000) / 1000)) }); image.close();
+    }
+    dec.close(); return { frames, W, H };
   }
-  dec.close();
-  const limitRaw = limit; /* الحد على الملف الخام قبل الترميز */
-  const encode = (scale, step, colors) => {
+  if (!/gif/i.test(file.type) && !/\.gif$/i.test(file.name)) throw new Error('المتصفح ما بيقدر يفك إطارات هالنوع (جرّبي Chrome)');
+  gifuctMod ||= await cdn('https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/+esm');
+  const gif = gifuctMod.parseGIF(buf); const raw = gifuctMod.decompressFrames(gif, true);
+  const W = gif.lsd.width, H = gif.lsd.height; const full = document.createElement('canvas'); full.width = W; full.height = H; const fg = full.getContext('2d'); fg.fillStyle = '#fff'; fg.fillRect(0, 0, W, H);
+  const frames = []; let prevDisposal = 0, prevDims = null;
+  for (const f of raw){
+    if (prevDisposal === 2 && prevDims) fg.fillRect(prevDims.left, prevDims.top, prevDims.width, prevDims.height);
+    const pc = document.createElement('canvas'); pc.width = f.dims.width; pc.height = f.dims.height; pc.getContext('2d').putImageData(new ImageData(f.patch, f.dims.width, f.dims.height), 0, 0);
+    fg.drawImage(pc, f.dims.left, f.dims.top);
+    const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(full, 0, 0);
+    frames.push({ c, delay: Math.max(20, f.delay || 100) }); prevDisposal = f.disposalType; prevDims = f.dims;
+  }
+  return { frames, W, H };
+}
+async function pickVideoCodec(w, h, fps){
+  if (!('VideoEncoder' in window)) return null;
+  const cands = [
+    { codec: 'avc1.640028', mux: 'mp4', muxCodec: 'avc', mime: 'video/mp4' },   /* H.264 High 4.0: بيلعب بكل مكان */
+    { codec: 'avc1.42001f', mux: 'mp4', muxCodec: 'avc', mime: 'video/mp4' },
+    { codec: 'vp09.00.10.08', mux: 'webm', muxCodec: 'V_VP9', mime: 'video/webm' },
+    { codec: 'vp8', mux: 'webm', muxCodec: 'V_VP8', mime: 'video/webm' },
+  ];
+  for (const c of cands){ try{ const r = await VideoEncoder.isConfigSupported({ codec: c.codec, width: w, height: h, bitrate: 1e6, framerate: fps }); if (r.supported) return c; }catch(e){} }
+  return null;
+}
+async function encodeVideo(frames, W, H, scale, bitrate, cfg){
+  const w = Math.max(16, Math.round(W * scale / 2) * 2), h = Math.max(16, Math.round(H * scale / 2) * 2);
+  const modUrl = cfg.mux === 'mp4' ? 'https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.mjs' : 'https://cdn.jsdelivr.net/npm/webm-muxer@5.1.4/build/webm-muxer.mjs';
+  muxMods[cfg.mux] ||= await cdn(modUrl);
+  const { Muxer, ArrayBufferTarget } = muxMods[cfg.mux];
+  const total = frames.reduce((a, f) => a + f.delay, 0); const fps = Math.max(1, Math.min(60, Math.round(frames.length * 1000 / total)));
+  const muxer = new Muxer({ target: new ArrayBufferTarget(), video: { codec: cfg.muxCodec, width: w, height: h, frameRate: fps }, ...(cfg.mux === 'mp4' ? { fastStart: 'in-memory' } : {}) });
+  let encErr = null;
+  const enc = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: e => { encErr = e; } });
+  enc.configure({ codec: cfg.codec, width: w, height: h, bitrate: Math.round(bitrate), framerate: fps, latencyMode: 'quality', bitrateMode: 'variable' });
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d'); g.imageSmoothingQuality = 'high';
+  let ts = 0;
+  for (let i = 0; i < frames.length; i++){
+    g.drawImage(frames[i].c, 0, 0, w, h);
+    const vf = new VideoFrame(cv, { timestamp: ts, duration: frames[i].delay * 1000 });
+    enc.encode(vf, { keyFrame: i === 0 || (ts % 2000000) < frames[i].delay * 1000 }); vf.close();
+    ts += frames[i].delay * 1000;
+    if (enc.encodeQueueSize > 8) await new Promise(r => setTimeout(r, 15));
+  }
+  await enc.flush(); enc.close(); if (encErr) throw encErr;
+  muxer.finalize(); const bytes = new Uint8Array(muxer.target.buffer);
+  return { bytes, w, h, fps, mime: cfg.mime };
+}
+async function compressAnimated(file, limitRaw, onState){
+  const { frames, W, H } = await decodeFrames(file);
+  const total = frames.reduce((a, f) => a + f.delay, 0) / 1000; const fps = frames.length / Math.max(.1, total);
+  const cfg = await pickVideoCodec(W, H, Math.round(fps));
+  if (cfg){
+    /* الجودة أولاً: معدل بت "ممتاز" ≈ 0.12 بت لكل بكسل لكل إطار. لو الملف كبر: نزّل المعدل لحد 0.06، وبعدها صغّري الأبعاد 80% وارجعي للجودة العالية */
+    let scale = 1;
+    for (let round = 0; round < 8; round++){
+      const w = W * scale, h = H * scale;
+      const great = w * h * fps * 0.12, floor = w * h * fps * 0.06;
+      const byLimit = (limitRaw * 8 * 0.92) / Math.max(.1, total);
+      const br = Math.min(great, byLimit);
+      if (br < floor && scale > 0.35){ scale *= 0.8; continue; }             /* الضغط وحده رح يخرب الصورة: صغّري شوي بدلاً */
+      onState?.(`يضغط… ${Math.round(scale*100)}%`);
+      const out = await encodeVideo(frames, W, H, scale, Math.max(br, 40000), cfg);
+      if (out.bytes.length * 1.85 <= limitRaw * 1.85 || round === 7){
+        if (out.bytes.length * 1.85 > limitRaw * 1.85) throw new Error('ما نزلت تحت الحد حتى بعد التصغير، قصّريها');
+        const note = `تحوّلت لفيديو ${cfg.mime.split('/')[1].toUpperCase()}${scale < 1 ? ` بـ ${Math.round(scale*100)}% من الأبعاد` : ''} (${Math.round(out.bytes.length/1024)} كيلوبايت)`;
+        return { dataUrl: `data:${out.mime};base64,` + b64(out.bytes), note };
+      }
+      scale *= 0.85; /* كبر: صغّري شوي وجرّبي */
+    }
+  }
+  /* بدون WebCodecs: GIF بأفضل جودة ممكنة (ألوان كاملة 565، تصغير الأبعاد بس، بدون حذف إطارات إلا للضرورة) */
+  gifencMod ||= await cdn('https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js');
+  const { GIFEncoder, quantize, applyPalette } = gifencMod;
+  const encodeGif = (scale, step) => {
     const w = Math.max(16, Math.round(W * scale)), h = Math.max(16, Math.round(H * scale));
-    const gif = GIFEncoder(); const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d', { willReadFrequently: true });
+    const gif = GIFEncoder(); const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d', { willReadFrequently: true }); g.imageSmoothingQuality = 'high';
     for (let i = 0; i < frames.length; i += step){
-      g.clearRect(0, 0, w, h); g.drawImage(frames[i].c, 0, 0, w, h);
-      const rgba = g.getImageData(0, 0, w, h).data;
-      const palette = quantize(rgba, colors, { format: 'rgba4444' }); const index = applyPalette(rgba, palette, 'rgba4444');
+      g.drawImage(frames[i].c, 0, 0, w, h); const rgba = g.getImageData(0, 0, w, h).data;
+      const palette = quantize(rgba, 256); const index = applyPalette(rgba, palette);
       let delay = 0; for (let j = i; j < Math.min(frames.length, i + step); j++) delay += frames[j].delay;
-      gif.writeFrame(index, w, h, { palette, delay, transparent: true, transparentIndex: 0 });
+      gif.writeFrame(index, w, h, { palette, delay });
     }
     gif.finish(); return gif.bytes();
   };
-  let best = null; const sizeOf = b => b.length * 1.85 + 2000; /* base64 → تشفير → base64 */
-  const tryEncode = (scale, step, colors) => { const b = encode(scale, step, colors); if (sizeOf(b) <= limitRaw * 1.85 && (!best || scale > best.scale || (scale === best.scale && step < best.step))) best = { bytes: b, scale, step, colors }; return sizeOf(b) <= limitRaw * 1.85; };
-  toast('يضغط الصورة المتحركة… ⏳');
-  /* المرحلة 1: كل الإطارات، بحث ثنائي على الأبعاد بين 55% و100% */
-  const plans = [[1, 256, .55], [2, 256, .45], [3, 256, .35], [3, 128, .25], [4, 64, .2]];
-  for (const [step, colors, minScale] of plans){
-    if (tryEncode(1, step, colors)) break;
-    let lo = minScale, hi = 1, ok = tryEncode(lo, step, colors);
-    if (!ok) continue; /* حتى أصغر حجم بهالخطة ما بيمر: جرّبي خطة أقوى */
-    for (let k = 0; k < 6; k++){ const mid = (lo + hi) / 2; if (tryEncode(mid, step, colors)) lo = mid; else hi = mid; }
+  let best = null;
+  for (const step of [1, 2, 3]){
+    let lo = .4, hi = 1; onState?.('يضغط…');
+    let b = encodeGif(1, step); if (b.length <= limitRaw){ best = { b, scale: 1, step }; break; }
+    b = encodeGif(lo, step); if (b.length > limitRaw) continue; best = { b, scale: lo, step };
+    for (let k = 0; k < 5; k++){ const mid = (lo + hi) / 2; const bb = encodeGif(mid, step); if (bb.length <= limitRaw){ lo = mid; best = { b: bb, scale: mid, step }; } else hi = mid; }
     break;
   }
-  if (!best) throw new Error('حتى بعد أقصى ضغط ما نزلت تحت الحد، قصّريها أو قسّميها');
-  const b64s = b64(best.bytes);
-  const note = `${Math.round(best.scale*100)}% من الأبعاد${best.step > 1 ? `، كل ${best.step} إطارات إطار` : ''}${best.colors < 256 ? `، ${best.colors} لون` : ''}`;
-  return { dataUrl: 'data:image/gif;base64,' + b64s, note };
+  if (!best) throw new Error('ما قدرت أنزلها تحت الحد');
+  return { dataUrl: 'data:image/gif;base64,' + b64(best.b), note: `GIF بـ ${Math.round(best.scale*100)}% من الأبعاد${best.step > 1 ? ` وكل ${best.step} إطارات إطار` : ''}` };
 }
+/* الصور الثابتة: أبعاد وجودة معتدلة، وننزل درجة درجة بس لو الملف كبير */
+async function shrinkAdaptive(file){
+  const plans = [[1400, .85], [1400, .76], [1200, .74], [1000, .7], [900, .66], [800, .6]];
+  let src = '';
+  for (const [M, q] of plans){ src = await shrinkImage(file, M, q); if (!src || src.length * 1.4 <= STATIC_MAX) break; }
+  return src;
+}
+const STATIC_MAX = 720 * 1024;  /* حجم العنصر المشفّر للصور الثابتة */
 function shrinkImage(file, M = 900, q = .78){
   return new Promise(res => {
     const img = new Image(); const url = URL.createObjectURL(file);
-    img.onload = () => { const k = Math.min(1, M / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', q)); };
+    img.onload = () => { const k = Math.min(1, M / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', q)); };
     img.onerror = () => { URL.revokeObjectURL(url); res(''); };
     img.src = url;
   });
@@ -1238,29 +1319,57 @@ function renderMemories(){
     const d = vault.cache.get(m.id) || { src:'', text:'' };
     const el = document.createElement('div'); el.className = 'polaroid' + (d.src ? '' : ' note'); el.style.setProperty('--rot', m.rot + 'deg');
     el.dataset.id = m.id;
-    el.innerHTML = `<span class="pgrip" title="اسحب للترتيب">⠿</span>${d.src ? `<img src="${d.src}" alt="" draggable="false">` : ''}<textarea class="cap" rows="1" placeholder="${d.src ? 'اكتب شي…' : 'اكتب ذكرى…'}">${esc(d.text)}</textarea><button class="del" title="حذف">×</button>`;
+    el.innerHTML = `<span class="pgrip" title="اسحب للترتيب">⠿</span>${mediaTag(d.src)}<textarea class="cap" rows="1" placeholder="${d.src ? 'اكتب شي…' : 'اكتب ذكرى…'}">${esc(d.text)}</textarea><button class="del" title="حذف">×</button>`;
     bindPhotoDrag(el, m);
     const ta = el.querySelector('.cap'); let t;
     ta.addEventListener('input', () => { d.text = ta.value; vault.cache.set(m.id, d); autoGrow(ta); clearTimeout(t); t = setTimeout(() => reEncrypt(m), 500); });
-    el.querySelector('img')?.addEventListener('click', () => openLightbox(d.src, ta.value));
+    el.querySelector('img,video')?.addEventListener('click', () => openLightbox(d.src, ta.value));
     el.querySelector('.del').addEventListener('click', () => { if (!confirm('حذف هالذكرى؟')) return; S.photos = S.photos.filter(x => x !== m); vault.cache.delete(m.id); save(); renderMemories(); });
     board.appendChild(el); autoGrow(ta);
   });
+  /* العناصر المؤقتة: الصورة الأصلية محلياً لحد ما تخلص المعالجة */
+  vault.temp.forEach(t => {
+    const el = document.createElement('div'); el.className = 'polaroid temp'; el.style.setProperty('--rot', t.rot + 'deg'); el.dataset.temp = t.id;
+    el.innerHTML = `<img src="${t.url}" alt="" draggable="false"><div class="cap" style="min-height:32px"></div><span class="upl">${t.state}</span>`;
+    el.querySelector('img').addEventListener('click', () => openLightbox(t.url, ''));
+    board.appendChild(el);
+  });
+  refreshUploadBadges();
 }
+const isVideoSrc = src => typeof src === 'string' && src.startsWith('data:video/');
+const mediaTag = src => !src ? '' : isVideoSrc(src) ? `<video src="${src}" muted autoplay loop playsinline draggable="false"></video>` : `<img src="${src}" alt="" draggable="false">`;
+/* شارة "يرفع…" على الصور المشفّرة اللي لسا ما وصلت السحابة، بدون إعادة رسم اللوح */
+function refreshUploadBadges(){
+  const signed = !!window.__cloud?.signedIn?.();
+  document.querySelectorAll('#board .polaroid[data-id]').forEach(el => {
+    const id = el.dataset.id; const m = S.photos.find(x => x.id === id); let b = el.querySelector('.upl');
+    const need = signed && m && m.enc && !window.__cloud.isUploaded(id);
+    if (need){ if (!b){ b = document.createElement('span'); b.className = 'upl'; el.appendChild(b); } b.textContent = 'يرفع…'; }
+    else if (b) b.remove();
+  });
+  document.querySelectorAll('#board .polaroid[data-temp]').forEach(el => { const t = vault.temp.get(el.dataset.temp); const b = el.querySelector('.upl'); if (t && b) b.textContent = t.state; });
+}
+window.__afterPush = refreshUploadBadges;
 const rndRot = () => Math.round((Math.random() * 12 - 6) * 10) / 10;
 
 /* ---------- معاينة الصورة: زوم باتجاه المؤشر، سحب، نقرة مزدوجة، إصبعين، Esc (منقول من ImagePreviewModal) ---------- */
 const LB = { MIN:.5, MAX:5, STEP:.25, scale:1, x:0, y:0, drag:false, moved:false, downTarget:null, sx:0, sy:0, pts:new Map(), pinch:null };
-const lb = $('#lb'), lbImg = $('#lbImg'), lbStage = $('#lbStage');
-function lbApply(){ lbImg.style.transform = `translate(${LB.x}px, ${LB.y}px) scale(${LB.scale})`; $('#lbPct').textContent = Math.round(LB.scale*100) + '%'; $('#lbOut').disabled = LB.scale <= LB.MIN; $('#lbIn').disabled = LB.scale >= LB.MAX; }
+const lb = $('#lb'), lbImg = $('#lbImg'), lbVid = $('#lbVid'), lbStage = $('#lbStage');
+let lbMedia = lbImg;
+function lbApply(){ lbMedia.style.transform = `translate(${LB.x}px, ${LB.y}px) scale(${LB.scale})`; $('#lbPct').textContent = Math.round(LB.scale*100) + '%'; $('#lbOut').disabled = LB.scale <= LB.MIN; $('#lbIn').disabled = LB.scale >= LB.MAX; }
 function lbReset(){ LB.scale = 1; LB.x = 0; LB.y = 0; lbApply(); }
 function lbZoomAt(newScale, cx, cy){
   newScale = Math.min(LB.MAX, Math.max(LB.MIN, newScale)); if (newScale === LB.scale) return;
   const r = lbStage.getBoundingClientRect(); const mx = cx - r.left - r.width/2, my = cy - r.top - r.height/2;
   const k = newScale / LB.scale; LB.x = mx - (mx - LB.x) * k; LB.y = my - (my - LB.y) * k; LB.scale = newScale; lbApply();
 }
-function openLightbox(src, cap){ if (!src) return; lbImg.src = src; $('#lbCap').textContent = cap || ''; lb.hidden = false; document.body.style.overflow = 'hidden'; lbReset(); }
-function closeLightbox(){ if (lb.hidden) return; lb.hidden = true; lbImg.src = ''; document.body.style.overflow = ''; }
+function openLightbox(src, cap){
+  if (!src) return; const isVid = isVideoSrc(src);
+  lbMedia = isVid ? lbVid : lbImg; lbImg.hidden = isVid; lbVid.hidden = !isVid;
+  if (isVid){ lbVid.src = src; lbImg.removeAttribute('src'); lbVid.play?.().catch(() => {}); } else { lbImg.src = src; lbVid.removeAttribute('src'); }
+  $('#lbCap').textContent = cap || ''; lb.hidden = false; document.body.style.overflow = 'hidden'; lbReset();
+}
+function closeLightbox(){ if (lb.hidden) return; lb.hidden = true; lbImg.removeAttribute('src'); lbVid.pause?.(); lbVid.removeAttribute('src'); document.body.style.overflow = ''; }
 $('#lbClose').addEventListener('click', closeLightbox);
 $('#lbIn').addEventListener('click', () => { const r = lbStage.getBoundingClientRect(); lbZoomAt(LB.scale + LB.STEP, r.left + r.width/2, r.top + r.height/2); });
 $('#lbOut').addEventListener('click', () => { const r = lbStage.getBoundingClientRect(); lbZoomAt(LB.scale - LB.STEP, r.left + r.width/2, r.top + r.height/2); });
@@ -1283,7 +1392,7 @@ lbStage.addEventListener('pointermove', e => {
 const lbUp = e => {
   LB.pts.delete(e.pointerId); if (LB.pts.size < 2) LB.pinch = null;
   if (!LB.drag) return; LB.drag = false; lbStage.classList.remove('drag');
-  if (!LB.moved && LB.downTarget !== lbImg && LB.pts.size === 0) closeLightbox(); /* نقرة برا الصورة = إغلاق */
+  if (!LB.moved && LB.downTarget !== lbImg && LB.downTarget !== lbVid && LB.pts.size === 0) closeLightbox(); /* نقرة برا الصورة = إغلاق */
 };
 lbStage.addEventListener('pointerup', lbUp); lbStage.addEventListener('pointercancel', lbUp);
 /* سحب وإفلات الصور: نفس أسلوب صفوف الأشخاص (شبح + مكان إفلات + تنفيذ عند الإفلات) */
@@ -1330,12 +1439,28 @@ $('#addNote').addEventListener('click', async () => {
 $('#addPhoto').addEventListener('click', () => { if (vault.key) $('#photoFile').click(); });
 $('#photoFile').addEventListener('change', async e => {
   const files = [...e.target.files]; e.target.value = ''; if (!files.length || !vault.key) return;
-  let n = 0;
-  let anim = 0; const errs = [];
-  const notes = [];
-  for (const f of files){ const r = await loadImage(f); if (r.error){ errs.push(r.error); continue; } if (!r.src) continue; const m = { id: uid(), rot: rndRot() }; const plain = { src: r.src, text:'' }; m.enc = await encObj(vault.key, plain);
-    if (m.enc.length > DOC_MAX){ errs.push(`«${f.name}» بعد التشفير ${Math.round(m.enc.length/1024)} كيلوبايت وهذا أكبر من حد السحابة، جرّبي نسخة أصغر.`); continue; } vault.cache.set(m.id, plain); S.photos.push(m); n++; if (r.animated) anim++; if (r.note) notes.push(`${f.name}: انضغطت (${r.note})`); }
-  save(); renderMemories(); if (n) toast(`أضفت ${n} صورة مشفّرة 🔐${anim ? ` (${anim} متحركة)` : ''}${notes.length ? ' · ' + notes.join(' · ') : ''}`); if (errs.length) alert(errs.join('\n'));
+  /* 1) اعرضي الأصل فوراً محلياً */
+  const items = files.map(f => ({ id: uid(), file: f, url: URL.createObjectURL(f), rot: rndRot(), state: 'يضغط…' }));
+  items.forEach(t => vault.temp.set(t.id, t)); renderMemories();
+  /* 2) بالخلفية: ضغط → تشفير → حفظ → (المزامنة بترفع) */
+  let n = 0, anim = 0; const notes = [], errs = [];
+  for (const t of items){
+    try{
+      const r = await loadImage(t.file, st => { t.state = st; refreshUploadBadges(); });
+      if (r.error) throw new Error(r.error);
+      if (!r.src) throw new Error(`«${t.file.name}» مش صورة صالحة`);
+      if (!vault.key) throw new Error('انقفلت الصور قبل ما تخلص المعالجة');
+      const m = { id: t.id, rot: t.rot }; const plain = { src: r.src, text: '' };
+      m.enc = await encObj(vault.key, plain);
+      if (m.enc.length > DOC_MAX) throw new Error(`«${t.file.name}» بعد التشفير ${Math.round(m.enc.length/1024)} كيلوبايت وهذا أكبر من حد السحابة`);
+      vault.cache.set(m.id, plain); S.photos.push(m); n++; if (r.animated) anim++; if (r.note) notes.push(`${t.file.name}: ${r.note}`);
+    }catch(err){ console.error(err); errs.push(err.message || String(err)); }
+    /* 3) شيلي النسخة الأصلية المؤقتة: بقيت المشفّرة بس */
+    vault.temp.delete(t.id); URL.revokeObjectURL(t.url);
+    save(); renderMemories();
+  }
+  if (n) toast(`أضفت ${n} صورة مشفّرة 🔐${anim ? ` (${anim} متحركة)` : ''}${notes.length ? ' · ' + notes.join(' · ') : ''}`);
+  if (errs.length) alert(errs.join('\n'));
 });
 function renderAll(){ renderTabs(); renderPeople(); renderMemories(); }
 
@@ -1664,7 +1789,7 @@ async function push(){
     const photoOps = ops.filter(o => o.photo), rest = ops.filter(o => !o.photo);
     for (let i = 0; i < rest.length; i += 15){ const b = writeBatch(db); const part = rest.slice(i, i+15); part.forEach(f => f(b)); await b.commit(); part.forEach(f => f.after()); }
     for (const o of photoOps){ try{ const b = writeBatch(db); o(b); await b.commit(); o.after(); }catch(e){ console.error(e); toast(e.code === 'invalid-argument' ? 'صورة أكبر من حد السحابة، بتضل على هالجهاز بس' : 'ما انرفعت صورة: ' + (e.code || '')); } }
-    pending = false; savePushed(); status();
+    pending = false; savePushed(); status(); window.__afterPush?.();
   }catch(e){
     fail(e, 'push');
     if (e.code === 'permission-denied') toast('هذا الحساب غير مسموح له بالمزامنة. سجّل بحسابك المعتمد.');
@@ -1677,7 +1802,7 @@ function listen(){
   clearTimeout(watchdog); watchdog = setTimeout(() => { if (!cloudP) setPill('err', 'الاتصال نجح بس الاستماع ما رد خلال ١٢ ثانية، جرّب تحديث الصفحة'); }, 15000);
   unsubs.push(onSnapshot(collection(base, 'profiles'), { includeMetadataChanges: true }, snap => { clearTimeout(watchdog); pending = snap.metadata.hasPendingWrites; cloudP = {}; snap.forEach(d => { cloudP[d.id] = { id: d.id, ...d.data() }; }); mergeCloud(); status(); },
     e => fail(e, 'profiles')));
-  unsubs.push(onSnapshot(collection(base, 'photos'), snap => { cloudPh = {}; snap.forEach(d => { cloudPh[d.id] = { id: d.id, ...d.data() }; }); mergeCloud(); },
+  unsubs.push(onSnapshot(collection(base, 'photos'), snap => { cloudPh = {}; snap.forEach(d => { cloudPh[d.id] = { id: d.id, ...d.data() }; }); mergeCloud(); window.__afterPush?.(); },
     e => fail(e, 'photos')));
 }
 function stop(){ if (typeof lockVault === 'function') lockVault(true); unsubs.forEach(u => u()); unsubs = []; cloudP = cloudPh = null; pushed.p = {}; pushed.ph = {}; pending = false; clearTimeout(watchdog); }
