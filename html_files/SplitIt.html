@@ -54,6 +54,14 @@
   .tool{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.92);color:var(--text);display:grid;place-items:center;box-shadow:var(--shadow);font-size:18px}
   html[data-theme=dark] .tool{background:rgba(28,39,62,.92)}
   .tool svg.i{width:20px;height:20px}
+  .tool img.av{width:42px;height:42px;border-radius:50%;object-fit:cover}
+  .tool.in{outline:3px solid var(--yellow)}
+  .sync{display:inline-flex;align-items:center;gap:6px;padding:0 12px;height:42px;border-radius:999px;background:rgba(255,255,255,.92);color:var(--text);font-size:12.5px;font-weight:800;box-shadow:var(--shadow);white-space:nowrap}
+  html[data-theme=dark] .sync{background:rgba(28,39,62,.92)}
+  .sync::before{content:"";width:9px;height:9px;border-radius:50%;background:#9aa;flex:none}
+  .sync.ok::before{background:#34d399} .sync.busy::before{background:var(--yellow);animation:pulse 1s infinite} .sync.offline::before{background:#f59e0b} .sync.err::before{background:var(--danger)}
+  @keyframes pulse{50%{opacity:.3}}
+  .sync[hidden]{display:none}
 
   /* ---------- الأقسام ---------- */
   main{max-width:1100px;width:100%;margin:-14px auto 0;padding:0 14px 20px;position:relative;flex:1}
@@ -331,11 +339,13 @@
       <button class="tool" id="exportBtn" title="تصدير نسخة احتياطية"><svg class="i" viewBox="0 0 24 24"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg></button>
       <button class="tool" id="importBtn" title="استيراد نسخة احتياطية ودمجها"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg></button>
       <button class="tool" id="themeBtn" title="الوضع الليلي / النهاري">🌙</button>
+      <button class="tool" id="authBtn" title="تسجيل الدخول لمزامنة البيانات بين أجهزتك"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/></svg></button>
+      <span class="sync off" id="syncPill" hidden></span>
       <input type="file" id="importFile" accept=".json,application/json" hidden>
     </div>
     <div>
       <h1 class="title">قسّمها<small>SPLIT IT · POOL PARTY</small></h1>
-      <p class="subtitle">قسّم أي مصروف جماعي بعدل: شاليه، رحلة، عشا، هدية… كل شي بينحفظ تلقائياً على جهازك.</p>
+      <p class="subtitle">قسّم أي مصروف جماعي بعدل: شاليه، رحلة، عشا، هدية… كل شي بينحفظ تلقائياً على جهازك، وبعد تسجيل الدخول بيتزامن بين الكمبيوتر والجوال.</p>
     </div>
   </div>
 </header>
@@ -531,7 +541,8 @@ let DB = load();
 let S = DB.profiles.find(p => p.id === DB.activeId).data;
 const prof = () => DB.profiles.find(p => p.id === DB.activeId);
 let saveWarned = false;
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){ if(!saveWarned){ saveWarned = true; alert('ما قدرت أحفظ: مساحة تخزين المتصفح ممتلئة (غالباً بسبب الصور). احذف كم صورة أو صدّر نسخة احتياطية.'); } } }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){ if(!saveWarned){ saveWarned = true; alert('ما قدرت أحفظ: مساحة تخزين المتصفح ممتلئة (غالباً بسبب الصور). احذف كم صورة أو صدّر نسخة احتياطية.'); } }
+  window.__cloud?.schedule(); }
 function switchProfile(id){ DB.activeId = id; S = prof().data; openPickers.clear(); memShown = false; save(); renderAll(); }
 
 /* ---------- الحساب ---------- */
@@ -1088,6 +1099,154 @@ $('#year').textContent = new Date().getFullYear();
 let theme = 'light';
 try{ theme = localStorage.getItem(THEME_KEY) || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }catch(e){}
 applyTheme(theme); save(); renderAll();
+</script>
+<script type="module">
+/* ---------- المزامنة عبر Firebase (Auth + Firestore) ---------- */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDENYZgA09x32f0vSNmqXWvBBXFCUa8YX8",
+  authDomain: "splitit-c9ae9.firebaseapp.com",
+  projectId: "splitit-c9ae9",
+  storageBucket: "splitit-c9ae9.firebasestorage.app",
+  messagingSenderId: "1049429855593",
+  appId: "1:1049429855593:web:6bf6645078df65ef0081f8"
+};
+
+const pill = document.getElementById('syncPill'), authBtn = document.getElementById('authBtn');
+const setPill = (cls, txt) => { pill.hidden = false; pill.className = 'sync ' + cls; pill.textContent = txt; };
+const isFile = location.protocol === 'file:';
+
+let app, auth, db;
+try{
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+}catch(e){ console.error(e); setPill('err', 'المزامنة غير متاحة'); }
+
+let user = null, unsubs = [], cloudP = null, cloudPh = null, merging = false, timer = null;
+const pushed = { p: {}, ph: {} };            /* آخر نسخة مرفوعة لكل مستند (للمقارنة ومنع التكرار) */
+const stripPhotos = pr => { const { photos, ...rest } = pr.data; return { id: pr.id, name: pr.name, date: pr.date, createdAt: pr.createdAt, data: rest, updatedAt: Date.now() }; };
+const stable = o => JSON.stringify(o, Object.keys(o).sort());
+const profKey = pr => { const x = stripPhotos(pr); delete x.updatedAt; return JSON.stringify(x); };
+const photoKey = (pid, m, i) => JSON.stringify({ pid, src: m.src, text: m.text, rot: m.rot, order: i });
+
+function status(){
+  if (!user) return;
+  if (!navigator.onLine) setPill('offline', 'بدون نت، بيتزامن لما يرجع');
+  else if (timer || merging) setPill('busy', 'يحفظ…');
+  else setPill('ok', 'متزامن ✔');
+}
+addEventListener('online', status); addEventListener('offline', status);
+
+/* ---- دمج ما بالسحابة مع المحلي ---- */
+function mergeCloud(){
+  if (!cloudP || !cloudPh) return;
+  merging = true;
+  try{
+    const photosBy = {};
+    Object.values(cloudPh).sort((a,b) => (a.order||0) - (b.order||0)).forEach(m => { (photosBy[m.pid] ||= []).push({ id: m.id, src: m.src || '', text: m.text || '', rot: +m.rot || 0 }); });
+    const cloudIds = new Set(Object.keys(cloudP));
+    const next = [];
+    /* المحلي: احتفظ بترتيبه، خذ نسخة السحابة لو موجودة */
+    DB.profiles.forEach(pr => {
+      if (cloudIds.has(pr.id)) next.push(normProfile({ ...cloudP[pr.id], data: { ...cloudP[pr.id].data, photos: photosBy[pr.id] || [] } }));
+      else if (pushed.p[pr.id]) { /* كان مرفوع وانحذف من جهاز تاني */ }
+      else next.push(pr); /* جديد محلياً، رح ينرفع */
+    });
+    /* حسبات موجودة بالسحابة فقط */
+    Object.keys(cloudP).filter(id => !DB.profiles.some(pr => pr.id === id)).forEach(id => next.push(normProfile({ ...cloudP[id], data: { ...cloudP[id].data, photos: photosBy[id] || [] } })));
+    if (!next.length) next.push(newProfile('حسبتي الأولى'));
+    /* سجّل ما بالسحابة كمرفوع مشان ما نعيد رفعه */
+    pushed.p = {}; pushed.ph = {};
+    next.forEach(pr => { if (cloudIds.has(pr.id)){ pushed.p[pr.id] = profKey(pr); pr.data.photos.forEach((m,i) => { if (cloudPh[m.id]) pushed.ph[m.id] = photoKey(pr.id, m, i); }); } });
+    const before = JSON.stringify(DB.profiles);
+    DB.profiles = next;
+    if (!DB.profiles.some(pr => pr.id === DB.activeId)) DB.activeId = DB.profiles[0].id;
+    S = prof().data;
+    const changed = before !== JSON.stringify(DB.profiles);
+    try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){}
+    if (changed && !document.activeElement?.matches?.('input,textarea,select')) renderAll();
+    else if (changed) renderTabs();
+  } finally { merging = false; }
+  schedule(); /* ارفع أي شي محلي جديد */
+}
+
+/* ---- رفع التغييرات المحلية ---- */
+function schedule(){ if (!user || !db) return; clearTimeout(timer); timer = setTimeout(push, 900); status(); }
+async function push(){
+  timer = null; if (!user || !db || merging) { status(); return; }
+  const base = collection(db, 'users', user.uid);
+  const ops = [];
+  const liveP = new Set(), livePh = new Set();
+  DB.profiles.forEach(pr => {
+    liveP.add(pr.id);
+    const k = profKey(pr);
+    if (pushed.p[pr.id] !== k){ ops.push(b => b.set(doc(base, 'profiles', pr.id), stripPhotos(pr))); pushed.p[pr.id] = k; }
+    pr.data.photos.forEach((m, i) => {
+      livePh.add(m.id);
+      const pk = photoKey(pr.id, m, i);
+      if (pushed.ph[m.id] !== pk){ ops.push(b => b.set(doc(base, 'photos', m.id), { pid: pr.id, src: m.src, text: m.text, rot: m.rot, order: i })); pushed.ph[m.id] = pk; }
+    });
+  });
+  Object.keys(pushed.p).filter(id => !liveP.has(id)).forEach(id => { ops.push(b => b.delete(doc(base, 'profiles', id))); delete pushed.p[id]; });
+  Object.keys(pushed.ph).filter(id => !livePh.has(id)).forEach(id => { ops.push(b => b.delete(doc(base, 'photos', id))); delete pushed.ph[id]; });
+  if (!ops.length){ status(); return; }
+  try{
+    for (let i = 0; i < ops.length; i += 15){ const b = writeBatch(db); ops.slice(i, i+15).forEach(f => f(b)); await b.commit(); }
+    status();
+  }catch(e){
+    console.error(e);
+    setPill('err', e.code === 'permission-denied' ? 'مرفوض: الحساب غير مسموح له' : 'خطأ بالمزامنة');
+    if (e.code === 'permission-denied') toast('هذا الحساب غير مسموح له بالمزامنة. سجّل بحسابك المعتمد.');
+  }
+}
+
+/* ---- الاستماع للسحابة ---- */
+function listen(){
+  const base = collection(db, 'users', user.uid);
+  unsubs.push(onSnapshot(collection(base, 'profiles'), snap => { cloudP = {}; snap.forEach(d => { cloudP[d.id] = { id: d.id, ...d.data() }; }); mergeCloud(); },
+    e => { console.error(e); setPill('err', e.code === 'permission-denied' ? 'مرفوض: الحساب غير مسموح له' : 'خطأ بالمزامنة'); }));
+  unsubs.push(onSnapshot(collection(base, 'photos'), snap => { cloudPh = {}; snap.forEach(d => { cloudPh[d.id] = { id: d.id, ...d.data() }; }); mergeCloud(); },
+    e => console.error(e)));
+}
+function stop(){ unsubs.forEach(u => u()); unsubs = []; cloudP = cloudPh = null; pushed.p = {}; pushed.ph = {}; }
+
+/* ---- الزر والحالة ---- */
+function renderAuth(){
+  if (user){
+    authBtn.classList.add('in'); authBtn.title = `${user.displayName || user.email} · اضغط لتسجيل الخروج`;
+    authBtn.innerHTML = user.photoURL ? `<img class="av" src="${user.photoURL}" alt="" referrerpolicy="no-referrer">` : '👤';
+    status();
+  } else {
+    authBtn.classList.remove('in'); authBtn.title = 'تسجيل الدخول لمزامنة البيانات بين أجهزتك';
+    authBtn.innerHTML = '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/></svg>';
+    setPill('off', isFile ? 'المزامنة بتشتغل من الموقع، مش من الملف' : 'سجّل الدخول للمزامنة');
+  }
+}
+authBtn.addEventListener('click', async () => {
+  if (!auth) return;
+  if (user){ if (confirm('تسجيل الخروج؟ البيانات بتبقى محفوظة على هذا الجهاز وبالسحابة.')) await signOut(auth); return; }
+  if (isFile){ alert('تسجيل الدخول بيشتغل بس من الموقع (bienepie.github.io) أو localhost، مش من الملف مباشرة.'); return; }
+  const provider = new GoogleAuthProvider();
+  try{ await signInWithPopup(auth, provider); }
+  catch(e){
+    if (['auth/popup-blocked','auth/popup-closed-by-user','auth/cancelled-popup-request','auth/operation-not-supported-in-this-environment'].includes(e.code)){
+      if (e.code !== 'auth/popup-closed-by-user') await signInWithRedirect(auth, provider);
+    } else { console.error(e); alert('ما قدرت أسجّل الدخول: ' + (e.code || e.message)); }
+  }
+});
+if (auth){
+  getRedirectResult(auth).catch(e => console.error(e));
+  onAuthStateChanged(auth, u => {
+    stop(); user = u; renderAuth();
+    if (u){ setPill('busy', 'يتزامن…'); listen(); }
+  });
+} else renderAuth();
+
+window.__cloud = { schedule };
 </script>
 </body>
 </html>
