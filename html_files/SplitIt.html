@@ -578,7 +578,7 @@ function normData(x){
     maxPeople: Math.max(1, Math.floor(+x.maxPeople) || 20),
     paid: (x.paid && typeof x.paid === 'object') ? (x.paid.amounts ? { at: x.paid.at || '', costs: Array.isArray(x.paid.costs) ? x.paid.costs.map(c => ({ name:String(c.name ?? ''), amount:+c.amount || 0 })) : [], amounts: Object.fromEntries(Object.entries(x.paid.amounts).map(([k,v]) => [String(k), +v || 0])) } : { at:'', costs:[], amounts: Object.fromEntries(Object.entries(x.paid).map(([k,v]) => [String(k), +v || 0])) }) : null,
     photoSalt: typeof x.photoSalt === 'string' ? x.photoSalt : '', photoCheck: typeof x.photoCheck === 'string' ? x.photoCheck : '', photoHint: typeof x.photoHint === 'string' ? x.photoHint.slice(0, 200) : '', photoV: +x.photoV || 1, photoFails: Math.max(0, Math.floor(+x.photoFails) || 0), photoLockUntil: +x.photoLockUntil || 0,
-    photos: Array.isArray(x.photos) ? x.photos.filter(m => m && m.id).map(m => typeof m.enc === 'string' && m.enc ? { id:String(m.id), enc:m.enc, rot: +m.rot || 0 } : { id:String(m.id), src: typeof m.src === 'string' ? m.src : '', text:String(m.text ?? ''), rot: +m.rot || 0 }) : [],
+    photos: Array.isArray(x.photos) ? x.photos.filter(m => m && m.id).map(m => typeof m.enc === 'string' && m.enc ? { id:String(m.id), enc:m.enc, rot: +m.rot || 0 } : m.idb ? { id:String(m.id), rot: +m.rot || 0, idb: true } : { id:String(m.id), src: typeof m.src === 'string' ? m.src : '', text:String(m.text ?? ''), rot: +m.rot || 0 }) : [],
     ungroupedClosed: !!x.ungroupedClosed,
     costs,
     groups: Array.isArray(x.groups) ? x.groups.filter(g => g && g.id).map(g => ({ id:String(g.id), name:String(g.name ?? ''), closed: !!g.closed })) : [],
@@ -622,11 +622,51 @@ function load(){
 let DB = load();
 let S = DB.profiles.find(p => p.id === DB.activeId).data;
 const prof = () => DB.profiles.find(p => p.id === DB.activeId);
+/* ---------- تخزين الصور المشفّرة بـ IndexedDB ----------
+   localStorage حده ~5 ميغابايت وبيمتلئ بكم صورة. الأرقام والنصوص بتبقى فيه، والصور المشفّرة بتروح لـ IndexedDB (مئات الميغابايت). */
+const IDB = {
+  db: null,
+  open(){ return this.db ? Promise.resolve(this.db) : new Promise((res, rej) => { const r = indexedDB.open('splitit', 1); r.onupgradeneeded = () => { r.result.createObjectStore('photos', { keyPath: 'id' }); }; r.onsuccess = () => { this.db = r.result; res(this.db); }; r.onerror = () => rej(r.error); }); },
+  async putMany(items){ if (!items.length) return; const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction('photos', 'readwrite'); const st = tx.objectStore('photos'); items.forEach(x => st.put(x)); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); },
+  async delMany(ids){ if (!ids.length) return; const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction('photos', 'readwrite'); const st = tx.objectStore('photos'); ids.forEach(id => st.delete(id)); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); },
+  async all(){ const db = await this.open(); return new Promise((res, rej) => { const r = db.transaction('photos').objectStore('photos').getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error); }); },
+};
+const idbKnown = new Map(); /* id -> بصمة المحفوظ */
+const encSig = enc => enc.length + ':' + enc.slice(-24);
+let persistQueue = Promise.resolve();
+function persistLocal(){
+  /* localStorage بدون الصور المشفّرة */
+  const lite = { activeId: DB.activeId, profiles: DB.profiles.map(pr => ({ ...pr, data: { ...pr.data, photos: pr.data.photos.map(m => m.enc ? { id: m.id, rot: m.rot, idb: true } : m) } })) };
+  try{ localStorage.setItem(KEY, JSON.stringify(lite)); }catch(e){ if(!saveWarned){ saveWarned = true; alert('ما قدرت أحفظ محلياً: مساحة المتصفح ممتلئة. صدّري نسخة احتياطية ونظّفي بيانات الموقع.'); } }
+  /* IndexedDB: ارفعي المتغيّر واحذفي المحذوف */
+  const live = new Map(); DB.profiles.forEach(pr => pr.data.photos.forEach(m => { if (m.enc) live.set(m.id, { id: m.id, pid: pr.id, enc: m.enc, rot: m.rot }); }));
+  const put = [...live.values()].filter(x => idbKnown.get(x.id) !== encSig(x.enc));
+  const del = [...idbKnown.keys()].filter(id => !live.has(id));
+  if (!put.length && !del.length) return;
+  put.forEach(x => idbKnown.set(x.id, encSig(x.enc))); del.forEach(id => idbKnown.delete(id));
+  persistQueue = persistQueue.then(() => IDB.putMany(put)).then(() => IDB.delMany(del)).catch(e => { console.error(e); if(!saveWarned){ saveWarned = true; alert('ما قدرت أحفظ الصور محلياً: ' + (e?.message || e)); } });
+}
+async function hydratePhotos(){
+  try{
+    const rows = await IDB.all(); const byId = new Map(rows.map(r => [r.id, r]));
+    rows.forEach(r => idbKnown.set(r.id, encSig(r.enc)));
+    let changed = false;
+    DB.profiles.forEach(pr => {
+      pr.data.photos.forEach(m => { if (!m.enc && byId.has(m.id)){ m.enc = byId.get(m.id).enc; delete m.idb; changed = true; } });
+      const before = pr.data.photos.length;
+      pr.data.photos = pr.data.photos.filter(m => m.enc || !m.idb); /* idb بدون سجل = ضاع محلياً، السحابة بترجّعه لو موجود */
+      if (pr.data.photos.length !== before) changed = true;
+    });
+    if (changed) renderMemories();
+    /* ترحيل: صور كانت بـ localStorage نفسه */
+    persistLocal();
+  }catch(e){ console.error('hydrate', e); }
+}
 let saveWarned = false;
 let lastSavedSig = null;
 function save(){
   try{ const pr = prof(); const sig = pr.id + '|' + pr.name + '|' + pr.date + '|' + JSON.stringify(pr.data); if (sig !== lastSavedSig){ if (lastSavedSig !== null) pr.updatedAt = Date.now(); lastSavedSig = sig; } }catch(e){}
-  try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){ if(!saveWarned){ saveWarned = true; alert('ما قدرت أحفظ: مساحة تخزين المتصفح ممتلئة (غالباً بسبب الصور). احذف كم صورة أو صدّر نسخة احتياطية.'); } }
+  persistLocal();
   window.__cloud?.schedule(); }
 function switchProfile(id){ DB.activeId = id; S = prof().data; openPickers.clear(); lockVault(true); lastSavedSig = null; save(); renderAll(); }
 
@@ -1016,7 +1056,7 @@ $('#clearPaid').addEventListener('click', () => { if (!confirm('إلغاء تس�
    كلمة السر والمفتاح بيعيشوا بالذاكرة فقط أثناء الفتح، ولا يُحفظان أبداً. كل صورة/ورقة لها IV عشوائي. */
 let memShown = false;
 const PBKDF_ITER = 600000;
-const vault = { key: null, cache: new Map(), timer: null, tries: 0, temp: new Map() };
+const vault = { key: null, cache: new Map(), timer: null, tries: 0, temp: new Map(), failed: new Set(), decrypting: false };
 const b64 = u8 => { let t = ''; for (let i = 0; i < u8.length; i += 0x8000) t += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(t); };
 const unb64 = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
 const cryptoOk = () => !!(window.crypto && crypto.subtle);
@@ -1035,7 +1075,7 @@ async function decObj(key, t){ const u = unb64(t); return JSON.parse(new TextDec
 function lockVault(silent){
   closeLightbox();
   vault.temp.forEach(t => URL.revokeObjectURL(t.url)); vault.temp.clear();
-  vault.key = null; vault.cache.clear(); clearTimeout(vault.timer); vault.timer = null; memShown = false;
+  vault.key = null; vault.cache.clear(); vault.failed.clear(); clearTimeout(vault.timer); vault.timer = null; memShown = false;
   if (!silent) renderMemories();
 }
 function touchVault(){ if (!vault.key) return; clearTimeout(vault.timer); vault.timer = setTimeout(() => { lockVault(); toast('انقفلت الصور تلقائياً 🔒'); }, 15 * 60 * 1000); }
@@ -1068,7 +1108,7 @@ function askPass(mode){
     const showWait = () => { const ms = locked(); if (ms > 0){ wait.hidden = false; wait.textContent = `⏳ محاولات كتير غلط. استني ${fmtWait(ms)} قبل ما تجرّبي.`; pin.disabled = true; } else { wait.hidden = true; pin.disabled = false; if (document.activeElement !== pin) pin.focus(); } };
     if (mode === 'unlock'){ showWait(); tick = setInterval(showWait, 1000); }
     m.hidden = false; reset(); setTimeout(() => pin.focus(), 50);
-    const done = v => { clearInterval(tick); m.hidden = true; pin.oninput = null; pin.onfocus = pin.onblur = null; forgot.onclick = null; m.querySelector('[data-close]').onclick = null; box.classList.remove('focus'); resolve(v === null ? null : { pass: v, hint: hintIn.value.trim().slice(0, 200) }); };
+    const done = v => { clearInterval(tick); m.hidden = true; pin.blur(); pin.oninput = null; pin.onfocus = pin.onblur = null; forgot.onclick = null; m.querySelector('[data-close]').onclick = null; box.classList.remove('focus'); resolve(v === null ? null : { pass: v, hint: hintIn.value.trim().slice(0, 200) }); };
     pin.onfocus = () => box.classList.add('focus'); pin.onblur = () => box.classList.remove('focus');
     pin.oninput = () => {
       pin.value = pin.value.replace(/\D/g, '').slice(0, 6); err.hidden = true; render();
@@ -1315,7 +1355,15 @@ function renderMemories(){
   board.hidden = !open; $('#memTools').hidden = !open; $('#memHint').hidden = open;
   $('#memToggle').textContent = open ? '🙈 إخفاء وقفل' : '🔒 إظهار';
   if (!open) return;
+  /* صور وصلت (من السحابة أو IndexedDB) وأنا فاتحة الخزنة: فكّي شفرتها الآن بالخلفية */
+  const missing = S.photos.filter(m => m.enc && !vault.cache.has(m.id) && !vault.failed.has(m.id));
+  if (missing.length && !vault.decrypting){
+    vault.decrypting = true; const key = vault.key;
+    (async () => { for (const m of missing){ if (vault.key !== key) break; try{ vault.cache.set(m.id, await decObj(key, m.enc)); }catch(e){ vault.failed.add(m.id); } } vault.decrypting = false; if (vault.key === key && memShown) renderMemories(); })();
+  }
   S.photos.forEach(m => {
+    const pendingDec = !vault.cache.has(m.id) && (m.enc || m.idb);
+    if (pendingDec){ const el = document.createElement('div'); el.className = 'polaroid'; el.style.setProperty('--rot', m.rot + 'deg'); el.dataset.id = m.id; el.innerHTML = `<div style="aspect-ratio:1/1;border-radius:6px;background:var(--line)"></div><div class="cap" style="min-height:32px"></div><span class="upl">${vault.failed.has(m.id) ? '⚠ تعذّر فك التشفير' : m.enc ? 'يفك التشفير…' : 'يحمّل…'}</span>`; board.appendChild(el); return; }
     const d = vault.cache.get(m.id) || { src:'', text:'' };
     const el = document.createElement('div'); el.className = 'polaroid' + (d.src ? '' : ' note'); el.style.setProperty('--rot', m.rot + 'deg');
     el.dataset.id = m.id;
@@ -1407,16 +1455,21 @@ function bindPhotoDrag(el, m){
     pGhost.innerHTML = ''; const clone = el.cloneNode(true); clone.classList.remove('dragging'); clone.style.setProperty('--rot','0deg'); clone.querySelector('.del')?.remove(); pGhost.appendChild(clone);
     pGhost.style.display = 'block'; pGhost.style.left = e.clientX + 'px'; pGhost.style.top = e.clientY + 'px';
     try{ grip.setPointerCapture(e.pointerId); }catch(err){}
-    const mv = ev => {
-      ev.preventDefault(); pGhost.style.left = ev.clientX + 'px'; pGhost.style.top = ev.clientY + 'px';
-      if (ev.clientY < 60) window.scrollBy(0, -10); else if (ev.clientY > innerHeight - 60) window.scrollBy(0, 10);
-      const under = document.elementFromPoint(ev.clientX, ev.clientY); if (!under) return;
+    const placePhoto = (x, y) => {
+      const under = document.elementFromPoint(x, y); if (!under) return;
       const board = $('#board'); if (!board.contains(under) && under !== board) return;
       const t = under.closest('.polaroid');
-      if (t && t !== el && t !== pph){ const r = t.getBoundingClientRect(); const before = ev.clientX > r.left + r.width / 2; /* RTL: اليمين = قبل */ t.parentNode.insertBefore(pph, before ? t : t.nextSibling); }
+      if (t && t !== el && t !== pph){ const r = t.getBoundingClientRect(); const before = x > r.left + r.width / 2; /* RTL: اليمين = قبل */ t.parentNode.insertBefore(pph, before ? t : t.nextSibling); }
       else if (!t && under === board) board.appendChild(pph);
     };
+    const last = { x: e.clientX, y: e.clientY };
+    const mv = ev => {
+      ev.preventDefault(); last.x = ev.clientX; last.y = ev.clientY; pGhost.style.left = ev.clientX + 'px'; pGhost.style.top = ev.clientY + 'px';
+      placePhoto(ev.clientX, ev.clientY);
+      autoScrollUpdate(ev.clientY, () => placePhoto(last.x, last.y));
+    };
     const up = () => {
+      autoScrollStop();
       grip.removeEventListener('pointermove', mv); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up);
       el.classList.remove('dragging'); pGhost.style.display = 'none';
       if (pph.parentNode){ pph.parentNode.insertBefore(el, pph); pph.remove(); }
@@ -1464,6 +1517,16 @@ $('#photoFile').addEventListener('change', async e => {
 });
 function renderAll(){ renderTabs(); renderPeople(); renderMemories(); }
 
+/* تمرير تلقائي ناعم أثناء السحب: كل ما قرّبتي من الحافة زادت السرعة، وبيكمّل لحاله وإنت واقفة */
+const AS = { vy: 0, timer: null, cb: null };
+function autoScrollUpdate(y, cb){
+  const edge = Math.min(110, innerHeight * .18), max = 24; let v = 0;
+  if (y < edge) v = -max * Math.pow(1 - Math.max(0, y) / edge, 1.5); else if (y > innerHeight - edge) v = max * Math.pow(1 - Math.max(0, innerHeight - y) / edge, 1.5);
+  AS.vy = v; AS.cb = cb;
+  if (v && !AS.timer) AS.timer = setInterval(autoScrollTick, 16);
+}
+function autoScrollTick(){ if (!AS.vy){ clearInterval(AS.timer); AS.timer = null; return; } const before = scrollY; window.scrollBy(0, AS.vy); if (scrollY !== before) AS.cb?.(); }
+function autoScrollStop(){ AS.vy = 0; AS.cb = null; if (AS.timer) clearInterval(AS.timer); AS.timer = null; }
 /* ---------- السحب والإفلات (أسلوب PuzzelDrop: شبح ثابت + elementFromPoint + تنفيذ عند الإفلات) ---------- */
 const ghost = document.getElementById('drag-ghost');
 const ph = document.createElement('div'); ph.className = 'drop-ph';
@@ -1473,7 +1536,6 @@ function moveGhost(x, y){ ghost.style.left = x + 'px'; ghost.style.top = y + 'px
 function hideGhost(){ ghost.style.display = 'none'; }
 function clearTarget(){ ph.remove(); document.querySelectorAll('.group.over').forEach(g => g.classList.remove('over')); }
 function updateTarget(x, y){
-  if (y < 60) window.scrollBy(0, -10); else if (y > innerHeight - 60) window.scrollBy(0, 10);
   const el = document.elementFromPoint(x, y); if (!el) return;
   const grp = el.closest('.group'); if (!grp) return;
   clearTarget(); grp.classList.add('over');
@@ -1498,8 +1560,9 @@ function bindDrag(row, p){
     e.preventDefault();
     dragRow = row; row.classList.add('dragging'); showGhost(p, e.clientX, e.clientY);
     try{ handle.setPointerCapture(e.pointerId); }catch(err){}
-    const mv = ev => { ev.preventDefault(); moveGhost(ev.clientX, ev.clientY); updateTarget(ev.clientX, ev.clientY); };
-    const up = () => { handle.removeEventListener('pointermove', mv); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); commitDrop(); };
+    const last = { x: e.clientX, y: e.clientY };
+    const mv = ev => { ev.preventDefault(); last.x = ev.clientX; last.y = ev.clientY; moveGhost(ev.clientX, ev.clientY); updateTarget(ev.clientX, ev.clientY); autoScrollUpdate(ev.clientY, () => updateTarget(last.x, last.y)); };
+    const up = () => { autoScrollStop(); handle.removeEventListener('pointermove', mv); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); commitDrop(); };
     handle.addEventListener('pointermove', mv); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
   });
 }
@@ -1601,7 +1664,7 @@ document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e =
 $('#year').textContent = new Date().getFullYear();
 let theme = 'light';
 try{ theme = localStorage.getItem(THEME_KEY) || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }catch(e){}
-applyTheme(theme); save(); renderAll();
+applyTheme(theme); renderAll(); hydratePhotos().then(() => save());
 </script>
 <script type="module">
 /* ---------- المزامنة عبر Firebase (Auth + Firestore) ---------- */
@@ -1670,7 +1733,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && tim
 document.addEventListener('focusout', () => {
   /* عند مغادرة أي حقل: ارفع فوراً، واعرض ما وصل من السحابة أثناء الكتابة */
   setTimeout(() => {
-    if (document.activeElement?.matches?.('input,textarea,select')) return;
+    const ae = document.activeElement; if (ae?.matches?.('input,textarea,select') && !ae.closest('.modal') && ae.offsetParent !== null) return;
     if (timer){ clearTimeout(timer); timer = null; push(); }
     if (pendingRender){ pendingRender = false; renderAll(); }
   }, 60);
@@ -1755,8 +1818,9 @@ function mergeCloud(){
     if (!DB.profiles.some(pr => pr.id === DB.activeId)) DB.activeId = DB.profiles[0].id;
     S = prof().data;
     const changed = before !== JSON.stringify(DB.profiles);
-    try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){}
-    if (changed && !document.activeElement?.matches?.('input,textarea,select')) renderAll();
+    persistLocal();
+    const ae = document.activeElement; const typing = ae?.matches?.('input,textarea,select') && !ae.closest('.modal') && ae.offsetParent !== null;
+    if (changed && !typing) renderAll();
     else if (changed){ pendingRender = true; renderTabs(); }
   } finally { merging = false; }
   schedule(); /* ارفع أي شي محلي جديد */
