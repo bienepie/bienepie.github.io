@@ -6,6 +6,8 @@
 <meta name="theme-color" content="#4fc9d8">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏖️</text></svg>">
 <title>قسّمها · Split It</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Marhey:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
     --water:#8fe6ee; --water2:#4fc9d8; --deep:#22aec2;
@@ -247,15 +249,45 @@
   .polaroid{position:relative;background:#fff;padding:10px 10px 12px;border-radius:10px;box-shadow:0 10px 24px rgba(0,0,0,.18);width:200px;transform:rotate(var(--rot));transition:transform .2s,box-shadow .2s}
   .polaroid:hover{transform:rotate(0) scale(1.04);box-shadow:0 16px 34px rgba(0,0,0,.25);z-index:2}
   .polaroid img{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:6px;background:var(--line)}
-  .polaroid .cap{width:100%;border:0;background:transparent;text-align:center;font-family:"Segoe Script","Comic Sans MS",cursive;font-size:15px;color:#2b2b2b;padding:8px 2px 0;min-height:32px;resize:none;overflow:hidden;line-height:1.35}
+  .polaroid .cap{width:100%;border:0;background:transparent;text-align:center;font-family:"Marhey","Segoe Script","Comic Sans MS",cursive;font-size:15px;color:#2b2b2b;padding:8px 2px 0;min-height:32px;resize:none;overflow:hidden;line-height:1.45}
   .polaroid .cap::placeholder{color:#bbb}
   .polaroid .cap:focus{outline:0}
   .polaroid.note{background:#fff7c2;padding:22px 14px 16px;min-height:150px;width:190px}
   .polaroid.note .cap{min-height:100px;font-size:16px;color:#4a3a00;padding-top:0}
   .polaroid.note::before,.polaroid::before{content:"";position:absolute;top:-10px;left:50%;transform:translateX(-50%) rotate(-3deg);width:70px;height:20px;background:rgba(243,143,181,.55);border-radius:3px}
+  .polaroid .pgrip{position:absolute;top:2px;right:6px;color:#b9b9b9;cursor:grab;touch-action:none;font-size:16px;line-height:1;padding:4px;user-select:none}
+  .polaroid .pgrip:active{cursor:grabbing}
+  .polaroid.dragging{opacity:.35}
+  .pph{width:200px;min-height:150px;border:3px dashed var(--pink);border-radius:10px;background:rgba(243,143,181,.12)}
+  #photo-ghost{position:fixed;left:0;top:0;pointer-events:none;z-index:9999;display:none;transform:translate(-50%,-50%) rotate(-4deg) scale(.85);filter:drop-shadow(0 14px 24px rgba(0,0,0,.35))}
   .polaroid .del{position:absolute;top:-8px;right:-8px;width:26px;height:26px;border-radius:50%;background:var(--danger);color:#fff;font-size:14px;line-height:1;display:none;box-shadow:0 2px 6px rgba(0,0,0,.3)}
   .polaroid:hover .del{display:grid;place-items:center}
   html[data-theme=dark] .polaroid{background:#e9eef5}
+  .memtools{display:flex;gap:6px;flex-wrap:wrap}
+  .memtools[hidden],.board[hidden],[hidden]{display:none!important}
+  .polaroid img{cursor:zoom-in}
+  #lb{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.85);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;animation:lbFade .2s ease-out}
+  #lb[hidden]{display:none!important}
+  .lb-top,.lb-bottom{position:absolute;left:0;right:0;z-index:2;display:flex;align-items:center;padding:10px 18px;color:#fff;pointer-events:none}
+  .lb-top{top:0;justify-content:space-between;background:linear-gradient(to bottom,rgba(0,0,0,.7),transparent)}
+  .lb-bottom{bottom:0;justify-content:center;font-size:12px;color:rgba(255,255,255,.45);background:linear-gradient(to top,rgba(0,0,0,.5),transparent)}
+  .lb-cap{font-family:"Marhey","Segoe Script",cursive;font-size:15px;color:rgba(255,255,255,.8);max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lb-tools{display:flex;align-items:center;gap:4px;pointer-events:auto}
+  .lb-tools button{width:36px;height:36px;border-radius:9px;background:rgba(255,255,255,.12);color:#fff;font-weight:800;font-size:18px;display:grid;place-items:center;transition:background .15s}
+  .lb-tools button:hover{background:rgba(255,255,255,.22)}
+  .lb-tools button:disabled{opacity:.3;cursor:not-allowed}
+  .lb-tools #lbPct{width:auto;min-width:64px;padding:0 10px;font-size:12px;font-family:ui-monospace,monospace}
+  .lb-tools #lbClose:hover{background:rgba(239,68,68,.6)}
+  .lb-tools i{width:1px;height:24px;background:rgba(255,255,255,.2);margin:0 8px}
+  .lb-stage{width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:grab;touch-action:none}
+  .lb-stage.drag{cursor:grabbing}
+  #lbImg{max-height:85vh;max-width:90vw;border-radius:10px;user-select:none;-webkit-user-drag:none;transition:transform .2s ease-out;animation:lbScale .25s ease-out;will-change:transform}
+  .lb-stage.drag #lbImg{transition:none}
+  @keyframes lbFade{from{opacity:0}to{opacity:1}}
+  @keyframes lbScale{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+  @media (max-width:640px){ .lb-cap{display:none} .lb-bottom{font-size:11px;text-align:center} }
+  .lockmsg{text-align:center;padding:26px 10px;color:var(--muted);border:2px dashed var(--line2);border-radius:16px;font-size:13px}
+  .polaroid img{-webkit-user-drag:none;user-select:none}
   .board:empty::after{content:"ما في صور بعد. ضيف صورة أو ورقة ذكريات ✨";color:var(--muted);font-size:13px;padding:20px}
   #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--card);padding:10px 20px;border-radius:999px;font-size:14px;font-weight:700;opacity:0;transition:.3s;pointer-events:none;z-index:9}
   #toast.show{opacity:1;transform:translateX(-50%)}
@@ -406,6 +438,7 @@
         <li>حصة الشخص المحاسب عنه بتتوزع بالتساوي على الي بيحاسبوا عنه.</li>
         <li>الجبر: المجموع النهائي = أقرب عدد صحيح فوق المجموع الحقيقي. الزيادات بتروح لأصحاب الكسور الأكبر، والي حصتهم متساوية بيدفعوا نفس المبلغ.</li>
         <li>الشخص المعطّل بيتجاهل تماماً بس بيضل موجود مشان ترجّعه بكبسة.</li>
+        <li>الصور والأوراق مشفّرة AES-256 بمفتاح مشتق من كلمة سرك على جهازك. السحابة والنسخ الاحتياطية فيها شفرة فقط، وما في أي طريقة لاستعادة كلمة السر.</li>
         <li>غير المؤكد ما بينحسب بالحصص. لو إجا باللحظة الأخيرة بيدفع نفس مبلغ أقرب شخص مؤكد لحصته المفترضة، وبعدين بيترجع الفرق للجميع (المؤكدين والي وصلوا) كل واحد حسب ما دفع، بحيث الباقي مع الكل بعد الإرجاع = التكاليف بالضبط (مع نفس قاعدة الجبر).</li>
       </ul>
     </details>
@@ -413,16 +446,40 @@
 
   <!-- الذكريات -->
   <section class="card memories">
-    <h2><span class="t"><span class="badge-n">📷</span>ذكريات <span class="hint" id="memCount"></span></span>
+    <h2><span class="t"><span class="badge-n">🔒</span>ذكريات <span class="hint" id="memCount"></span></span>
       <span style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn ghost" id="memToggle">👁 إظهار</button>
-        <span id="memTools" hidden style="display:flex;gap:6px"><button class="btn pink" id="addPhoto">＋ صورة</button><button class="btn yellow" id="addNote">＋ ورقة</button></span>
-        <input type="file" id="photoFile" accept="image/*" multiple hidden>
+        <button class="btn ghost" id="memToggle">🔒 إظهار</button>
+        <span id="memTools" class="memtools" hidden><button class="btn pink" id="addPhoto">＋ صورة</button><button class="btn yellow" id="addNote">＋ ورقة</button><button class="btn ghost sm" id="changePass" title="تغيير كلمة سر الصور">🔑</button></span>
+        <input type="file" id="photoFile" accept="image/*,.gif,.webp,.apng" multiple hidden>
       </span></h2>
-    <p class="hint" id="memHint">الصور مخفية افتراضياً. اضغط "إظهار" لتشوفها أو تضيف عليها.</p>
+    <p class="hint" id="memHint">الصور والأوراق مشفّرة بكلمة سر على جهازك قبل الحفظ والرفع. ما بتنفتح إلا بكلمة السر، وبتنقفل لحالها لما تترك الصفحة.</p>
     <div class="board" id="board" hidden></div>
   </section>
 </main>
+
+<!-- معاينة الصورة (زوم وسحب) -->
+<div id="lb" hidden>
+  <div class="lb-top"><span class="lb-cap" id="lbCap"></span>
+    <span class="lb-tools"><button id="lbOut" title="تصغير">−</button><button id="lbPct" title="إعادة الضبط">100%</button><button id="lbIn" title="تكبير">+</button><i></i><button id="lbClose" title="إغلاق (Esc)">✕</button></span></div>
+  <div class="lb-stage" id="lbStage"><img id="lbImg" alt="" draggable="false"></div>
+  <div class="lb-bottom">عجلة الماوس أو إصبعين للزوم · نقرة مزدوجة للتبديل · اسحب للتحريك · Esc للإغلاق</div>
+</div>
+
+<!-- نافذة كلمة سر الصور -->
+<div class="modal" id="vaultModal" hidden>
+  <div class="modal-card">
+    <h3 id="vaultTitle">🔒 كلمة سر الصور</h3>
+    <p class="hint" id="vaultText"></p>
+    <input type="password" id="vaultPass" placeholder="كلمة السر" autocomplete="off">
+    <input type="password" id="vaultPass2" placeholder="أعد كتابة كلمة السر" autocomplete="off" hidden>
+    <input type="text" id="vaultHint" placeholder="تلميح يذكّرك (اختياري): مثلاً «عيد ميلاد قطتي»" autocomplete="off" hidden>
+    <p class="hint" id="vaultHintNote" hidden>التلميح بينحفظ بدون تشفير وبيظهر بس لما تكون مسجّلة الدخول بحسابك. لا تكتبي كلمة السر نفسها.</p>
+    <p class="err" id="vaultErr" hidden></p>
+    <button class="btn ghost sm" id="vaultForgot" hidden>نسيت كلمة السر؟</button>
+    <p class="hint" id="vaultHintShow" hidden></p>
+    <div class="modal-actions"><button class="btn" id="vaultGo">فتح</button><button class="btn ghost" data-close>إلغاء</button></div>
+  </div>
+</div>
 
 <!-- نافذة التصدير -->
 <div class="modal" id="exportModal" hidden>
@@ -502,7 +559,8 @@ function normData(x){
   return {
     maxPeople: Math.max(1, Math.floor(+x.maxPeople) || 20),
     paid: (x.paid && typeof x.paid === 'object') ? (x.paid.amounts ? { at: x.paid.at || '', costs: Array.isArray(x.paid.costs) ? x.paid.costs.map(c => ({ name:String(c.name ?? ''), amount:+c.amount || 0 })) : [], amounts: Object.fromEntries(Object.entries(x.paid.amounts).map(([k,v]) => [String(k), +v || 0])) } : { at:'', costs:[], amounts: Object.fromEntries(Object.entries(x.paid).map(([k,v]) => [String(k), +v || 0])) }) : null,
-    photos: Array.isArray(x.photos) ? x.photos.filter(m => m && m.id).map(m => ({ id:String(m.id), src: typeof m.src === 'string' ? m.src : '', text:String(m.text ?? ''), rot: +m.rot || 0 })) : [],
+    photoSalt: typeof x.photoSalt === 'string' ? x.photoSalt : '', photoCheck: typeof x.photoCheck === 'string' ? x.photoCheck : '', photoHint: typeof x.photoHint === 'string' ? x.photoHint.slice(0, 200) : '',
+    photos: Array.isArray(x.photos) ? x.photos.filter(m => m && m.id).map(m => typeof m.enc === 'string' && m.enc ? { id:String(m.id), enc:m.enc, rot: +m.rot || 0 } : { id:String(m.id), src: typeof m.src === 'string' ? m.src : '', text:String(m.text ?? ''), rot: +m.rot || 0 }) : [],
     ungroupedClosed: !!x.ungroupedClosed,
     costs,
     groups: Array.isArray(x.groups) ? x.groups.filter(g => g && g.id).map(g => ({ id:String(g.id), name:String(g.name ?? ''), closed: !!g.closed })) : [],
@@ -549,7 +607,7 @@ const prof = () => DB.profiles.find(p => p.id === DB.activeId);
 let saveWarned = false;
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){ if(!saveWarned){ saveWarned = true; alert('ما قدرت أحفظ: مساحة تخزين المتصفح ممتلئة (غالباً بسبب الصور). احذف كم صورة أو صدّر نسخة احتياطية.'); } }
   window.__cloud?.schedule(); }
-function switchProfile(id){ DB.activeId = id; S = prof().data; openPickers.clear(); memShown = false; save(); renderAll(); }
+function switchProfile(id){ DB.activeId = id; S = prof().data; openPickers.clear(); lockVault(true); save(); renderAll(); }
 
 /* ---------- الحساب ---------- */
 const participates = (p, c) => p.mode !== 'exempt' && (!c.optional || !p.skip.includes(c.id));
@@ -932,8 +990,132 @@ function renderSettle(R){
 $('#snapPaid').addEventListener('click', () => { S.paid = { at: new Date().toISOString(), costs: S.costs.map(c => ({ name: cname(c), amount: +c.amount || 0 })), amounts: expectedNow(compute()) }; save(); renderSettle(compute()); toast('تم تسجيل المبالغ المدفوعة. عدّل أي تكلفة وشوف الفرق'); });
 $('#clearPaid').addEventListener('click', () => { if (!confirm('إلغاء تسجيل المدفوع؟')) return; S.paid = null; save(); renderSettle(compute()); });
 
-/* ---------- الذكريات ---------- */
+/* ---------- الذكريات المشفّرة ----------
+   AES-256-GCM بمفتاح مشتق من كلمة السر (PBKDF2-SHA256، 600 ألف تكرار، ملح عشوائي لكل حسبة).
+   كلمة السر والمفتاح بيعيشوا بالذاكرة فقط أثناء الفتح، ولا يُحفظان أبداً. كل صورة/ورقة لها IV عشوائي. */
 let memShown = false;
+const PBKDF_ITER = 600000;
+const vault = { key: null, cache: new Map(), timer: null, tries: 0 };
+const b64 = u8 => { let t = ''; for (let i = 0; i < u8.length; i += 0x8000) t += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(t); };
+const unb64 = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
+const cryptoOk = () => !!(window.crypto && crypto.subtle);
+async function deriveKey(pass, saltB64){
+  const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass.normalize('NFKC')), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name:'PBKDF2', salt: unb64(saltB64), iterations: PBKDF_ITER, hash:'SHA-256' }, km, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+}
+async function encObj(key, obj){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj))));
+  const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12); return b64(out);
+}
+async function decObj(key, t){ const u = unb64(t); return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name:'AES-GCM', iv: u.slice(0,12) }, key, u.slice(12)))); }
+
+function lockVault(silent){
+  closeLightbox();
+  vault.key = null; vault.cache.clear(); clearTimeout(vault.timer); vault.timer = null; memShown = false;
+  if (!silent) renderMemories();
+}
+function touchVault(){ if (!vault.key) return; clearTimeout(vault.timer); vault.timer = setTimeout(() => { lockVault(); toast('انقفلت الصور تلقائياً 🔒'); }, 3 * 60 * 1000); }
+document.addEventListener('visibilitychange', () => { if (document.hidden && vault.key) lockVault(); });
+addEventListener('pagehide', () => lockVault(true));
+['pointerdown','keydown'].forEach(ev => document.addEventListener(ev, touchVault, { passive: true }));
+
+/* نافذة كلمة السر: mode = 'unlock' | 'set' | 'change' */
+function askPass(mode){
+  return new Promise(resolve => {
+    const m = $('#vaultModal'), p1 = $('#vaultPass'), p2 = $('#vaultPass2'), err = $('#vaultErr'), go = $('#vaultGo');
+    const hintIn = $('#vaultHint'), hintNote = $('#vaultHintNote'), forgot = $('#vaultForgot'), hintShow = $('#vaultHintShow');
+    const set = mode !== 'unlock';
+    hintIn.hidden = hintNote.hidden = !set; hintIn.value = set ? (S.photoHint || '') : ''; hintShow.hidden = true; hintShow.textContent = '';
+    forgot.hidden = !(mode === 'unlock');
+    forgot.onclick = () => { hintShow.hidden = false; hintShow.textContent = !window.__cloud?.signedIn?.() ? 'سجّلي الدخول بحسابك (زر 👤 فوق) مشان يظهر التلميح.' : (S.photoHint ? '💡 التلميح: ' + S.photoHint : 'ما في تلميح محفوظ لهالحسبة.'); };
+    $('#vaultTitle').textContent = mode === 'unlock' ? '🔒 كلمة سر الصور' : mode === 'set' ? '🔐 حماية الصور بكلمة سر' : '🔑 تغيير كلمة سر الصور';
+    $('#vaultText').textContent = mode === 'unlock' ? 'الصور مشفّرة على جهازك. أدخل كلمة السر لعرضها هالمرة (بتنقفل لحالها بعد ٣ دقائق أو لما تترك الصفحة).'
+      : 'اختر كلمة سر قوية (٨ أحرف على الأقل، والأفضل جملة). ما في طريقة لاستعادتها: لو نسيتها الصور بتضيع نهائياً، لأن لا نحن ولا Google نقدر نفتحها.';
+    p1.value = ''; p2.value = ''; p2.hidden = !set; err.hidden = true; go.textContent = mode === 'unlock' ? 'فتح' : 'حفظ';
+    m.hidden = false; setTimeout(() => p1.focus(), 50);
+    const done = v => { m.hidden = true; go.onclick = null; p1.onkeydown = p2.onkeydown = hintIn.onkeydown = null; forgot.onclick = null; m.querySelector('[data-close]').onclick = null; resolve(v === null ? null : { pass: v, hint: hintIn.value.trim().slice(0, 200) }); };
+    const submit = () => {
+      const v = p1.value;
+      if (set && v.length < 8){ err.textContent = 'كلمة السر قصيرة، ٨ أحرف على الأقل.'; err.hidden = false; return; }
+      if (set && v !== p2.value){ err.textContent = 'الكلمتان مش متطابقتان.'; err.hidden = false; return; }
+      if (!v){ err.textContent = 'اكتب كلمة السر.'; err.hidden = false; return; }
+      if (set && v.trim() && hintIn.value.trim() && hintIn.value.trim().toLowerCase().includes(v.trim().toLowerCase())){ err.textContent = 'التلميح ما لازم يحتوي كلمة السر نفسها.'; err.hidden = false; return; }
+      done(v);
+    };
+    go.onclick = submit; p1.onkeydown = p2.onkeydown = hintIn.onkeydown = e => { if (e.key === 'Enter') submit(); };
+    m.querySelector('[data-close]').onclick = () => done(null);
+  });
+}
+async function withBusy(label, fn){ const b = $('#memToggle'); const old = b.textContent; b.disabled = true; b.textContent = label; try{ return await fn(); } finally { b.disabled = false; b.textContent = old; } }
+
+/* فتح الخزنة: يطلب كلمة السر، أو ينشئها أول مرة، ويشفّر أي صور قديمة غير مشفّرة */
+async function openVault(){
+  if (!cryptoOk()){ alert('المتصفح ما بيدعم التشفير هون (لازم https أو localhost).'); return; }
+  const hasPlain = S.photos.some(m => !m.enc);
+  if (!S.photoSalt || !S.photoCheck){
+    const r = await askPass('set'); if (!r) return; const pass = r.pass;
+    await withBusy('يشفّر…', async () => {
+      const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+      const key = await deriveKey(pass, salt);
+      S.photoSalt = salt; S.photoCheck = await encObj(key, { ok: true, t: Date.now() }); S.photoHint = r.hint;
+      vault.key = key;
+      for (const m of S.photos){ if (!m.enc){ vault.cache.set(m.id, { src: m.src || '', text: m.text || '' }); m.enc = await encObj(key, { src: m.src || '', text: m.text || '' }); delete m.src; delete m.text; } }
+      save();
+    });
+    toast(hasPlain ? 'تم تشفير الصور الموجودة 🔐' : 'تم ضبط كلمة السر 🔐');
+  } else {
+    const r = await askPass('unlock'); if (!r) return; const pass = r.pass;
+    const ok = await withBusy('يفتح…', async () => {
+      const key = await deriveKey(pass, S.photoSalt);
+      try{ await decObj(key, S.photoCheck); }catch(e){ return false; }
+      vault.key = key;
+      for (const m of S.photos){
+        if (m.enc){ try{ vault.cache.set(m.id, await decObj(key, m.enc)); }catch(e){ vault.cache.set(m.id, { src:'', text:'⚠ تعذّر فك تشفير هالعنصر' }); } }
+        else { vault.cache.set(m.id, { src: m.src || '', text: m.text || '' }); m.enc = await encObj(key, { src: m.src || '', text: m.text || '' }); delete m.src; delete m.text; }
+      }
+      if (hasPlain) save();
+      return true;
+    });
+    if (!ok){ vault.tries++; await new Promise(r => setTimeout(r, Math.min(5000, 800 * vault.tries))); toast('كلمة السر غلط ❌'); return; }
+    vault.tries = 0;
+  }
+  memShown = true; touchVault(); renderMemories();
+}
+async function changePass(){
+  if (!vault.key) return;
+  const r = await askPass('change'); if (!r) return; const pass = r.pass;
+  await withBusy('يعيد التشفير…', async () => {
+    const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+    const key = await deriveKey(pass, salt);
+    for (const m of S.photos){ const plain = vault.cache.get(m.id) || { src:'', text:'' }; m.enc = await encObj(key, plain); }
+    S.photoSalt = salt; S.photoCheck = await encObj(key, { ok: true, t: Date.now() }); S.photoHint = r.hint; vault.key = key; save();
+  });
+  toast('تم تغيير كلمة السر وإعادة تشفير كل الصور 🔑');
+}
+async function reEncrypt(m){ const plain = vault.cache.get(m.id); if (!plain || !vault.key) return; m.enc = await encObj(vault.key, plain); save(); }
+
+/* كشف الحركة من البايتات: GIF بأكثر من إطار، WebP فيه ANIM، PNG فيه acTL */
+function isAnimatedBytes(u8, type){
+  const str = (a, b) => String.fromCharCode.apply(null, u8.subarray(a, b));
+  if (u8.length > 6 && str(0, 3) === 'GIF'){ let n = 0; for (let i = 0; i < u8.length - 1; i++){ if (u8[i] === 0x21 && u8[i+1] === 0xF9){ if (++n > 1) return true; } } return false; }
+  if (u8.length > 30 && str(0, 4) === 'RIFF' && str(8, 12) === 'WEBP'){ const head = str(12, Math.min(u8.length, 64)); return head.includes('VP8X') && head.includes('ANIM'); }
+  if (u8.length > 8 && u8[0] === 0x89 && str(1, 4) === 'PNG'){ const head = str(8, Math.min(u8.length, 200)); return head.includes('acTL'); }
+  return false;
+}
+const ANIM_MAX = 700 * 1024; /* الصور المتحركة بتنحفظ كما هي (بدون تصغير) لأن الكانفس بيقتل الحركة، وحد المستند 1MB بعد base64 */
+function loadImage(file){
+  return new Promise(async res => {
+    try{
+      const u8 = new Uint8Array(await file.slice(0, 256 * 1024).arrayBuffer());
+      if (isAnimatedBytes(u8, file.type)){
+        if (file.size > ANIM_MAX){ res({ error: `«${file.name}» متحركة بس حجمها ${Math.round(file.size/1024)} كيلوبايت، والحد ${ANIM_MAX/1024}. صغّريها أو قصّريها وجرّبي.` }); return; }
+        const fr = new FileReader(); fr.onload = () => res({ src: fr.result, animated: true }); fr.onerror = () => res({ error: 'ما قدرت أقرأ الملف' }); fr.readAsDataURL(file); return;
+      }
+    }catch(e){}
+    res({ src: await shrinkImage(file) });
+  });
+}
 function shrinkImage(file){
   return new Promise(res => {
     const img = new Image(); const url = URL.createObjectURL(file);
@@ -945,27 +1127,111 @@ function shrinkImage(file){
 function autoGrow(t){ t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }
 function renderMemories(){
   const board = $('#board'); board.innerHTML = '';
-  $('#memCount').textContent = S.photos.length ? `(${S.photos.length})` : '';
-  board.hidden = !memShown; $('#memTools').hidden = !memShown; $('#memHint').hidden = memShown;
-  $('#memToggle').textContent = memShown ? '🙈 إخفاء' : '👁 إظهار';
-  if (!memShown) return;
+  const n = S.photos.length;
+  $('#memCount').textContent = n ? `(${n} ${S.photoCheck ? '🔐' : ''})` : '';
+  const open = memShown && !!vault.key;
+  board.hidden = !open; $('#memTools').hidden = !open; $('#memHint').hidden = open;
+  $('#memToggle').textContent = open ? '🙈 إخفاء وقفل' : '🔒 إظهار';
+  if (!open) return;
   S.photos.forEach(m => {
-    const el = document.createElement('div'); el.className = 'polaroid' + (m.src ? '' : ' note'); el.style.setProperty('--rot', m.rot + 'deg');
-    el.innerHTML = `${m.src ? `<img src="${m.src}" alt="">` : ''}<textarea class="cap" rows="1" placeholder="${m.src ? 'اكتب شي…' : 'اكتب ذكرى…'}">${esc(m.text)}</textarea><button class="del" title="حذف">×</button>`;
-    const ta = el.querySelector('.cap');
-    ta.addEventListener('input', () => { m.text = ta.value; autoGrow(ta); save(); });
-    el.querySelector('.del').addEventListener('click', () => { if (!confirm('حذف هالذكرى؟')) return; S.photos = S.photos.filter(x => x !== m); save(); renderMemories(); });
+    const d = vault.cache.get(m.id) || { src:'', text:'' };
+    const el = document.createElement('div'); el.className = 'polaroid' + (d.src ? '' : ' note'); el.style.setProperty('--rot', m.rot + 'deg');
+    el.dataset.id = m.id;
+    el.innerHTML = `<span class="pgrip" title="اسحب للترتيب">⠿</span>${d.src ? `<img src="${d.src}" alt="" draggable="false">` : ''}<textarea class="cap" rows="1" placeholder="${d.src ? 'اكتب شي…' : 'اكتب ذكرى…'}">${esc(d.text)}</textarea><button class="del" title="حذف">×</button>`;
+    bindPhotoDrag(el, m);
+    const ta = el.querySelector('.cap'); let t;
+    ta.addEventListener('input', () => { d.text = ta.value; vault.cache.set(m.id, d); autoGrow(ta); clearTimeout(t); t = setTimeout(() => reEncrypt(m), 500); });
+    el.querySelector('img')?.addEventListener('click', () => openLightbox(d.src, ta.value));
+    el.querySelector('.del').addEventListener('click', () => { if (!confirm('حذف هالذكرى؟')) return; S.photos = S.photos.filter(x => x !== m); vault.cache.delete(m.id); save(); renderMemories(); });
     board.appendChild(el); autoGrow(ta);
   });
 }
 const rndRot = () => Math.round((Math.random() * 12 - 6) * 10) / 10;
-$('#memToggle').addEventListener('click', () => { memShown = !memShown; renderMemories(); });
-$('#addNote').addEventListener('click', () => { S.photos.push({ id: uid(), src: '', text: '', rot: rndRot() }); save(); renderMemories(); const t = document.querySelectorAll('#board .cap'); t[t.length-1]?.focus(); });
-$('#addPhoto').addEventListener('click', () => $('#photoFile').click());
+
+/* ---------- معاينة الصورة: زوم باتجاه المؤشر، سحب، نقرة مزدوجة، إصبعين، Esc (منقول من ImagePreviewModal) ---------- */
+const LB = { MIN:.5, MAX:5, STEP:.25, scale:1, x:0, y:0, drag:false, moved:false, downTarget:null, sx:0, sy:0, pts:new Map(), pinch:null };
+const lb = $('#lb'), lbImg = $('#lbImg'), lbStage = $('#lbStage');
+function lbApply(){ lbImg.style.transform = `translate(${LB.x}px, ${LB.y}px) scale(${LB.scale})`; $('#lbPct').textContent = Math.round(LB.scale*100) + '%'; $('#lbOut').disabled = LB.scale <= LB.MIN; $('#lbIn').disabled = LB.scale >= LB.MAX; }
+function lbReset(){ LB.scale = 1; LB.x = 0; LB.y = 0; lbApply(); }
+function lbZoomAt(newScale, cx, cy){
+  newScale = Math.min(LB.MAX, Math.max(LB.MIN, newScale)); if (newScale === LB.scale) return;
+  const r = lbStage.getBoundingClientRect(); const mx = cx - r.left - r.width/2, my = cy - r.top - r.height/2;
+  const k = newScale / LB.scale; LB.x = mx - (mx - LB.x) * k; LB.y = my - (my - LB.y) * k; LB.scale = newScale; lbApply();
+}
+function openLightbox(src, cap){ if (!src) return; lbImg.src = src; $('#lbCap').textContent = cap || ''; lb.hidden = false; document.body.style.overflow = 'hidden'; lbReset(); }
+function closeLightbox(){ if (lb.hidden) return; lb.hidden = true; lbImg.src = ''; document.body.style.overflow = ''; }
+$('#lbClose').addEventListener('click', closeLightbox);
+$('#lbIn').addEventListener('click', () => { const r = lbStage.getBoundingClientRect(); lbZoomAt(LB.scale + LB.STEP, r.left + r.width/2, r.top + r.height/2); });
+$('#lbOut').addEventListener('click', () => { const r = lbStage.getBoundingClientRect(); lbZoomAt(LB.scale - LB.STEP, r.left + r.width/2, r.top + r.height/2); });
+$('#lbPct').addEventListener('click', lbReset);
+document.addEventListener('keydown', e => { if (!lb.hidden && e.key === 'Escape') closeLightbox(); });
+lbStage.addEventListener('wheel', e => { e.preventDefault(); lbZoomAt(LB.scale + (e.deltaY > 0 ? -LB.STEP : LB.STEP), e.clientX, e.clientY); }, { passive:false });
+lbStage.addEventListener('dblclick', e => { if (LB.scale > 1) lbReset(); else lbZoomAt(2.5, e.clientX, e.clientY); });
+lbStage.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  lbStage.setPointerCapture(e.pointerId); LB.pts.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  if (LB.pts.size === 2){ const [a,b] = [...LB.pts.values()]; LB.pinch = { d: Math.hypot(a.x-b.x, a.y-b.y), s: LB.scale }; LB.drag = false; return; }
+  LB.drag = true; LB.moved = false; LB.downTarget = e.target; LB.sx = e.clientX - LB.x; LB.sy = e.clientY - LB.y; lbStage.classList.add('drag');
+});
+lbStage.addEventListener('pointermove', e => {
+  if (!LB.pts.has(e.pointerId)) return; LB.pts.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  if (LB.pts.size === 2 && LB.pinch){ const [a,b] = [...LB.pts.values()]; const d = Math.hypot(a.x-b.x, a.y-b.y); lbZoomAt(LB.pinch.s * d / LB.pinch.d, (a.x+b.x)/2, (a.y+b.y)/2); LB.moved = true; return; }
+  if (!LB.drag) return;
+  const nx = e.clientX - LB.sx, ny = e.clientY - LB.sy; if (Math.abs(nx - LB.x) > 2 || Math.abs(ny - LB.y) > 2) LB.moved = true; LB.x = nx; LB.y = ny; lbApply();
+});
+const lbUp = e => {
+  LB.pts.delete(e.pointerId); if (LB.pts.size < 2) LB.pinch = null;
+  if (!LB.drag) return; LB.drag = false; lbStage.classList.remove('drag');
+  if (!LB.moved && LB.downTarget !== lbImg && LB.pts.size === 0) closeLightbox(); /* نقرة برا الصورة = إغلاق */
+};
+lbStage.addEventListener('pointerup', lbUp); lbStage.addEventListener('pointercancel', lbUp);
+/* سحب وإفلات الصور: نفس أسلوب صفوف الأشخاص (شبح + مكان إفلات + تنفيذ عند الإفلات) */
+const pGhost = document.createElement('div'); pGhost.id = 'photo-ghost'; document.body.appendChild(pGhost);
+const pph = document.createElement('div'); pph.className = 'pph';
+let dragPhoto = null;
+function bindPhotoDrag(el, m){
+  el.querySelector('.pgrip').addEventListener('pointerdown', e => {
+    if (e.button && e.button !== 0) return;
+    e.preventDefault(); const grip = e.currentTarget;
+    dragPhoto = el; el.classList.add('dragging');
+    pGhost.innerHTML = ''; const clone = el.cloneNode(true); clone.classList.remove('dragging'); clone.style.setProperty('--rot','0deg'); clone.querySelector('.del')?.remove(); pGhost.appendChild(clone);
+    pGhost.style.display = 'block'; pGhost.style.left = e.clientX + 'px'; pGhost.style.top = e.clientY + 'px';
+    try{ grip.setPointerCapture(e.pointerId); }catch(err){}
+    const mv = ev => {
+      ev.preventDefault(); pGhost.style.left = ev.clientX + 'px'; pGhost.style.top = ev.clientY + 'px';
+      if (ev.clientY < 60) window.scrollBy(0, -10); else if (ev.clientY > innerHeight - 60) window.scrollBy(0, 10);
+      const under = document.elementFromPoint(ev.clientX, ev.clientY); if (!under) return;
+      const board = $('#board'); if (!board.contains(under) && under !== board) return;
+      const t = under.closest('.polaroid');
+      if (t && t !== el && t !== pph){ const r = t.getBoundingClientRect(); const before = ev.clientX > r.left + r.width / 2; /* RTL: اليمين = قبل */ t.parentNode.insertBefore(pph, before ? t : t.nextSibling); }
+      else if (!t && under === board) board.appendChild(pph);
+    };
+    const up = () => {
+      grip.removeEventListener('pointermove', mv); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up);
+      el.classList.remove('dragging'); pGhost.style.display = 'none';
+      if (pph.parentNode){ pph.parentNode.insertBefore(el, pph); pph.remove(); }
+      dragPhoto = null;
+      const order = [...$('#board').querySelectorAll('.polaroid')].map(x => x.dataset.id);
+      S.photos.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id)); save();
+    };
+    grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
+  });
+}
+$('#memToggle').addEventListener('click', () => { if (memShown && vault.key) lockVault(); else openVault(); });
+$('#changePass').addEventListener('click', changePass);
+$('#addNote').addEventListener('click', async () => {
+  if (!vault.key) return;
+  const m = { id: uid(), rot: rndRot() }; const plain = { src:'', text:'' };
+  m.enc = await encObj(vault.key, plain); vault.cache.set(m.id, plain); S.photos.push(m); save(); renderMemories();
+  const t = document.querySelectorAll('#board .cap'); t[t.length-1]?.focus();
+});
+$('#addPhoto').addEventListener('click', () => { if (vault.key) $('#photoFile').click(); });
 $('#photoFile').addEventListener('change', async e => {
-  const files = [...e.target.files]; e.target.value = ''; if (!files.length) return;
-  for (const f of files){ const src = await shrinkImage(f); if (src) S.photos.push({ id: uid(), src, text: '', rot: rndRot() }); }
-  save(); renderMemories(); toast(`أضفت ${files.length} صورة`);
+  const files = [...e.target.files]; e.target.value = ''; if (!files.length || !vault.key) return;
+  let n = 0;
+  let anim = 0; const errs = [];
+  for (const f of files){ const r = await loadImage(f); if (r.error){ errs.push(r.error); continue; } if (!r.src) continue; const m = { id: uid(), rot: rndRot() }; const plain = { src: r.src, text:'' }; m.enc = await encObj(vault.key, plain); vault.cache.set(m.id, plain); S.photos.push(m); n++; if (r.animated) anim++; }
+  save(); renderMemories(); if (n) toast(`أضفت ${n} صورة مشفّرة 🔐${anim ? ` (${anim} متحركة)` : ''}`); if (errs.length) alert(errs.join('\n'));
 });
 function renderAll(){ renderTabs(); renderPeople(); renderMemories(); }
 
@@ -1135,11 +1401,47 @@ try{
 }catch(e){ console.error(e); setPill('err', 'المزامنة غير متاحة'); }
 
 let user = null, unsubs = [], cloudP = null, cloudPh = null, merging = false, timer = null, pending = false, watchdog = null;
+const dirty = new Set(); /* حسبات اندمجت وبدها رفع */
 const pushed = { p: {}, ph: {} };            /* آخر نسخة مرفوعة لكل مستند (للمقارنة ومنع التكرار) */
 const stripPhotos = pr => { const { photos, ...rest } = pr.data; return { id: pr.id, name: pr.name, date: pr.date, createdAt: pr.createdAt, data: rest, updatedAt: Date.now() }; };
 const stable = o => JSON.stringify(o, Object.keys(o).sort());
 const profKey = pr => { const x = stripPhotos(pr); delete x.updatedAt; return JSON.stringify(x); };
-const photoKey = (pid, m, i) => JSON.stringify({ pid, src: m.src, text: m.text, rot: m.rot, order: i });
+/* دمج ثلاثي: base = آخر نسخة متزامنة، local = نسختي، remote = السحابة.
+   الحقل اللي غيّرته أنا فقط بيبقى إلي، اللي تغيّر بالسحابة فقط بيجي منها، ولو الاثنين غيّروا نفس الحقل السحابة (آخر مزامنة) تغلب. */
+const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+function merge3(base, local, remote){
+  if (same(local, base)) return remote;
+  if (same(remote, base)) return local;
+  if (Array.isArray(local) && Array.isArray(remote) && (local.concat(remote)).every(x => isObj(x) && x.id)){
+    const B = Object.fromEntries((Array.isArray(base) ? base : []).map(x => [x.id, x])), L = Object.fromEntries(local.map(x => [x.id, x])), R = Object.fromEntries(remote.map(x => [x.id, x]));
+    const out = [];
+    remote.forEach(r => { const l = L[r.id]; out.push(l ? merge3(B[r.id], l, r) : r); });
+    local.forEach(l => { if (!R[l.id] && !B[l.id]) out.push(l); });          /* أضفته أنا محلياً */
+    return out;                                                               /* اللي بالـ base ومش بالسحابة = انحذف من جهاز تاني */
+  }
+  if (isObj(local) && isObj(remote)){
+    const out = {}; const keys = new Set([...Object.keys(local), ...Object.keys(remote)]);
+    keys.forEach(k => {
+      const b = isObj(base) ? base[k] : undefined;
+      if (!(k in remote) && isObj(base) && k in base && same(local[k], b)) return; /* حُذف بالسحابة */
+      if (!(k in local) && isObj(base) && k in base && same(remote[k], b)) return; /* حذفته أنا */
+      out[k] = merge3(b, local[k], remote[k]);
+    });
+    return out;
+  }
+  return remote; /* تعارض على نفس القيمة: السحابة تغلب */
+}
+let pendingRender = false;
+document.addEventListener('focusout', () => {
+  /* عند مغادرة أي حقل: ارفع فوراً، واعرض ما وصل من السحابة أثناء الكتابة */
+  setTimeout(() => {
+    if (document.activeElement?.matches?.('input,textarea,select')) return;
+    if (timer){ clearTimeout(timer); timer = null; push(); }
+    if (pendingRender){ pendingRender = false; renderAll(); }
+  }, 60);
+});
+const photoKey = (pid, m, i) => JSON.stringify({ pid, enc: m.enc, rot: m.rot, order: i });
 
 const ERR = { 'permission-denied': 'مرفوض: هذا الحساب غير مسموح له بالقواعد', 'unavailable': 'ما في اتصال بالسحابة (الشبكة بتحجب Firestore؟)', 'failed-precondition': 'قاعدة البيانات مش جاهزة (تأكد إنها Firestore Native)', 'not-found': 'قاعدة البيانات غير موجودة', 'unauthenticated': 'انتهت الجلسة، سجّل الدخول من جديد' };
 const errText = e => (ERR[e?.code] || 'خطأ بالمزامنة') + (e?.code ? ` (${e.code})` : '');
@@ -1166,12 +1468,18 @@ function mergeCloud(){
   merging = true;
   try{
     const photosBy = {};
-    Object.values(cloudPh).sort((a,b) => (a.order||0) - (b.order||0)).forEach(m => { (photosBy[m.pid] ||= []).push({ id: m.id, src: m.src || '', text: m.text || '', rot: +m.rot || 0 }); });
+    Object.values(cloudPh).sort((a,b) => (a.order||0) - (b.order||0)).forEach(m => { (photosBy[m.pid] ||= []).push(m.enc ? { id: m.id, enc: m.enc, rot: +m.rot || 0 } : { id: m.id, src: m.src || '', text: m.text || '', rot: +m.rot || 0 }); });
     const cloudIds = new Set(Object.keys(cloudP));
     const next = [];
     /* المحلي: احتفظ بترتيبه، خذ نسخة السحابة لو موجودة */
     DB.profiles.forEach(pr => {
-      if (cloudIds.has(pr.id)) next.push(normProfile({ ...cloudP[pr.id], data: { ...cloudP[pr.id].data, photos: photosBy[pr.id] || [] } }));
+      if (cloudIds.has(pr.id)){
+        const remote = normProfile({ ...cloudP[pr.id], data: { ...cloudP[pr.id].data, photos: photosBy[pr.id] || [] } });
+        const baseKey = pushed.p[pr.id], localKey = profKey(pr), remoteKey = profKey(remote);
+        if (!baseKey || localKey === baseKey || localKey === remoteKey) next.push(remote);          /* ما عندي تعديل محلي */
+        else if (remoteKey === baseKey) next.push(pr);                                              /* السحابة ما تغيّرت، تعديلي بينرفع */
+        else { const merged = normProfile(merge3(JSON.parse(baseKey), JSON.parse(localKey), JSON.parse(remoteKey))); merged.data.photos = remote.data.photos; next.push(merged); dirty.add(pr.id); }
+      }
       else if (pushed.p[pr.id]) { /* كان مرفوع وانحذف من جهاز تاني */ }
       else if (cloudIds.size && !pr.data.people.length && !pr.data.costs.length && !pr.data.photos.length) { /* حسبة فاضية افتراضية، ما بنرفعها لو السحابة فيها حسبات */ }
       else next.push(pr); /* جديد محلياً، رح ينرفع */
@@ -1181,7 +1489,8 @@ function mergeCloud(){
     if (!next.length) next.push(newProfile('حسبتي الأولى'));
     /* سجّل ما بالسحابة كمرفوع مشان ما نعيد رفعه */
     pushed.p = {}; pushed.ph = {};
-    next.forEach(pr => { if (cloudIds.has(pr.id)){ pushed.p[pr.id] = profKey(pr); pr.data.photos.forEach((m,i) => { if (cloudPh[m.id]) pushed.ph[m.id] = photoKey(pr.id, m, i); }); } });
+    next.forEach(pr => { if (cloudIds.has(pr.id)){ pushed.p[pr.id] = dirty.has(pr.id) ? profKey(normProfile({ ...cloudP[pr.id], data: { ...cloudP[pr.id].data, photos: [] } })) : profKey(pr); pr.data.photos.forEach((m,i) => { if (cloudPh[m.id]) pushed.ph[m.id] = photoKey(pr.id, m, i); }); } });
+    dirty.clear();
     const before = JSON.stringify(DB.profiles);
     DB.profiles = next;
     if (!DB.profiles.some(pr => pr.id === DB.activeId)) DB.activeId = DB.profiles[0].id;
@@ -1189,13 +1498,13 @@ function mergeCloud(){
     const changed = before !== JSON.stringify(DB.profiles);
     try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){}
     if (changed && !document.activeElement?.matches?.('input,textarea,select')) renderAll();
-    else if (changed) renderTabs();
+    else if (changed){ pendingRender = true; renderTabs(); }
   } finally { merging = false; }
   schedule(); /* ارفع أي شي محلي جديد */
 }
 
 /* ---- رفع التغييرات المحلية ---- */
-function schedule(){ if (!user || !db) return; clearTimeout(timer); timer = setTimeout(push, 900); status(); }
+function schedule(){ if (!user || !db) return; clearTimeout(timer); timer = setTimeout(push, 600); status(); }
 async function push(){
   timer = null; if (!user || !db || merging) { status(); return; }
   const base = doc(db, 'users', user.uid);
@@ -1206,9 +1515,10 @@ async function push(){
     const k = profKey(pr);
     if (pushed.p[pr.id] !== k){ ops.push(b => b.set(doc(base, 'profiles', pr.id), stripPhotos(pr))); pushed.p[pr.id] = k; }
     pr.data.photos.forEach((m, i) => {
+      if (!m.enc) return; /* الصور غير المشفّرة (قديمة) ما بتنرفع أبداً، بتنرفع بعد ما تتشفّر */
       livePh.add(m.id);
       const pk = photoKey(pr.id, m, i);
-      if (pushed.ph[m.id] !== pk){ ops.push(b => b.set(doc(base, 'photos', m.id), { pid: pr.id, src: m.src, text: m.text, rot: m.rot, order: i })); pushed.ph[m.id] = pk; }
+      if (pushed.ph[m.id] !== pk){ ops.push(b => b.set(doc(base, 'photos', m.id), { pid: pr.id, enc: m.enc, rot: m.rot, order: i, v: 1 })); pushed.ph[m.id] = pk; }
     });
   });
   Object.keys(pushed.p).filter(id => !liveP.has(id)).forEach(id => { ops.push(b => b.delete(doc(base, 'profiles', id))); delete pushed.p[id]; });
@@ -1267,7 +1577,7 @@ if (auth){
   });
 } else renderAuth();
 
-window.__cloud = { schedule };
+window.__cloud = { schedule, merge3, signedIn: () => !!user };
 </script>
 </body>
 </html>
