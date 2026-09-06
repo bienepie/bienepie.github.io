@@ -1104,7 +1104,7 @@ applyTheme(theme); save(); renderAll();
 /* ---------- المزامنة عبر Firebase (Auth + Firestore) ---------- */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, writeBatch, getDocFromServer } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDENYZgA09x32f0vSNmqXWvBBXFCUa8YX8",
@@ -1126,17 +1126,28 @@ try{
   db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
 }catch(e){ console.error(e); setPill('err', 'المزامنة غير متاحة'); }
 
-let user = null, unsubs = [], cloudP = null, cloudPh = null, merging = false, timer = null;
+let user = null, unsubs = [], cloudP = null, cloudPh = null, merging = false, timer = null, pending = false, watchdog = null;
 const pushed = { p: {}, ph: {} };            /* آخر نسخة مرفوعة لكل مستند (للمقارنة ومنع التكرار) */
 const stripPhotos = pr => { const { photos, ...rest } = pr.data; return { id: pr.id, name: pr.name, date: pr.date, createdAt: pr.createdAt, data: rest, updatedAt: Date.now() }; };
 const stable = o => JSON.stringify(o, Object.keys(o).sort());
 const profKey = pr => { const x = stripPhotos(pr); delete x.updatedAt; return JSON.stringify(x); };
 const photoKey = (pid, m, i) => JSON.stringify({ pid, src: m.src, text: m.text, rot: m.rot, order: i });
 
+const ERR = { 'permission-denied': 'مرفوض: هذا الحساب غير مسموح له بالقواعد', 'unavailable': 'ما في اتصال بالسحابة (الشبكة بتحجب Firestore؟)', 'failed-precondition': 'قاعدة البيانات مش جاهزة (تأكد إنها Firestore Native)', 'not-found': 'قاعدة البيانات غير موجودة', 'unauthenticated': 'انتهت الجلسة، سجّل الدخول من جديد' };
+const errText = e => (ERR[e?.code] || 'خطأ بالمزامنة') + (e?.code ? ` (${e.code})` : '');
+function fail(e, where){ console.error(where, e); setPill('err', errText(e)); pill.title = `${where}: ${e?.code || ''} ${e?.message || ''}`; }
+/* فحص اتصال مباشر بالسيرفر بعد الدخول: لو علّق أو رفض بنعرف السبب فوراً */
+async function probe(){
+  const ref = doc(db, 'users', user.uid, 'meta', 'ping');
+  const t = new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error('timeout'), { code: 'unavailable' })), 12000));
+  try{ await Promise.race([getDocFromServer(ref), t]); return true; }
+  catch(e){ if (e.code !== 'unavailable' || !navigator.onLine) fail(e, 'probe'); else fail(e, 'probe'); return false; }
+}
 function status(){
   if (!user) return;
+  if (pill.classList.contains('err')) return;
   if (!navigator.onLine) setPill('offline', 'بدون نت، بيتزامن لما يرجع');
-  else if (timer || merging) setPill('busy', 'يحفظ…');
+  else if (timer || merging || pending) setPill('busy', 'يحفظ…');
   else setPill('ok', 'متزامن ✔');
 }
 addEventListener('online', status); addEventListener('offline', status);
@@ -1154,6 +1165,7 @@ function mergeCloud(){
     DB.profiles.forEach(pr => {
       if (cloudIds.has(pr.id)) next.push(normProfile({ ...cloudP[pr.id], data: { ...cloudP[pr.id].data, photos: photosBy[pr.id] || [] } }));
       else if (pushed.p[pr.id]) { /* كان مرفوع وانحذف من جهاز تاني */ }
+      else if (cloudIds.size && !pr.data.people.length && !pr.data.costs.length && !pr.data.photos.length) { /* حسبة فاضية افتراضية، ما بنرفعها لو السحابة فيها حسبات */ }
       else next.push(pr); /* جديد محلياً، رح ينرفع */
     });
     /* حسبات موجودة بالسحابة فقط */
@@ -1195,11 +1207,11 @@ async function push(){
   Object.keys(pushed.ph).filter(id => !livePh.has(id)).forEach(id => { ops.push(b => b.delete(doc(base, 'photos', id))); delete pushed.ph[id]; });
   if (!ops.length){ status(); return; }
   try{
+    pending = true; status();
     for (let i = 0; i < ops.length; i += 15){ const b = writeBatch(db); ops.slice(i, i+15).forEach(f => f(b)); await b.commit(); }
-    status();
+    pending = false; status();
   }catch(e){
-    console.error(e);
-    setPill('err', e.code === 'permission-denied' ? 'مرفوض: الحساب غير مسموح له' : 'خطأ بالمزامنة');
+    fail(e, 'push');
     if (e.code === 'permission-denied') toast('هذا الحساب غير مسموح له بالمزامنة. سجّل بحسابك المعتمد.');
   }
 }
@@ -1207,12 +1219,13 @@ async function push(){
 /* ---- الاستماع للسحابة ---- */
 function listen(){
   const base = collection(db, 'users', user.uid);
-  unsubs.push(onSnapshot(collection(base, 'profiles'), snap => { cloudP = {}; snap.forEach(d => { cloudP[d.id] = { id: d.id, ...d.data() }; }); mergeCloud(); },
-    e => { console.error(e); setPill('err', e.code === 'permission-denied' ? 'مرفوض: الحساب غير مسموح له' : 'خطأ بالمزامنة'); }));
+  clearTimeout(watchdog); watchdog = setTimeout(() => { if (!cloudP) setPill('err', 'الاتصال نجح بس الاستماع ما رد خلال ١٢ ثانية، جرّب تحديث الصفحة'); }, 15000);
+  unsubs.push(onSnapshot(collection(base, 'profiles'), { includeMetadataChanges: true }, snap => { clearTimeout(watchdog); pending = snap.metadata.hasPendingWrites; cloudP = {}; snap.forEach(d => { cloudP[d.id] = { id: d.id, ...d.data() }; }); mergeCloud(); status(); },
+    e => fail(e, 'profiles')));
   unsubs.push(onSnapshot(collection(base, 'photos'), snap => { cloudPh = {}; snap.forEach(d => { cloudPh[d.id] = { id: d.id, ...d.data() }; }); mergeCloud(); },
-    e => console.error(e)));
+    e => fail(e, 'photos')));
 }
-function stop(){ unsubs.forEach(u => u()); unsubs = []; cloudP = cloudPh = null; pushed.p = {}; pushed.ph = {}; }
+function stop(){ unsubs.forEach(u => u()); unsubs = []; cloudP = cloudPh = null; pushed.p = {}; pushed.ph = {}; pending = false; clearTimeout(watchdog); }
 
 /* ---- الزر والحالة ---- */
 function renderAuth(){
@@ -1240,9 +1253,9 @@ authBtn.addEventListener('click', async () => {
 });
 if (auth){
   getRedirectResult(auth).catch(e => console.error(e));
-  onAuthStateChanged(auth, u => {
-    stop(); user = u; renderAuth();
-    if (u){ setPill('busy', 'يتزامن…'); listen(); }
+  onAuthStateChanged(auth, async u => {
+    stop(); user = u; pill.className = 'sync off'; renderAuth();
+    if (u){ setPill('busy', `يتزامن… (${u.email})`); pill.title = u.email; if (await probe()) listen(); }
   });
 } else renderAuth();
 
