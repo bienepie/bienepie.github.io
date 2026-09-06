@@ -62,7 +62,7 @@
   .sync{display:inline-flex;align-items:center;gap:6px;padding:0 12px;height:42px;border-radius:999px;background:rgba(255,255,255,.92);color:var(--text);font-size:12.5px;font-weight:800;box-shadow:var(--shadow);white-space:nowrap}
   html[data-theme=dark] .sync{background:rgba(28,39,62,.92)}
   .sync::before{content:"";width:9px;height:9px;border-radius:50%;background:#9aa;flex:none}
-  .sync.ok::before{background:#34d399} .sync.busy::before{background:var(--yellow);animation:pulse 1s infinite} .sync.offline::before{background:#f59e0b} .sync.err::before{background:var(--danger)}
+  .sync.ok::before{background:#34d399} .sync.dirty::before{background:var(--pink)} .sync.dirty{color:var(--pink-text)} .sync.busy::before{background:var(--yellow);animation:pulse 1s infinite} .sync.offline::before{background:#f59e0b} .sync.err::before{background:var(--danger)}
   @keyframes pulse{50%{opacity:.3}}
   .sync[hidden]{display:none}
 
@@ -1398,6 +1398,7 @@ function refreshUploadBadges(){
   document.querySelectorAll('#board .polaroid[data-temp]').forEach(el => { const t = vault.temp.get(el.dataset.temp); const b = el.querySelector('.upl'); if (t && b) b.textContent = t.state; });
 }
 window.__afterPush = refreshUploadBadges;
+window.__photoChanged = id => { vault.cache.delete(id); vault.failed.delete(id); };
 const rndRot = () => Math.round((Math.random() * 12 - 6) * 10) / 10;
 
 /* ---------- معاينة الصورة: زوم باتجاه المؤشر، سحب، نقرة مزدوجة، إصبعين، Esc (منقول من ImagePreviewModal) ---------- */
@@ -1692,17 +1693,19 @@ try{
   db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
 }catch(e){ console.error(e); setPill('err', 'المزامنة غير متاحة'); }
 
-let user = null, unsubs = [], cloudP = null, cloudPh = null, merging = false, timer = null, pending = false, watchdog = null;
-const dirty = new Set(); /* حسبات اندمجت وبدها رفع */
-const pushed = { p: {}, ph: {} };            /* آخر نسخة مرفوعة لكل مستند (للمقارنة ومنع التكرار) */
+let user = null, unsubs = [], cloudP = null, cloudPh = null, cloudO = null, timer = null, pending = false, watchdog = null, initialApplied = false;
+/* آخر نسخة متزامنة لكل مستند (p: الحسبات، ph: الصور، o: ترتيب الصور) */
+const pushed = { p: {}, ph: {}, o: {} };
 const SYNC_KEY = () => 'splitit-sync-' + (user ? user.uid : '');
 function savePushed(){ try{ localStorage.setItem(SYNC_KEY(), JSON.stringify(pushed)); }catch(e){} }
-function loadPushed(){ try{ const x = JSON.parse(localStorage.getItem(SYNC_KEY())); if (x && x.p && x.ph){ pushed.p = x.p; pushed.ph = x.ph; } }catch(e){} }
+function loadPushed(){ try{ const x = JSON.parse(localStorage.getItem(SYNC_KEY())); if (x && x.p && x.ph){ pushed.p = x.p; pushed.ph = x.ph; pushed.o = x.o || {}; } }catch(e){} }
 const stripPhotos = pr => { const { photos, ...rest } = pr.data; return { id: pr.id, name: pr.name, date: pr.date, createdAt: pr.createdAt, data: rest, updatedAt: Date.now() }; };
-const stable = o => JSON.stringify(o, Object.keys(o).sort());
 const profKey = pr => { const x = stripPhotos(pr); delete x.updatedAt; return JSON.stringify(x); };
+const cloudProfKey = c => profKey(normProfile({ ...c, data: { ...c.data, photos: [] } }));
+const photoKey = m => JSON.stringify({ enc: m.enc, rot: +m.rot || 0 });
+const orderKey = pr => pr.data.photos.filter(m => m.enc).map(m => m.id).join(',');
 /* دمج ثلاثي: base = آخر نسخة متزامنة، local = نسختي، remote = السحابة.
-   الحقل اللي غيّرته أنا فقط بيبقى إلي، اللي تغيّر بالسحابة فقط بيجي منها، ولو الاثنين غيّروا نفس الحقل السحابة (آخر مزامنة) تغلب. */
+   الحقل اللي غيّرته أنا فقط بيبقى إلي، اللي تغيّر بالسحابة فقط بيجي منها، ولو الاثنين غيّروا نفس الحقل الأحدث بيغلب. */
 const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 function merge3(base, local, remote, preferLocal = false){
@@ -1712,150 +1715,189 @@ function merge3(base, local, remote, preferLocal = false){
     const B = Object.fromEntries((Array.isArray(base) ? base : []).map(x => [x.id, x])), L = Object.fromEntries(local.map(x => [x.id, x])), R = Object.fromEntries(remote.map(x => [x.id, x]));
     const out = [];
     remote.forEach(r => { const l = L[r.id]; out.push(l ? merge3(B[r.id], l, r, preferLocal) : r); });
-    local.forEach(l => { if (!R[l.id] && !B[l.id]) out.push(l); });          /* أضفته أنا محلياً */
-    return out;                                                               /* اللي بالـ base ومش بالسحابة = انحذف من جهاز تاني */
+    local.forEach(l => { if (!R[l.id] && !B[l.id]) out.push(l); });
+    return out;
   }
   if (isObj(local) && isObj(remote)){
     const out = {}; const keys = new Set([...Object.keys(local), ...Object.keys(remote)]);
     keys.forEach(k => {
       const b = isObj(base) ? base[k] : undefined;
-      if (!(k in remote) && isObj(base) && k in base && same(local[k], b)) return; /* حُذف بالسحابة */
-      if (!(k in local) && isObj(base) && k in base && same(remote[k], b)) return; /* حذفته أنا */
+      if (!(k in remote) && isObj(base) && k in base && same(local[k], b)) return;
+      if (!(k in local) && isObj(base) && k in base && same(remote[k], b)) return;
       out[k] = merge3(b, local[k], remote[k], preferLocal);
     });
     return out;
   }
-  return preferLocal ? local : remote; /* تعارض على نفس القيمة: الأحدث بيغلب */
+  return preferLocal ? local : remote;
 }
 let pendingRender = false;
-addEventListener('pagehide', () => { if (timer){ clearTimeout(timer); timer = null; push(); } });
-document.addEventListener('visibilitychange', () => { if (document.hidden && timer){ clearTimeout(timer); timer = null; push(); } });
-document.addEventListener('focusout', () => {
-  /* عند مغادرة أي حقل: ارفع فوراً، واعرض ما وصل من السحابة أثناء الكتابة */
-  setTimeout(() => {
-    const ae = document.activeElement; if (ae?.matches?.('input,textarea,select') && !ae.closest('.modal') && ae.offsetParent !== null) return;
-    if (timer){ clearTimeout(timer); timer = null; push(); }
-    if (pendingRender){ pendingRender = false; renderAll(); }
-  }, 60);
-});
-const photoKey = (pid, m, i) => JSON.stringify({ pid, enc: m.enc, rot: m.rot, order: i });
+const typingNow = () => { const ae = document.activeElement; return !!(ae?.matches?.('input,textarea,select') && !ae.closest('.modal') && ae.offsetParent !== null); };
+function softRender(what){
+  if (typingNow()){ pendingRender = true; return; }
+  if (what === 'photos') renderMemories(); else renderAll();
+}
+document.addEventListener('focusout', () => { setTimeout(() => { if (pendingRender && !typingNow()){ pendingRender = false; renderAll(); } }, 60); });
+addEventListener('pagehide', () => { if (timer){ clearTimeout(timer); timer = null; push(false); } });
 
 const ERR = { 'permission-denied': 'مرفوض: هذا الحساب غير مسموح له بالقواعد', 'unavailable': 'الطلبات لـ googleapis.com محجوبة: مانع إعلانات، إضافة خصوصية، DNS/راوتر بيفلتر، أو VPN. جرّبي نافذة متخفية أو بيانات الهاتف', 'failed-precondition': 'قاعدة البيانات مش جاهزة (تأكد إنها Firestore Native)', 'not-found': 'قاعدة البيانات غير موجودة', 'unauthenticated': 'انتهت الجلسة، سجّل الدخول من جديد' };
 const errText = e => (ERR[e?.code] || 'خطأ بالمزامنة') + (e?.code ? ` (${e.code})` : '');
 function fail(e, where){ console.error(where, e); setPill('err', errText(e)); pill.title = `${where}: ${e?.code || ''} ${e?.message || ''}`; }
-/* فحص اتصال مباشر بالسيرفر بعد الدخول: لو علّق أو رفض بنعرف السبب فوراً */
 async function probe(){
   const ref = doc(db, 'users', user.uid, 'meta', 'ping');
   const t = new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error('timeout'), { code: 'unavailable' })), 12000));
   try{ await Promise.race([getDocFromServer(ref), t]); return true; }
-  catch(e){ if (e.code !== 'unavailable' || !navigator.onLine) fail(e, 'probe'); else fail(e, 'probe'); return false; }
+  catch(e){ fail(e, 'probe'); return false; }
+}
+
+/* ---- الحالة: شو بدّه رفع وشو في جديد بالسحابة ---- */
+function dirtyInfo(){
+  let localDirty = 0, remoteNew = 0;
+  DB.profiles.forEach(pr => {
+    if (pushed.p[pr.id] !== profKey(pr)) localDirty++;
+    pr.data.photos.forEach(m => { if (m.enc && pushed.ph[m.id] && pushed.ph[m.id] !== photoKey(m)) localDirty++; });
+  });
+  if (cloudP){
+    Object.values(cloudP).forEach(c => { if (pushed.p[c.id] !== cloudProfKey(c)) remoteNew++; });
+    Object.keys(pushed.p).forEach(id => { if (!cloudP[id]) remoteNew++; });
+  }
+  return { localDirty, remoteNew };
 }
 function status(){
   if (!user) return;
   if (pill.classList.contains('err')) return;
-  if (!navigator.onLine) setPill('offline', 'بدون نت، بيتزامن لما يرجع');
-  else if (timer || merging || pending) setPill('busy', 'يحفظ…');
-  else setPill('ok', 'متزامن ✔');
+  if (!navigator.onLine) setPill('offline', 'بدون نت');
+  else if (timer || pending) setPill('busy', 'يرفع الصور…');
+  else {
+    const d = dirtyInfo();
+    if (d.localDirty && d.remoteNew) setPill('dirty', 'اضغطي للمزامنة: تعديلات عندك وبالسحابة');
+    else if (d.localDirty) setPill('dirty', 'اضغطي للمزامنة: تعديلات غير مرفوعة');
+    else if (d.remoteNew) setPill('dirty', 'اضغطي للمزامنة: في جديد من جهاز ثاني');
+    else setPill('ok', 'متزامن ✔');
+  }
 }
 addEventListener('online', status); addEventListener('offline', status);
+
+/* ---- المزامنة اليدوية (الزر): كل شي ---- */
+let syncing = false;
 async function syncNow(){
   if (!user || !db){ authBtn.click(); return; }
-  pill.className = 'sync busy'; pill.textContent = 'يتزامن الآن…';
+  if (syncing) return; syncing = true;
+  pill.className = 'sync busy'; pill.textContent = 'يتزامن…';
   try{
     const base = doc(db, 'users', user.uid);
-    const [ps, phs] = await Promise.all([getDocsFromServer(collection(base, 'profiles')), getDocsFromServer(collection(base, 'photos'))]);
+    const [ps, phs, os] = await Promise.all([getDocsFromServer(collection(base, 'profiles')), getDocsFromServer(collection(base, 'photos')), getDocsFromServer(collection(base, 'orders'))]);
     cloudP = {}; ps.forEach(d => { cloudP[d.id] = { id: d.id, ...d.data() }; });
     cloudPh = {}; phs.forEach(d => { cloudPh[d.id] = { id: d.id, ...d.data() }; });
-    mergeCloud();
+    cloudO = {}; os.forEach(d => { cloudO[d.id] = d.data(); });
+    applyProfiles(true);
     if (timer){ clearTimeout(timer); timer = null; }
-    await push();
+    await push(true);
     pill.classList.remove('err'); status(); toast('تمت المزامنة ✔');
   }catch(e){ fail(e, 'syncNow'); }
+  finally { syncing = false; }
 }
 pill.addEventListener('click', syncNow);
 
-/* ---- دمج ما بالسحابة مع المحلي ---- */
-function mergeCloud(){
-  if (!cloudP || !cloudPh) return;
-  merging = true;
-  try{
-    const photosBy = {};
-    Object.values(cloudPh).sort((a,b) => (a.order||0) - (b.order||0)).forEach(m => { (photosBy[m.pid] ||= []).push(m.enc ? { id: m.id, enc: m.enc, rot: +m.rot || 0 } : { id: m.id, src: m.src || '', text: m.text || '', rot: +m.rot || 0 }); });
-    const cloudIds = new Set(Object.keys(cloudP));
-    const next = [];
-    /* المحلي: احتفظ بترتيبه، خذ نسخة السحابة لو موجودة */
-    DB.profiles.forEach(pr => {
-      if (cloudIds.has(pr.id)){
-        /* الصور: صور السحابة + أي صورة محلية ما انرفعت بعد (مش بالسحابة ولا مسجّلة كمرفوعة). الصورة بتنحذف محلياً بس لو كانت مرفوعة وانحذفت من السحابة */
-        const cloudPhotos = photosBy[pr.id] || [];
-        const localOnly = pr.data.photos.filter(m => !cloudPh[m.id] && !pushed.ph[m.id]);
-        const photos = cloudPhotos.concat(localOnly);
-        const remote = normProfile({ ...cloudP[pr.id], data: { ...cloudP[pr.id].data, photos } });
-        const baseKey = pushed.p[pr.id], localKey = profKey(pr), remoteKey = profKey(remote);
-        if (localKey === baseKey || localKey === remoteKey) next.push(remote);                      /* ما عندي تعديل محلي */
-        else if (baseKey && remoteKey === baseKey){ pr.data.photos = photos; next.push(pr); }        /* السحابة ما تغيّرت، تعديلي بينرفع، والصور حسب السحابة + المحلي غير المرفوع */
-        else {
-          /* أول مزامنة بدون تاريخ مشترك: ندمج بدون ما نضيّع شي (تعديلاتي المحلية بتغلب، والإضافات من الطرفين بتنضم) */
-          const base = baseKey ? JSON.parse(baseKey) : {}; /* بدون تاريخ مشترك: اتحاد الطرفين، والأحدث بيغلب بالحقول المتعارضة */
-          const preferLocal = (pr.updatedAt || 0) > (+cloudP[pr.id].updatedAt || 0);
-          const merged = normProfile(merge3(base, JSON.parse(localKey), JSON.parse(remoteKey), preferLocal)); merged.data.photos = photos; merged.updatedAt = Math.max(pr.updatedAt || 0, +cloudP[pr.id].updatedAt || 0); next.push(merged); dirty.add(pr.id);
-        }
-        if (localOnly.length) dirty.add(pr.id);
+/* ---- الحسبات والنصوص: بتتطبّق من السحابة بس بالزر (وأول مرة بعد الدخول) ---- */
+function applyProfiles(forceRender){
+  if (!cloudP) return;
+  const cloudIds = new Set(Object.keys(cloudP)); const next = [];
+  DB.profiles.forEach(pr => {
+    if (cloudIds.has(pr.id)){
+      const c = cloudP[pr.id];
+      const remote = normProfile({ ...c, data: { ...c.data, photos: pr.data.photos } });
+      const baseKey = pushed.p[pr.id], localKey = profKey(pr), remoteKey = profKey(remote);
+      let out;
+      if (localKey === baseKey || localKey === remoteKey) out = remote;
+      else if (baseKey && remoteKey === baseKey) out = pr;
+      else {
+        const base = baseKey ? JSON.parse(baseKey) : {};
+        const preferLocal = (pr.updatedAt || 0) > (+c.updatedAt || 0);
+        out = normProfile(merge3(base, JSON.parse(localKey), JSON.parse(remoteKey), preferLocal)); out.data.photos = pr.data.photos; out.updatedAt = Math.max(pr.updatedAt || 0, +c.updatedAt || 0);
       }
-      else if (pushed.p[pr.id]) { /* كان مرفوع وانحذف من جهاز تاني */ }
-      else if (cloudIds.size && !pr.data.people.length && !pr.data.costs.length && !pr.data.photos.length) { /* حسبة فاضية افتراضية، ما بنرفعها لو السحابة فيها حسبات */ }
-      else next.push(pr); /* جديد محلياً، رح ينرفع */
-    });
-    /* حسبات موجودة بالسحابة فقط */
-    Object.keys(cloudP).filter(id => !DB.profiles.some(pr => pr.id === id)).forEach(id => next.push(normProfile({ ...cloudP[id], data: { ...cloudP[id].data, photos: photosBy[id] || [] } })));
-    if (!next.length) next.push(newProfile('حسبتي الأولى'));
-    /* سجّل ما بالسحابة كمرفوع مشان ما نعيد رفعه */
-    pushed.p = {}; pushed.ph = {};
-    next.forEach(pr => { if (cloudIds.has(pr.id)){ pushed.p[pr.id] = dirty.has(pr.id) ? profKey(normProfile({ ...cloudP[pr.id], data: { ...cloudP[pr.id].data, photos: [] } })) : profKey(pr); pr.data.photos.forEach((m,i) => { if (cloudPh[m.id]) pushed.ph[m.id] = photoKey(pr.id, m, i); }); } });
-    dirty.clear(); savePushed();
-    const before = JSON.stringify(DB.profiles);
-    DB.profiles = next;
-    if (!DB.profiles.some(pr => pr.id === DB.activeId)) DB.activeId = DB.profiles[0].id;
-    S = prof().data;
-    const changed = before !== JSON.stringify(DB.profiles);
-    persistLocal();
-    const ae = document.activeElement; const typing = ae?.matches?.('input,textarea,select') && !ae.closest('.modal') && ae.offsetParent !== null;
-    if (changed && !typing) renderAll();
-    else if (changed){ pendingRender = true; renderTabs(); }
-  } finally { merging = false; }
-  schedule(); /* ارفع أي شي محلي جديد */
+      next.push(out); pushed.p[pr.id] = remoteKey;
+    }
+    else if (pushed.p[pr.id]) { delete pushed.p[pr.id]; }                       /* انحذفت من جهاز ثاني */
+    else if (cloudIds.size && !pr.data.people.length && !pr.data.costs.length && !pr.data.photos.length) { } /* حسبة فاضية افتراضية */
+    else next.push(pr);                                                          /* جديدة عندي، بتنرفع بالزر */
+  });
+  Object.keys(cloudP).filter(id => !DB.profiles.some(pr => pr.id === id)).forEach(id => { const c = cloudP[id]; next.push(normProfile({ ...c, data: { ...c.data, photos: [] } })); pushed.p[id] = cloudProfKey(c); });
+  if (!next.length) next.push(newProfile('حسبتي الأولى'));
+  DB.profiles = next;
+  if (!DB.profiles.some(pr => pr.id === DB.activeId)) DB.activeId = DB.profiles[0].id;
+  S = prof().data;
+  savePushed(); persistLocal();
+  applyPhotos(true);
+  if (forceRender) renderAll(); else softRender('all');
+  status();
 }
 
-/* ---- رفع التغييرات المحلية ---- */
-function schedule(){ if (!user || !db) return; clearTimeout(timer); timer = setTimeout(push, 600); status(); }
-async function push(){
-  timer = null; if (!user || !db || merging) { status(); return; }
+/* ---- الصور: تلقائي (إضافة، حذف، ترتيب). التعليقات المعدّلة محلياً بتضل عندي لحد الزر ---- */
+function applyPhotos(silent){
+  if (!cloudPh) return; const orders = cloudO || {};
+  let changed = false;
+  DB.profiles.forEach(pr => {
+    const cloudList = Object.values(cloudPh).filter(m => m.pid === pr.id && m.enc);
+    const cloudIds = new Set(cloudList.map(m => m.id));
+    const localMap = new Map(pr.data.photos.map(m => [m.id, m]));
+    const items = [];
+    cloudList.forEach(c => {
+      const l = localMap.get(c.id);
+      if (l){
+        const localEdit = l.enc && pushed.ph[c.id] && pushed.ph[c.id] !== photoKey(l);   /* تعليق عدّلته أنا ولسا ما رفعته */
+        if (!localEdit && l.enc !== c.enc){ l.enc = c.enc; window.__photoChanged?.(c.id); changed = true; }
+        items.push(l);
+      } else { items.push({ id: c.id, enc: c.enc, rot: +c.rot || 0 }); changed = true; }
+    });
+    pr.data.photos.forEach(l => { if (!cloudIds.has(l.id)){ if (!pushed.ph[l.id]) items.push(l); else { changed = true; window.__photoChanged?.(l.id); } } });
+    /* الترتيب: من السحابة إلا لو عندي ترتيب محلي لسا ما انرفع */
+    const cloudOrder = orders[pr.id]?.ids || [];
+    const localKey = orderKey(pr); const orderPending = pushed.o[pr.id] !== undefined && pushed.o[pr.id] !== localKey;
+    const ref = (!orderPending && cloudOrder.length) ? cloudOrder : pr.data.photos.map(m => m.id);
+    const pos = new Map(ref.map((id, i) => [id, i]));
+    const ordered = items.map((m, i) => [m, pos.has(m.id) ? pos.get(m.id) : 1e6 + i]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
+    if (orderKey({ data: { photos: ordered } }) !== localKey) changed = true;
+    pr.data.photos = ordered;
+    cloudList.forEach(c => { pushed.ph[c.id] = JSON.stringify({ enc: c.enc, rot: +c.rot || 0 }); });
+    if (!orderPending && cloudOrder.length) pushed.o[pr.id] = orderKey(pr);
+  });
+  Object.keys(pushed.ph).forEach(id => { if (!cloudPh[id] && !DB.profiles.some(pr => pr.data.photos.some(m => m.id === id))) delete pushed.ph[id]; });
+  savePushed(); persistLocal();
+  if (changed && !silent) softRender('photos');
+  window.__afterPush?.();
+  schedule();
+}
+
+/* ---- الرفع: تلقائي للصور والترتيب، وكل شي بالزر ---- */
+function schedule(){ if (!user || !db) return; clearTimeout(timer); timer = setTimeout(() => push(false), 400); status(); }
+async function push(manual){
+  timer = null; if (!user || !db){ status(); return; }
   const base = doc(db, 'users', user.uid);
-  const ops = [];
-  const liveP = new Set(), livePh = new Set();
+  const ops = []; const liveP = new Set(), livePh = new Set();
   DB.profiles.forEach(pr => {
     liveP.add(pr.id);
     const k = profKey(pr);
-    if (pushed.p[pr.id] !== k){ ops.push(Object.assign(b => b.set(doc(base, 'profiles', pr.id), stripPhotos(pr)), { after: () => { pushed.p[pr.id] = k; } })); }
-    pr.data.photos.forEach((m, i) => {
-      if (!m.enc) return; /* الصور غير المشفّرة (قديمة) ما بتنرفع أبداً، بتنرفع بعد ما تتشفّر */
+    if (manual && pushed.p[pr.id] !== k) ops.push(Object.assign(b => b.set(doc(base, 'profiles', pr.id), stripPhotos(pr)), { after: () => { pushed.p[pr.id] = k; } }));
+    pr.data.photos.forEach(m => {
+      if (!m.enc) return;
       livePh.add(m.id);
-      const pk = photoKey(pr.id, m, i);
-      if (pushed.ph[m.id] !== pk){ ops.push(Object.assign(b => b.set(doc(base, 'photos', m.id), { pid: pr.id, enc: m.enc, rot: m.rot, order: i, v: 1 }), { after: () => { pushed.ph[m.id] = pk; }, photo: m.id })); }
+      const pk = photoKey(m);
+      if (!pushed.ph[m.id] || (manual && pushed.ph[m.id] !== pk)) ops.push(Object.assign(b => b.set(doc(base, 'photos', m.id), { pid: pr.id, enc: m.enc, rot: m.rot, v: 2 }), { after: () => { pushed.ph[m.id] = pk; }, photo: m.id }));
     });
+    const ok = orderKey(pr);
+    if (pr.data.photos.some(m => m.enc) && pushed.o[pr.id] !== ok) ops.push(Object.assign(b => b.set(doc(base, 'orders', pr.id), { ids: pr.data.photos.filter(m => m.enc).map(m => m.id), t: Date.now() }), { after: () => { pushed.o[pr.id] = ok; } }));
   });
-  Object.keys(pushed.p).filter(id => !liveP.has(id)).forEach(id => { ops.push(Object.assign(b => b.delete(doc(base, 'profiles', id)), { after: () => { delete pushed.p[id]; } })); });
-  Object.keys(pushed.ph).filter(id => !livePh.has(id)).forEach(id => { ops.push(Object.assign(b => b.delete(doc(base, 'photos', id)), { after: () => { delete pushed.ph[id]; } })); });
+  if (manual) Object.keys(pushed.p).filter(id => !liveP.has(id)).forEach(id => ops.push(Object.assign(b => { b.delete(doc(base, 'profiles', id)); b.delete(doc(base, 'orders', id)); }, { after: () => { delete pushed.p[id]; delete pushed.o[id]; } })));
+  Object.keys(pushed.ph).filter(id => !livePh.has(id)).forEach(id => ops.push(Object.assign(b => b.delete(doc(base, 'photos', id)), { after: () => { delete pushed.ph[id]; } })));
   if (!ops.length){ status(); return; }
   try{
     pending = true; status();
-    /* الصور كل وحدة بدفعة لحالها (مشان صورة كبيرة ما تفشّل الباقي)، والباقي بدفعات */
     const photoOps = ops.filter(o => o.photo), rest = ops.filter(o => !o.photo);
     for (let i = 0; i < rest.length; i += 15){ const b = writeBatch(db); const part = rest.slice(i, i+15); part.forEach(f => f(b)); await b.commit(); part.forEach(f => f.after()); }
     for (const o of photoOps){ try{ const b = writeBatch(db); o(b); await b.commit(); o.after(); }catch(e){ console.error(e); toast(e.code === 'invalid-argument' ? 'صورة أكبر من حد السحابة، بتضل على هالجهاز بس' : 'ما انرفعت صورة: ' + (e.code || '')); } }
     pending = false; savePushed(); status(); window.__afterPush?.();
   }catch(e){
-    fail(e, 'push');
+    pending = false; fail(e, 'push');
     if (e.code === 'permission-denied') toast('هذا الحساب غير مسموح له بالمزامنة. سجّل بحسابك المعتمد.');
   }
 }
@@ -1863,13 +1905,15 @@ async function push(){
 /* ---- الاستماع للسحابة ---- */
 function listen(){
   const base = doc(db, 'users', user.uid);
-  clearTimeout(watchdog); watchdog = setTimeout(() => { if (!cloudP) setPill('err', 'الاتصال نجح بس الاستماع ما رد خلال ١٢ ثانية، جرّب تحديث الصفحة'); }, 15000);
-  unsubs.push(onSnapshot(collection(base, 'profiles'), { includeMetadataChanges: true }, snap => { clearTimeout(watchdog); pending = snap.metadata.hasPendingWrites; cloudP = {}; snap.forEach(d => { cloudP[d.id] = { id: d.id, ...d.data() }; }); mergeCloud(); status(); },
-    e => fail(e, 'profiles')));
-  unsubs.push(onSnapshot(collection(base, 'photos'), snap => { cloudPh = {}; snap.forEach(d => { cloudPh[d.id] = { id: d.id, ...d.data() }; }); mergeCloud(); window.__afterPush?.(); },
-    e => fail(e, 'photos')));
+  clearTimeout(watchdog); watchdog = setTimeout(() => { if (!cloudP) setPill('err', 'الاتصال نجح بس الاستماع ما رد خلال ١٥ ثانية، جرّب تحديث الصفحة'); }, 15000);
+  unsubs.push(onSnapshot(collection(base, 'profiles'), snap => {
+    clearTimeout(watchdog); cloudP = {}; snap.forEach(d => { cloudP[d.id] = { id: d.id, ...d.data() }; });
+    if (!initialApplied){ initialApplied = true; applyProfiles(false); } else status();   /* بعد أول مرة: النصوص بتتطبّق بالزر فقط */
+  }, e => fail(e, 'profiles')));
+  unsubs.push(onSnapshot(collection(base, 'photos'), snap => { cloudPh = {}; snap.forEach(d => { cloudPh[d.id] = { id: d.id, ...d.data() }; }); applyPhotos(false); status(); }, e => fail(e, 'photos')));
+  unsubs.push(onSnapshot(collection(base, 'orders'), snap => { cloudO = {}; snap.forEach(d => { cloudO[d.id] = d.data(); }); applyPhotos(false); }, e => fail(e, 'orders')));
 }
-function stop(){ if (typeof lockVault === 'function') lockVault(true); unsubs.forEach(u => u()); unsubs = []; cloudP = cloudPh = null; pushed.p = {}; pushed.ph = {}; pending = false; clearTimeout(watchdog); }
+function stop(){ if (typeof lockVault === 'function') lockVault(true); unsubs.forEach(u => u()); unsubs = []; cloudP = cloudPh = cloudO = null; initialApplied = false; pushed.p = {}; pushed.ph = {}; pushed.o = {}; pending = false; clearTimeout(timer); timer = null; clearTimeout(watchdog); }
 
 /* ---- الزر والحالة ---- */
 function renderAuth(){
@@ -1915,7 +1959,7 @@ async function getPepper(){
   await setDoc(ref, { pepper, createdAt: Date.now() }, { merge: true });
   pepperCache = pepper; return pepper;
 }
-window.__cloud = { schedule, merge3, signedIn: () => !!user, getPepper, isUploaded: id => !!(cloudPh && cloudPh[id]), _sim: (P, Ph) => { cloudP = P; cloudPh = Ph; mergeCloud(); return { p: Object.keys(pushed.p), ph: Object.keys(pushed.ph), merging }; }, _loadPushed: loadPushed };
+window.__cloud = { schedule, merge3, signedIn: () => !!user, getPepper, isUploaded: id => !!(cloudPh && cloudPh[id]), _sim: (P, Ph, O) => { cloudP = P; cloudPh = Ph; cloudO = O || {}; applyProfiles(true); return { p: Object.keys(pushed.p), ph: Object.keys(pushed.ph), o: { ...pushed.o } }; }, _photos: (Ph, O) => { cloudPh = Ph; cloudO = O || cloudO || {}; applyPhotos(false); }, _loadPushed: loadPushed, _dirty: dirtyInfo };
 </script>
 </body>
 </html>
