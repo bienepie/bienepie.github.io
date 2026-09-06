@@ -213,6 +213,12 @@
   .rcv:has(input:checked) .box::after{content:"✔";color:#fff;font-size:14px;font-weight:900}
   .stat.green{background:#e8f8f0} .stat.green .v{color:#1f9d6a} html[data-theme=dark] .stat.green{background:#183a2f} html[data-theme=dark] .stat.green .v{color:#6ee7b7}
   .res .det{font-size:12px;color:var(--muted)}
+  .res .det:empty{display:none}
+  .res .parts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;font-size:12px;color:var(--muted)}
+  .res .part{background:var(--card);border:1px solid var(--line2);border-radius:999px;padding:2px 9px;white-space:nowrap}
+  .res .part b{color:var(--text);font-variant-numeric:tabular-nums}
+  .res .part.cov{background:var(--pink-soft);border-color:transparent} .res .part.cov b{color:var(--pink-text)}
+  .res .plus{opacity:.6;font-weight:800}
   .tag{display:inline-block;font-size:11px;padding:1px 9px;border-radius:999px;background:var(--line);color:var(--muted);font-weight:800;white-space:nowrap}
   .tag.self{background:var(--accent-soft);color:var(--accent)}
   .tag.covered{background:var(--pink-soft);color:var(--pink-text)}
@@ -559,21 +565,21 @@ function core(active){
   const total = S.costs.reduce((a,c) => a + (+c.amount || 0), 0);
   const costInfo = S.costs.map(c => { const parts = counted.filter(p => participates(p, c)); return { c, n: parts.length, share: parts.length ? (+c.amount || 0) / parts.length : 0 }; });
   const ownShare = p => costInfo.reduce((a,ci) => a + (participates(p, ci.c) ? ci.share : 0), 0);
-  const owed = {}, errors = {}, detail = {}, covers = {}, coverPart = {};
-  S.people.forEach(p => { owed[p.id] = 0; detail[p.id] = []; covers[p.id] = []; });
+  const owed = {}, errors = {}, detail = {}, covers = {}, coverPart = {}, parts = {};
+  S.people.forEach(p => { owed[p.id] = 0; detail[p.id] = []; covers[p.id] = []; parts[p.id] = []; });
   const selfPayers = active.filter(p => p.mode === 'self');
-  selfPayers.forEach(p => { owed[p.id] += ownShare(p); detail[p.id].push('حصته'); });
+  selfPayers.forEach(p => { owed[p.id] += ownShare(p); detail[p.id].push('حصته'); costInfo.forEach(ci => { if (participates(p, ci.c) && ci.share > 0) parts[p.id].push({ label: cname(ci.c), amount: ci.share }); }); });
   active.filter(p => p.mode === 'covered').forEach(c => {
     const payers = payersOf(c, selfPayers);
     if (!payers.length){ errors[c.id] = 'ما في حدا مؤكد بيدفع عن نفسه ضمن الاختيار، حصته مش محسوبة'; return; }
     const part = ownShare(c) / payers.length; coverPart[c.id] = part;
-    payers.forEach(p => { owed[p.id] += part; detail[p.id].push(`عن ${pname(c)}`); covers[p.id].push(c.id); });
+    payers.forEach(p => { owed[p.id] += part; detail[p.id].push(`عن ${pname(c)}`); covers[p.id].push(c.id); if (part > 0) parts[p.id].push({ label: `عن ${pname(c)}`, amount: part, cover: true }); });
     detail[c.id].push('بيحاسب عنه: ' + payers.map(pname).join('، '));
   });
   const exactSum = Object.values(owed).reduce((a,b) => a+b, 0);
   const final = roundFair(owed);
   const sum = Object.values(final).reduce((a,b) => a+b, 0);
-  return { total, counted: counted.length, costInfo, owed, final, sum, exactSum, errors, detail, covers, coverPart, shareFor: ownShare };
+  return { total, counted: counted.length, costInfo, owed, final, sum, exactSum, errors, detail, covers, coverPart, parts, shareFor: ownShare };
 }
 /* الجبر العادل: المجموع = سقف المجموع الحقيقي، الزيادات لأكبر الكسور، وأصحاب نفس الحصة بياخدوا نفس الرقم */
 function roundFair(exact){
@@ -799,8 +805,9 @@ function renderResult(R){
   const maxV = Math.max(1, ...shown.map(p => R.final[p.id]));
   [...shown].sort((a,b) => R.final[b.id] - R.final[a.id]).forEach(p => {
     const pct = R.sum ? (R.final[p.id] / R.sum * 100) : 0;
-    const bits = [...R.detail[p.id]];
+    const bits = R.detail[p.id].filter(x => x !== 'حصته' && !x.startsWith('عن '));
     const g = S.groups.find(g => g.id === p.groupId); if (g) bits.unshift('👥 ' + (g.name || 'مجموعة'));
+    const partsHtml = R.parts[p.id].length ? `<div class="parts">${R.parts[p.id].map(x => `<span class="part${x.cover ? ' cov' : ''}"><b>${fmt2(x.amount)}</b> ${esc(x.label)}</span>`).join('<span class="plus">+</span>')}</div>` : '';
     if (p.mode !== 'exempt') S.costs.filter(c => c.optional && p.skip.includes(c.id)).forEach(c => bits.push('بدون ' + cname(c)));
     if (R.final[p.id] > 0 && Math.abs(R.owed[p.id] - R.final[p.id]) > 0.004) bits.push(`بالضبط ${fmt2(R.owed[p.id])}`);
     const payer = R.final[p.id] > 0;
@@ -810,6 +817,7 @@ function renderResult(R){
       <div class="det">${esc(bits.join(' · '))}${R.errors[p.id] ? ` <span class="err">⚠ ${R.errors[p.id]}</span>` : ''}</div>
       <div class="amt">${fmt(R.final[p.id])} ${CUR}<small>${gotIt ? (p.settled ? '✔ كمّل حسابه' : diffR === 0 ? '✔ مستلم بالكامل' : diffR > 0 ? `✔ مستلم · زيادة ${fmt(diffR)} بترجعها` : `استلمت ${fmt(rv)} · باقي ${fmt(-diffR)}`) : pct.toFixed(1) + '٪ من المجموع'}</small>
         ${payer ? `<div class="inp recvwrap"><input type="number" class="recv" min="0" step="1" inputmode="numeric" placeholder="كم استلمت؟" value="${p.recv != null ? p.recv : (p.received ? R.final[p.id] : '')}"><span>${CUR}</span></div>` : ''}</div>
+      ${partsHtml}
       <div class="bar"><i style="width:${(R.final[p.id]/maxV*100).toFixed(1)}%"></i></div>`;
     el.querySelector('.rcv input')?.addEventListener('change', e => { p.received = e.target.checked; p.recv = p.received ? (R.final[p.id] || 0) : null; if (!p.received){ p.refunded = false; p.settled = false; } save(); renderAll(); });
     const onRecv = e => { const v = e.target.value; p.recv = v === '' ? null : Math.max(0, +v || 0); if (p.recv != null) p.received = p.recv > 0; save(); };
