@@ -1031,8 +1031,7 @@ function lockVault(silent){
   if (!silent) renderMemories();
 }
 function touchVault(){ if (!vault.key) return; clearTimeout(vault.timer); vault.timer = setTimeout(() => { lockVault(); toast('انقفلت الصور تلقائياً 🔒'); }, 15 * 60 * 1000); }
-document.addEventListener('visibilitychange', () => { if (document.hidden && vault.key) lockVault(); });
-addEventListener('pagehide', () => lockVault(true));
+addEventListener('pagehide', () => lockVault(true)); /* القفل: بعد 15 دقيقة بدون استخدام أو عند إغلاق الصفحة فقط، مش عند فتح منتقي الصور أو تبديل التطبيق */
 ['pointerdown','keydown'].forEach(ev => document.addEventListener(ev, touchVault, { passive: true }));
 
 /* نافذة كلمة السر: mode = 'unlock' | 'set' | 'change' */
@@ -1148,23 +1147,79 @@ function isAnimatedBytes(u8, type){
   if (u8.length > 8 && u8[0] === 0x89 && str(1, 4) === 'PNG'){ const head = str(8, Math.min(u8.length, 200)); return head.includes('acTL'); }
   return false;
 }
-const ANIM_MAX = 700 * 1024; /* الصور المتحركة بتنحفظ كما هي (بدون تصغير) لأن الكانفس بيقتل الحركة، وحد المستند 1MB بعد base64 */
+const ANIM_MAX = 480 * 1024; /* الصور المتحركة بتنحفظ كما هي (الكانفس بيقتل الحركة). حد مستند Firestore 1MB، والملف بيكبر ~1.85× (base64 ثم تشفير ثم base64) */
+const DOC_MAX = 1000 * 1024;   /* أقصى حجم للعنصر المشفّر */
 function loadImage(file){
   return new Promise(async res => {
     try{
       const u8 = new Uint8Array(await file.slice(0, 256 * 1024).arrayBuffer());
       if (isAnimatedBytes(u8, file.type)){
-        if (file.size > ANIM_MAX){ res({ error: `«${file.name}» متحركة بس حجمها ${Math.round(file.size/1024)} كيلوبايت، والحد ${ANIM_MAX/1024}. صغّريها أو قصّريها وجرّبي.` }); return; }
+        if (file.size > ANIM_MAX){
+          /* كبيرة: نضغطها هون بأعلى جودة ممكنة تحت الحد (تصغير الأبعاد، ثم تقليل الإطارات، ثم الألوان) */
+          try{ const out = await compressAnimated(file, ANIM_MAX); res({ src: out.dataUrl, animated: true, note: out.note }); }
+          catch(e){ console.error(e); res({ error: `«${file.name}» متحركة وكبيرة (${Math.round(file.size/1024)} كيلوبايت) و${e.message || 'ما قدرت أضغطها'}.` }); }
+          return;
+        }
         const fr = new FileReader(); fr.onload = () => res({ src: fr.result, animated: true }); fr.onerror = () => res({ error: 'ما قدرت أقرأ الملف' }); fr.readAsDataURL(file); return;
       }
     }catch(e){}
-    res({ src: await shrinkImage(file) });
+    let src = await shrinkImage(file);
+    if (src && src.length * 1.4 > DOC_MAX) src = await shrinkImage(file, 700, .6); /* صورة معقّدة: صغّرها أكثر */
+    res({ src });
   });
 }
-function shrinkImage(file){
+/* ضغط الصور المتحركة داخل المتصفح: فك الإطارات بـ ImageDecoder وإعادة الترميز GIF بـ gifenc، مع بحث عن أكبر حجم أبعاد يمرّ تحت الحد */
+let gifencMod = null;
+async function compressAnimated(file, limit){
+  if (!('ImageDecoder' in window)) throw new Error('المتصفح ما بيدعم ضغط الصور المتحركة (جرّبي Chrome أو Edge)');
+  gifencMod ||= await import('https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js');
+  const { GIFEncoder, quantize, applyPalette } = gifencMod;
+  const buf = await file.arrayBuffer();
+  const dec = new ImageDecoder({ data: buf, type: file.type || 'image/gif' });
+  await dec.tracks.ready; const track = dec.tracks.selectedTrack; const n = track.frameCount || 1;
+  /* فك كل الإطارات مرة وحدة بالحجم الأصلي */
+  const frames = []; let W = 0, H = 0;
+  for (let i = 0; i < n; i++){
+    const { image } = await dec.decode({ frameIndex: i });
+    W = image.displayWidth; H = image.displayHeight;
+    const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(image, 0, 0);
+    frames.push({ c, delay: Math.max(20, Math.round((image.duration || 100000) / 1000)) }); image.close();
+  }
+  dec.close();
+  const limitRaw = limit; /* الحد على الملف الخام قبل الترميز */
+  const encode = (scale, step, colors) => {
+    const w = Math.max(16, Math.round(W * scale)), h = Math.max(16, Math.round(H * scale));
+    const gif = GIFEncoder(); const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d', { willReadFrequently: true });
+    for (let i = 0; i < frames.length; i += step){
+      g.clearRect(0, 0, w, h); g.drawImage(frames[i].c, 0, 0, w, h);
+      const rgba = g.getImageData(0, 0, w, h).data;
+      const palette = quantize(rgba, colors, { format: 'rgba4444' }); const index = applyPalette(rgba, palette, 'rgba4444');
+      let delay = 0; for (let j = i; j < Math.min(frames.length, i + step); j++) delay += frames[j].delay;
+      gif.writeFrame(index, w, h, { palette, delay, transparent: true, transparentIndex: 0 });
+    }
+    gif.finish(); return gif.bytes();
+  };
+  let best = null; const sizeOf = b => b.length * 1.85 + 2000; /* base64 → تشفير → base64 */
+  const tryEncode = (scale, step, colors) => { const b = encode(scale, step, colors); if (sizeOf(b) <= limitRaw * 1.85 && (!best || scale > best.scale || (scale === best.scale && step < best.step))) best = { bytes: b, scale, step, colors }; return sizeOf(b) <= limitRaw * 1.85; };
+  toast('يضغط الصورة المتحركة… ⏳');
+  /* المرحلة 1: كل الإطارات، بحث ثنائي على الأبعاد بين 55% و100% */
+  const plans = [[1, 256, .55], [2, 256, .45], [3, 256, .35], [3, 128, .25], [4, 64, .2]];
+  for (const [step, colors, minScale] of plans){
+    if (tryEncode(1, step, colors)) break;
+    let lo = minScale, hi = 1, ok = tryEncode(lo, step, colors);
+    if (!ok) continue; /* حتى أصغر حجم بهالخطة ما بيمر: جرّبي خطة أقوى */
+    for (let k = 0; k < 6; k++){ const mid = (lo + hi) / 2; if (tryEncode(mid, step, colors)) lo = mid; else hi = mid; }
+    break;
+  }
+  if (!best) throw new Error('حتى بعد أقصى ضغط ما نزلت تحت الحد، قصّريها أو قسّميها');
+  const b64s = b64(best.bytes);
+  const note = `${Math.round(best.scale*100)}% من الأبعاد${best.step > 1 ? `، كل ${best.step} إطارات إطار` : ''}${best.colors < 256 ? `، ${best.colors} لون` : ''}`;
+  return { dataUrl: 'data:image/gif;base64,' + b64s, note };
+}
+function shrinkImage(file, M = 900, q = .78){
   return new Promise(res => {
     const img = new Image(); const url = URL.createObjectURL(file);
-    img.onload = () => { const M = 900; const k = Math.min(1, M / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', .78)); };
+    img.onload = () => { const k = Math.min(1, M / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', q)); };
     img.onerror = () => { URL.revokeObjectURL(url); res(''); };
     img.src = url;
   });
@@ -1277,8 +1332,10 @@ $('#photoFile').addEventListener('change', async e => {
   const files = [...e.target.files]; e.target.value = ''; if (!files.length || !vault.key) return;
   let n = 0;
   let anim = 0; const errs = [];
-  for (const f of files){ const r = await loadImage(f); if (r.error){ errs.push(r.error); continue; } if (!r.src) continue; const m = { id: uid(), rot: rndRot() }; const plain = { src: r.src, text:'' }; m.enc = await encObj(vault.key, plain); vault.cache.set(m.id, plain); S.photos.push(m); n++; if (r.animated) anim++; }
-  save(); renderMemories(); if (n) toast(`أضفت ${n} صورة مشفّرة 🔐${anim ? ` (${anim} متحركة)` : ''}`); if (errs.length) alert(errs.join('\n'));
+  const notes = [];
+  for (const f of files){ const r = await loadImage(f); if (r.error){ errs.push(r.error); continue; } if (!r.src) continue; const m = { id: uid(), rot: rndRot() }; const plain = { src: r.src, text:'' }; m.enc = await encObj(vault.key, plain);
+    if (m.enc.length > DOC_MAX){ errs.push(`«${f.name}» بعد التشفير ${Math.round(m.enc.length/1024)} كيلوبايت وهذا أكبر من حد السحابة، جرّبي نسخة أصغر.`); continue; } vault.cache.set(m.id, plain); S.photos.push(m); n++; if (r.animated) anim++; if (r.note) notes.push(`${f.name}: انضغطت (${r.note})`); }
+  save(); renderMemories(); if (n) toast(`أضفت ${n} صورة مشفّرة 🔐${anim ? ` (${anim} متحركة)` : ''}${notes.length ? ' · ' + notes.join(' · ') : ''}`); if (errs.length) alert(errs.join('\n'));
 });
 function renderAll(){ renderTabs(); renderPeople(); renderMemories(); }
 
@@ -1590,20 +1647,23 @@ async function push(){
   DB.profiles.forEach(pr => {
     liveP.add(pr.id);
     const k = profKey(pr);
-    if (pushed.p[pr.id] !== k){ ops.push(b => b.set(doc(base, 'profiles', pr.id), stripPhotos(pr))); pushed.p[pr.id] = k; }
+    if (pushed.p[pr.id] !== k){ ops.push(Object.assign(b => b.set(doc(base, 'profiles', pr.id), stripPhotos(pr)), { after: () => { pushed.p[pr.id] = k; } })); }
     pr.data.photos.forEach((m, i) => {
       if (!m.enc) return; /* الصور غير المشفّرة (قديمة) ما بتنرفع أبداً، بتنرفع بعد ما تتشفّر */
       livePh.add(m.id);
       const pk = photoKey(pr.id, m, i);
-      if (pushed.ph[m.id] !== pk){ ops.push(b => b.set(doc(base, 'photos', m.id), { pid: pr.id, enc: m.enc, rot: m.rot, order: i, v: 1 })); pushed.ph[m.id] = pk; }
+      if (pushed.ph[m.id] !== pk){ ops.push(Object.assign(b => b.set(doc(base, 'photos', m.id), { pid: pr.id, enc: m.enc, rot: m.rot, order: i, v: 1 }), { after: () => { pushed.ph[m.id] = pk; }, photo: m.id })); }
     });
   });
-  Object.keys(pushed.p).filter(id => !liveP.has(id)).forEach(id => { ops.push(b => b.delete(doc(base, 'profiles', id))); delete pushed.p[id]; });
-  Object.keys(pushed.ph).filter(id => !livePh.has(id)).forEach(id => { ops.push(b => b.delete(doc(base, 'photos', id))); delete pushed.ph[id]; });
+  Object.keys(pushed.p).filter(id => !liveP.has(id)).forEach(id => { ops.push(Object.assign(b => b.delete(doc(base, 'profiles', id)), { after: () => { delete pushed.p[id]; } })); });
+  Object.keys(pushed.ph).filter(id => !livePh.has(id)).forEach(id => { ops.push(Object.assign(b => b.delete(doc(base, 'photos', id)), { after: () => { delete pushed.ph[id]; } })); });
   if (!ops.length){ status(); return; }
   try{
     pending = true; status();
-    for (let i = 0; i < ops.length; i += 15){ const b = writeBatch(db); ops.slice(i, i+15).forEach(f => f(b)); await b.commit(); }
+    /* الصور كل وحدة بدفعة لحالها (مشان صورة كبيرة ما تفشّل الباقي)، والباقي بدفعات */
+    const photoOps = ops.filter(o => o.photo), rest = ops.filter(o => !o.photo);
+    for (let i = 0; i < rest.length; i += 15){ const b = writeBatch(db); const part = rest.slice(i, i+15); part.forEach(f => f(b)); await b.commit(); part.forEach(f => f.after()); }
+    for (const o of photoOps){ try{ const b = writeBatch(db); o(b); await b.commit(); o.after(); }catch(e){ console.error(e); toast(e.code === 'invalid-argument' ? 'صورة أكبر من حد السحابة، بتضل على هالجهاز بس' : 'ما انرفعت صورة: ' + (e.code || '')); } }
     pending = false; savePushed(); status();
   }catch(e){
     fail(e, 'push');
