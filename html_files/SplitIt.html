@@ -1190,7 +1190,7 @@ function mergeCloud(){
 function schedule(){ if (!user || !db) return; clearTimeout(timer); timer = setTimeout(push, 900); status(); }
 async function push(){
   timer = null; if (!user || !db || merging) { status(); return; }
-  const base = collection(db, 'users', user.uid);
+  const base = doc(db, 'users', user.uid);
   const ops = [];
   const liveP = new Set(), livePh = new Set();
   DB.profiles.forEach(pr => {
@@ -1218,7 +1218,7 @@ async function push(){
 
 /* ---- الاستماع للسحابة ---- */
 function listen(){
-  const base = collection(db, 'users', user.uid);
+  const base = doc(db, 'users', user.uid);
   clearTimeout(watchdog); watchdog = setTimeout(() => { if (!cloudP) setPill('err', 'الاتصال نجح بس الاستماع ما رد خلال ١٢ ثانية، جرّب تحديث الصفحة'); }, 15000);
   unsubs.push(onSnapshot(collection(base, 'profiles'), { includeMetadataChanges: true }, snap => { clearTimeout(watchdog); pending = snap.metadata.hasPendingWrites; cloudP = {}; snap.forEach(d => { cloudP[d.id] = { id: d.id, ...d.data() }; }); mergeCloud(); status(); },
     e => fail(e, 'profiles')));
