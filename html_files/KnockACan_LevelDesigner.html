@@ -361,6 +361,7 @@
     }
     #sim-hud-overlay.active { display: flex; }
     .sim-stat-box { font-family: monospace; font-size: 11px; white-space: nowrap; }
+    #sim-hud-overlay > span { white-space: nowrap; }
 
     /* Views Layout */
     .views-container {
@@ -620,16 +621,8 @@
 
       <div class="divider-vert"></div>
 
-      <button class="btn btn-active" id="btn-gravity-mode" title="Enforce items dropping to solid support">
-        <i data-lucide="arrow-down-to-line"></i> Auto-Drop: ON
-      </button>
-
-      <button class="btn btn-warning" id="btn-settle-gravity" title="Drop floating items to solid support">
-        <i data-lucide="chevrons-down"></i> Settle
-      </button>
-
-      <button class="btn btn-danger" id="btn-test-knockdown" title="Fire 110 studs/s Cannonball with Dynamic Knockdown Physics">
-        <i data-lucide="flame"></i> Fire Cannon (110 st/s)
+      <button class="btn btn-danger" id="btn-test-knockdown" title="Test the level: click in the 3D view to shoot (110 studs/s)">
+        <i data-lucide="crosshair"></i> Test
       </button>
 
       <div class="divider-vert"></div>
@@ -654,9 +647,6 @@
       <strong>⚠️ UNSTABLE / FLOATING ITEMS DETECTED:</strong> 
       <span id="unstable-count-text">Items violate physical ground support rules.</span>
     </div>
-    <button class="btn btn-warning" onclick="settleGravity()" style="padding: 2px 8px; font-size: 10px;">
-      <i data-lucide="wrench"></i> Settle Gravity
-    </button>
   </div>
 
   <!-- Workspace -->
@@ -707,11 +697,15 @@
 
       <!-- Simulation HUD -->
       <div id="sim-hud-overlay">
-        <span style="color:#ef4444; font-weight:700; font-size:11px;">● SIMULATION RUNNING</span>
-        <div class="sim-stat-box" id="sim-standing-count" style="color:#fff;">Standing Targets: 0 / 0</div>
-        <div class="sim-stat-box" id="sim-damage-ticker" style="color:#38bdf8;">Cannon: 110 studs/sec</div>
+        <span style="color:#ef4444; font-weight:700; font-size:11px;">● TEST MODE</span>
+        <div class="sim-stat-box" id="sim-standing-count" style="color:#fff;">Standing: 0 / 0</div>
+        <div class="sim-stat-box" id="sim-shots-count" style="color:#fbbf24;">Shots: 0</div>
+        <div class="sim-stat-box" id="sim-damage-ticker" style="color:#38bdf8;">Click a target in the 3D view to shoot</div>
         <button class="btn btn-primary" id="btn-reset-simulation" style="padding: 4px 10px; font-size: 11px;">
-          <i data-lucide="rotate-ccw"></i> Reset Tower / Restore Layout
+          <i data-lucide="rotate-ccw"></i> Reset
+        </button>
+        <button class="btn" id="btn-exit-test" style="padding: 4px 10px; font-size: 11px;">
+          <i data-lucide="x"></i> Exit Test
         </button>
       </div>
 
@@ -839,7 +833,6 @@
       <span>TOOL: <strong id="status-tool" style="color:#60a5fa;">PLACE</strong></span>
     </div>
     <div class="status-right">
-      <span id="status-gravity">GRAVITY AUTO-DROP: ACTIVE</span>
       <span>SHORTCUTS: CTRL+Z | CTRL+Y</span>
     </div>
   </footer>
@@ -1239,31 +1232,6 @@
       };
     }
 
-    function settleGravity() {
-      pushHistoryState("Settle Gravity");
-      currentStage.stands.forEach((stand, sIdx) => {
-        for (let x = 0; x < STAND_WIDTH; x++) {
-          for (let z = 0; z < STAND_DEPTH; z++) {
-            const items = [];
-            for (let y = 0; y < STAND_HEIGHT; y++) {
-              const key = `${sIdx}_${x}_${y}_${z}`;
-              if (currentStage.cells[key]) {
-                items.push(currentStage.cells[key]);
-                delete currentStage.cells[key];
-              }
-            }
-            items.forEach((id, newY) => {
-              currentStage.cells[`${sIdx}_${x}_${newY}_${z}`] = id;
-            });
-          }
-        }
-      });
-
-      const stability = computeStructuralStability();
-      stability.unstableGapCells.forEach(k => delete currentStage.gapCells[k]);
-      syncAllViews(false);
-    }
-
     /* ==========================================================================
        4. THREE.JS 3D SCENE & ENGINE REPLICATION
        ========================================================================== */
@@ -1335,32 +1303,6 @@
       materialsCache.table = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4, metalness: 0.6 });
       materialsCache.unstable = new THREE.MeshBasicMaterial({ color: 0xef4444, wireframe: true });
 
-      // Click to aim cannon in 3D during simulation
-      const raycaster = new THREE.Raycaster();
-      const mouse = new THREE.Vector2();
-
-      canvas.addEventListener("pointerdown", (e) => {
-        if (!isSimulating) return;
-        const rect = canvas.getBoundingClientRect();
-        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-        raycaster.setFromCamera(mouse, camera);
-
-        const targets = [];
-        simBodies.forEach(b => { if (!b.destroyed && b.mesh) targets.push(b.mesh); });
-        const hits = raycaster.intersectObjects(targets, true);
-        if (hits.length > 0) {
-          launchCannonBall(hits[0].point);
-        } else {
-          // Raycast onto plane at Z = 0.8
-          const targetPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -0.8);
-          const pt = new THREE.Vector3();
-          if (raycaster.ray.intersectPlane(targetPlane, pt)) {
-            launchCannonBall(pt);
-          }
-        }
-      });
-
       let lastTime = performance.now();
       function animate() {
         requestAnimationFrame(animate);
@@ -1369,7 +1311,7 @@
         lastTime = now;
 
         if (isSimulating) {
-          stepLuauPhysics(dt);
+          stepSimulation(dt);
         }
 
         controls.update();
@@ -1398,6 +1340,121 @@
       });
     }
 
+    /* Real resting layout of a stage: every item sits on top of the item below it (by true heights), contiguous
+       planks in one row become one beam, and horizontal sizes shrink just enough that neighbours never start
+       overlapping. The editor preview, the physics test and the Luau export all use this, so they agree. */
+    function computeLayout(stage = currentStage) {
+      const px = STUD_COL_W, pz = STUD_DEP_D;
+      let totalWidth = 0;
+      stage.stands.forEach((st, idx) => {
+        totalWidth += STAND_WIDTH * px;
+        if (idx < stage.stands.length - 1) totalWidth += st.gapToNext * px;
+      });
+      const startX = -totalWidth / 2 + (px / 2);
+
+      const standBounds = [];
+      const raw = [];
+      const standMap = {}, gapMap = {};
+      let currentX = startX;
+      stage.stands.forEach((stand, sIdx) => {
+        const standW = STAND_WIDTH * px;
+        standBounds.push({ minX: currentX - px / 2, maxX: currentX - px / 2 + standW, cx: currentX + standW / 2 - px / 2, w: standW });
+        for (let x = 0; x < STAND_WIDTH; x++) {
+          for (let y = 0; y < STAND_HEIGHT; y++) {
+            for (let z = 0; z < STAND_DEPTH; z++) {
+              const key = `${sIdx}_${x}_${y}_${z}`;
+              const item = ITEM_CATALOG.find(i => i.id === stage.cells[key]);
+              if (!item) continue;
+              const e = { key, gap: false, sIdx, col: x, y, z, item, x: currentX + x * px, zPos: z * pz };
+              raw.push(e); standMap[key] = e;
+            }
+          }
+        }
+        if (sIdx < stage.stands.length - 1) {
+          for (let gx = 0; gx < stand.gapToNext; gx++) {
+            for (let y = 0; y < STAND_HEIGHT; y++) {
+              for (let z = 0; z < STAND_DEPTH; z++) {
+                const key = `${sIdx}_${gx}_${y}_${z}`;
+                const item = ITEM_CATALOG.find(i => i.id === (stage.gapCells || {})[key]);
+                if (!item) continue;
+                const e = { key, gap: true, sIdx, col: gx, y, z, item, x: currentX + standW + gx * px, zPos: z * pz };
+                raw.push(e); gapMap[key] = e;
+              }
+            }
+          }
+          currentX += standW + stand.gapToNext * px;
+        } else {
+          currentX += standW;
+        }
+      });
+
+      // Vertical: bottom of an item = top of the item below it in the same column
+      const bottomOf = (e) => {
+        if (e.bottom !== undefined) return e.bottom;
+        const map = e.gap ? gapMap : standMap;
+        const below = map[`${e.sIdx}_${e.col}_${e.y - 1}_${e.z}`];
+        let b = e.y * STUD_ROW_H;
+        if (below) {
+          b = bottomOf(below) + below.item.size[1];
+        } else if (e.gap && (stage.bridges || []).some(br => br.fromStand === e.sIdx && br.y === e.y && br.z === e.z)) {
+          const sup = [standMap[`${e.sIdx}_7_${e.y}_${e.z}`], standMap[`${e.sIdx + 1}_0_${e.y}_${e.z}`]].filter(Boolean);
+          if (sup.length) b = Math.max(...sup.map(bottomOf));
+        }
+        e.bottom = b;
+        return b;
+      };
+      raw.forEach(bottomOf);
+
+      // Merge contiguous planks (same row height and depth) into one beam
+      const entries = [];
+      const planks = raw.filter(e => e.item.geom === "plank").sort((a, b) => a.zPos - b.zPos || a.bottom - b.bottom || a.x - b.x);
+      let run = null;
+      const flush = () => {
+        if (!run) return;
+        const first = run[0], last = run[run.length - 1];
+        const w = run.length === 1 ? first.item.size[0] : (last.x - first.x) + px;
+        entries.push({ ...first, keys: run.map(r => ({ key: r.key, gap: r.gap })), x: (first.x + last.x) / 2, w, h: first.item.size[1], d: first.item.size[2], count: run.length });
+        run = null;
+      };
+      planks.forEach(p => {
+        const prev = run && run[run.length - 1];
+        if (prev && Math.abs(prev.zPos - p.zPos) < 0.01 && Math.abs(prev.bottom - p.bottom) < 0.01 && Math.abs(p.x - prev.x - px) < 0.01) run.push(p);
+        else { flush(); run = [p]; }
+      });
+      flush();
+      raw.filter(e => e.item.geom !== "plank").forEach(e => {
+        entries.push({ ...e, keys: [{ key: e.key, gap: e.gap }], w: e.item.size[0], h: e.item.size[1], d: e.item.size[2], count: 1 });
+      });
+
+      // Horizontal: shrink sizes so no two items start overlapping
+      const fit = (a, b, axisGap, prop) => {
+        const s = axisGap - 0.01;
+        const ha = a[prop] / 2, hb = b[prop] / 2;
+        if (ha + hb <= s) return;
+        const big = ha >= hb ? a : b, small = big === a ? b : a;
+        const hs = Math.min(small[prop] / 2, s / 2);
+        const hbig = Math.max(s - hs, s / 2);
+        big[prop] = 2 * Math.min(big[prop] / 2, hbig);
+        small[prop] = 2 * hs;
+      };
+      for (let i = 0; i < entries.length; i++) {
+        for (let j = i + 1; j < entries.length; j++) {
+          const a = entries[i], b = entries[j];
+          const vOverlap = Math.min(a.bottom + a.h, b.bottom + b.h) - Math.max(a.bottom, b.bottom);
+          if (vOverlap <= 0.01) continue;
+          const dx = Math.abs(a.x - b.x), dz = Math.abs(a.zPos - b.zPos);
+          if ((a.w + b.w) / 2 - dx <= 0.001 || (a.d + b.d) / 2 - dz <= 0.001) continue;
+          if (dx >= dz && dx > 0.01) fit(a, b, dx, "w");
+          else if (dz > 0.01) fit(a, b, dz, "d");
+        }
+      }
+      entries.forEach(e => {
+        if (["cylinder", "cone", "jar"].includes(e.item.geom)) e.w = e.d = Math.min(e.w, e.d);
+      });
+
+      return { entries, standBounds };
+    }
+
     function syncThreeScene() {
       if (!scene || isSimulating) return;
 
@@ -1405,536 +1462,466 @@
       while (tablesGroup.children.length > 0) tablesGroup.remove(tablesGroup.children[0]);
 
       const stability = computeStructuralStability();
+      const layout = computeLayout();
 
-      let totalWidth = 0;
-      currentStage.stands.forEach((st, idx) => {
-        totalWidth += STAND_WIDTH * STUD_COL_W;
-        if (idx < currentStage.stands.length - 1) totalWidth += st.gapToNext * STUD_COL_W;
-      });
-      const startX = -totalWidth / 2 + (STUD_COL_W / 2);
-
-      let currentX = startX;
-      currentStage.stands.forEach((stand, sIdx) => {
-        const standW = STAND_WIDTH * STUD_COL_W;
-        const tableCenter = currentX + (standW / 2) - (STUD_COL_W / 2);
-
-        // Stand Table Pedestal
-        const tableMesh = new THREE.Mesh(new THREE.BoxGeometry(standW, 0.25, STAND_DEPTH * STUD_DEP_D), materialsCache.table);
-        tableMesh.position.set(tableCenter, -0.125, STUD_DEP_D);
+      layout.standBounds.forEach(sb => {
+        const tableMesh = new THREE.Mesh(new THREE.BoxGeometry(sb.w, 0.25, STAND_DEPTH * STUD_DEP_D), materialsCache.table);
+        tableMesh.position.set(sb.cx, -0.125, STUD_DEP_D);
         tableMesh.receiveShadow = true;
         tablesGroup.add(tableMesh);
+      });
 
-        // Placed Stand Items
-        for (let x = 0; x < STAND_WIDTH; x++) {
-          for (let y = 0; y < STAND_HEIGHT; y++) {
-            for (let z = 0; z < STAND_DEPTH; z++) {
-              const key = `${sIdx}_${x}_${y}_${z}`;
-              const itemId = currentStage.cells[key];
-              if (itemId) {
-                const mesh = createMeshForItem(itemId, stability.unstableCells.has(key));
-                mesh.position.set(currentX + (x * STUD_COL_W), (y * STUD_ROW_H) + (STUD_ROW_H / 2), z * STUD_DEP_D);
-                itemsGroup.add(mesh);
-              }
-            }
-          }
-        }
-
-        // Gap Items / Bridging Planks
-        if (sIdx < currentStage.stands.length - 1) {
-          const gapW = stand.gapToNext;
-          for (let gx = 0; gx < gapW; gx++) {
-            for (let y = 0; y < STAND_HEIGHT; y++) {
-              for (let z = 0; z < STAND_DEPTH; z++) {
-                const gKey = `${sIdx}_${gx}_${y}_${z}`;
-                const gItemId = currentStage.gapCells[gKey];
-                if (gItemId) {
-                  const mesh = createMeshForItem(gItemId, stability.unstableGapCells.has(gKey));
-                  mesh.position.set(currentX + standW + (gx * STUD_COL_W), (y * STUD_ROW_H) + (STUD_ROW_H / 2), z * STUD_DEP_D);
-                  itemsGroup.add(mesh);
-                }
-              }
-            }
-          }
-          currentX += standW + (gapW * STUD_COL_W);
-        } else {
-          currentX += standW;
-        }
+      layout.entries.forEach(e => {
+        const unstable = e.keys.some(k => (k.gap ? stability.unstableGapCells : stability.unstableCells).has(k.key));
+        const mesh = createMeshForItem(e.item.id, unstable, e);
+        mesh.position.set(e.x, e.bottom + e.h / 2, e.zPos);
+        itemsGroup.add(mesh);
       });
     }
 
-    function createMeshForItem(itemId, isUnstable = false) {
+    // Base sizes of the shared geometries; meshes are scaled to each item's real size (dims: {w, h, d})
+    const GEOM_BASE = {
+      cylinder: [0.7, 1.0, 0.7], cone: [0.88, 1.1, 0.88], cube: [0.9, 0.9, 0.9],
+      plank: [2.8, 0.44, 0.78], pillar: [0.44, 2.8, 0.78], jar: [0.76, 0.91, 0.76]
+    };
+
+    function createMeshForItem(itemId, isUnstable = false, dims = null) {
       const item = ITEM_CATALOG.find(i => i.id === itemId);
       const group = new THREE.Group();
       if (!item) return group;
 
       const mat = isUnstable ? materialsCache.unstable : (materialsCache[item.id] || materialsCache.table);
+      const geom = GEOM_BASE[item.geom] ? item.geom : "cube";
+      const add = (g, m, y = 0) => {
+        const mesh = new THREE.Mesh(g, m);
+        mesh.position.y = y;
+        mesh.castShadow = true; mesh.receiveShadow = true;
+        group.add(mesh);
+      };
 
-      if (item.geom === "cylinder") {
-        const m = new THREE.Mesh(cellGeometries.cylinder, mat);
-        m.castShadow = true; m.receiveShadow = true;
-        group.add(m);
-      } else if (item.geom === "cone") {
-        const m = new THREE.Mesh(cellGeometries.cone, mat);
-        m.castShadow = true; m.receiveShadow = true;
-        group.add(m);
-      } else if (item.geom === "jar") {
-        const body = new THREE.Mesh(cellGeometries.jarBody, mat);
-        const lid = new THREE.Mesh(cellGeometries.jarLid, materialsCache.whiteLid);
-        body.castShadow = true; body.receiveShadow = true;
-        lid.position.y = 0.42;
-        group.add(body);
-        group.add(lid);
-      } else if (item.geom === "plank") {
-        const m = new THREE.Mesh(cellGeometries.plank, mat);
-        m.castShadow = true; m.receiveShadow = true;
-        group.add(m);
-      } else if (item.geom === "pillar") {
-        const m = new THREE.Mesh(cellGeometries.pillar, mat);
-        m.castShadow = true; m.receiveShadow = true;
-        group.add(m);
+      if (geom === "jar") {
+        add(cellGeometries.jarBody, mat, -0.045);
+        add(cellGeometries.jarLid, isUnstable ? mat : materialsCache.whiteLid, 0.375);
       } else {
-        const m = new THREE.Mesh(cellGeometries.cube, mat);
-        m.castShadow = true; m.receiveShadow = true;
-        group.add(m);
+        add(cellGeometries[geom], mat);
       }
+
+      const base = GEOM_BASE[geom];
+      const w = dims ? dims.w : item.size[0], h = dims ? dims.h : item.size[1], d = dims ? dims.d : item.size[2];
+      group.scale.set(w / base[0], h / base[1], d / base[2]);
       return group;
     }
 
     /* ==========================================================================
-       5. DYNAMIC KNOCKDOWN PHYSICS & SIMULATION ENGINE
+       5. TEST MODE (Rapier physics, click in the 3D view to shoot)
+       Matches the game: ball 1.07 studs, density 2, 110 studs/s, gravity 196.2, fixed cannon in front of the
+       booth. A target counts as standing while its centre is above the table top and over the booth (CanRules).
+       Items start asleep like resting Roblox parts and wake when something touches them.
        ========================================================================== */
-    function startKnockdownSimulation() {
-      if (isSimulating) return;
-      isSimulating = true;
-      preSimSnapshot = JSON.stringify(currentStage);
+    const RAPIER_URL = "https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/+esm";
+    const PHYS_DT = 1 / 240;
+    const CANNON_POS = new THREE.Vector3(0, 4.5, 20);
+    const BALL_DIAMETER = 1.07;
+    const BALL_DENSITY = 2;
+    const BALL_SPEED = 110;
+    const BALL_LIFETIME = 4;
+    const STANDING_ABOVE_TOP = 0.1;
+    const IMPACT_MIN_SPEED = 6;
 
-      // Switch to 3D Orbit view
+    let RAPIER = null;
+    let physWorld = null, physEvents = null;
+    let physAccum = 0, simTime = 0;
+    let balls = [];
+    let shotsFired = 0;
+    let testBounds = null;
+    let cannonMesh = null, aimMarker = null;
+    const colliderOwner = new Map();
+
+    async function loadRapier() {
+      if (!RAPIER) {
+        const mod = await import(RAPIER_URL);
+        RAPIER = mod.default || mod;
+        await RAPIER.init();
+      }
+      return RAPIER;
+    }
+
+    function setTicker(text) {
+      document.getElementById("sim-damage-ticker").textContent = text;
+    }
+
+    async function toggleTest() {
+      if (isSimulating) { exitTest(); return; }
+      const btn = document.getElementById("btn-test-knockdown");
+      btn.disabled = true;
+      btn.textContent = "Loading physics...";
+      try {
+        await loadRapier();
+      } catch (e) {
+        btn.disabled = false;
+        setTestButton(false);
+        alert("Could not load the physics engine (needs internet): " + e.message);
+        return;
+      }
+      btn.disabled = false;
+      preSimSnapshot = JSON.stringify(currentStage);
+      isSimulating = true;
+      setTestButton(true);
+
       const tab3d = document.querySelector('[data-view="3d"]');
       if (tab3d) tab3d.click();
-
       document.getElementById("sim-hud-overlay").classList.add("active");
-
       itemsGroup.visible = false;
-      while (simGroup.children.length > 0) simGroup.remove(simGroup.children[0]);
-      simBodies = [];
 
-      let totalWidth = 0;
-      currentStage.stands.forEach((st, idx) => {
-        totalWidth += STAND_WIDTH * STUD_COL_W;
-        if (idx < currentStage.stands.length - 1) totalWidth += st.gapToNext * STUD_COL_W;
-      });
-      const startX = -totalWidth / 2 + (STUD_COL_W / 2);
+      camera.position.set(0, 10, 30);
+      controls.target.set(0, 2.5, STUD_DEP_D);
+      controls.update();
 
-      let currentX = startX;
-      let bodyUid = 1;
-
-      currentStage.stands.forEach((stand, sIdx) => {
-        const standW = STAND_WIDTH * STUD_COL_W;
-        const standMinX = currentX - (STUD_COL_W / 2);
-        const standMaxX = standMinX + standW;
-
-        for (let x = 0; x < STAND_WIDTH; x++) {
-          for (let y = 0; y < STAND_HEIGHT; y++) {
-            for (let z = 0; z < STAND_DEPTH; z++) {
-              const key = `${sIdx}_${x}_${y}_${z}`;
-              const itemId = currentStage.cells[key];
-              if (itemId) {
-                const item = ITEM_CATALOG.find(i => i.id === itemId);
-                const halfH = item.size[1] / 2;
-                const pos = new THREE.Vector3(currentX + (x * STUD_COL_W), (y * STUD_ROW_H) + halfH, z * STUD_DEP_D);
-                const mesh = createMeshForItem(itemId, false);
-                mesh.position.copy(pos);
-                simGroup.add(mesh);
-
-                const mass = Math.max((item.size[0] * item.size[1] * item.size[2]) * item.density, 0.25);
-                simBodies.push({
-                  uid: bodyUid++,
-                  itemId: item.id,
-                  itemDef: item,
-                  sp: item.sp,
-                  maxSp: item.sp,
-                  mass: mass,
-                  radius: Math.max(item.size[0], item.size[2]) * 0.45,
-                  halfHeight: halfH,
-                  mesh: mesh,
-                  position: pos.clone(),
-                  velocity: new THREE.Vector3(0, 0, 0),
-                  rotVelocity: new THREE.Vector3(0, 0, 0),
-                  destroyed: false,
-                  tableBound: { minX: standMinX, maxX: standMaxX, minZ: -0.5, maxZ: (STAND_DEPTH * STUD_DEP_D) + 0.3 }
-                });
-              }
-            }
-          }
-        }
-
-        if (sIdx < currentStage.stands.length - 1) {
-          const gapW = stand.gapToNext;
-          const gapMinX = standMaxX;
-          const gapMaxX = gapMinX + (gapW * STUD_COL_W);
-
-          for (let gx = 0; gx < gapW; gx++) {
-            for (let y = 0; y < STAND_HEIGHT; y++) {
-              for (let z = 0; z < STAND_DEPTH; z++) {
-                const gKey = `${sIdx}_${gx}_${y}_${z}`;
-                const gItemId = currentStage.gapCells[gKey];
-                if (gItemId) {
-                  const item = ITEM_CATALOG.find(i => i.id === gItemId);
-                  const halfH = item.size[1] / 2;
-                  const pos = new THREE.Vector3(currentX + standW + (gx * STUD_COL_W), (y * STUD_ROW_H) + halfH, z * STUD_DEP_D);
-                  const mesh = createMeshForItem(gItemId, false);
-                  mesh.position.copy(pos);
-                  simGroup.add(mesh);
-
-                  const mass = Math.max((item.size[0] * item.size[1] * item.size[2]) * item.density, 0.25);
-                  simBodies.push({
-                    uid: bodyUid++,
-                    itemId: item.id,
-                    itemDef: item,
-                    sp: item.sp,
-                    maxSp: item.sp,
-                    mass: mass,
-                    radius: Math.max(item.size[0], item.size[2]) * 0.45,
-                    halfHeight: halfH,
-                    mesh: mesh,
-                    position: pos.clone(),
-                    velocity: new THREE.Vector3(0, 0, 0),
-                    rotVelocity: new THREE.Vector3(0, 0, 0),
-                    destroyed: false,
-                    tableBound: { minX: gapMinX, maxX: gapMaxX, minZ: -0.5, maxZ: (STAND_DEPTH * STUD_DEP_D) + 0.3 }
-                  });
-                }
-              }
-            }
-          }
-          currentX += standW + (gapW * STUD_COL_W);
-        } else {
-          currentX += standW;
-        }
-      });
-
-      evaluateWinCondition();
-
-      // Launch Cannonball towards center of stack
-      let targetCenter = new THREE.Vector3(0, 3.2, 0.8);
-      if (simBodies.length > 0) {
-        let sumX = 0, sumY = 0;
-        simBodies.forEach(b => { sumX += b.position.x; sumY += b.position.y; });
-        targetCenter.x = sumX / simBodies.length;
-        targetCenter.y = Math.min(sumY / simBodies.length, 3.5);
-      }
-      launchCannonBall(targetCenter);
+      buildTestWorld();
     }
 
-    function launchCannonBall(targetPos) {
-      if (projectile && projectile.mesh) {
-        simGroup.remove(projectile.mesh);
-      }
+    function setTestButton(testing) {
+      const btn = document.getElementById("btn-test-knockdown");
+      btn.innerHTML = testing ? `<i data-lucide="square"></i> Exit Test` : `<i data-lucide="crosshair"></i> Test`;
+      lucide.createIcons();
+    }
 
-      const launchPos = new THREE.Vector3(targetPos.x * 0.35, 4.5, 20); // 20 studs in front
-      const ballGeo = new THREE.SphereGeometry(0.55, 20, 20);
-      const ballMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.95, roughness: 0.2 });
-      const ballMesh = new THREE.Mesh(ballGeo, ballMat);
-      ballMesh.position.copy(launchPos);
-      ballMesh.castShadow = true;
-      simGroup.add(ballMesh);
+    function clearTestWorld() {
+      while (simGroup.children.length > 0) simGroup.remove(simGroup.children[0]);
+      if (physWorld) { try { physWorld.free(); } catch (e) { /* already broken */ } }
+      physWorld = null;
+      physEvents = null;
+      simBodies = [];
+      balls = [];
+      colliderOwner.clear();
+      cannonMesh = null;
+      aimMarker = null;
+    }
 
-      // Trajectory calculation: Launch speed = 110 studs/sec, g = 196.2
-      const speed = 110.0;
-      const dx = targetPos.x - launchPos.x;
-      const dz = targetPos.z - launchPos.z;
-      const distHoriz = Math.max(Math.sqrt(dx * dx + dz * dz), 0.1);
-      const timeOfFlight = distHoriz / speed;
+    function buildTestWorld() {
+      clearTestWorld();
+      const R = RAPIER;
+      physWorld = new R.World({ x: 0, y: -ROBLOX_GRAVITY, z: 0 });
+      physWorld.timestep = PHYS_DT;
+      physWorld.integrationParameters.numSolverIterations = 30;
+      physEvents = new R.EventQueue(true);
+      physAccum = 0;
+      simTime = 0;
+      shotsFired = 0;
 
-      const dy = targetPos.y - launchPos.y;
-      const vy = (dy + 0.5 * ROBLOX_GRAVITY * (timeOfFlight * timeOfFlight)) / timeOfFlight;
-      const vx = (dx / distHoriz) * (distHoriz / timeOfFlight);
-      const vz = (dz / distHoriz) * (distHoriz / timeOfFlight);
-
-      projectile = {
-        mesh: ballMesh,
-        position: ballMesh.position.clone(),
-        velocity: new THREE.Vector3(vx, vy, vz),
-        active: true,
-        penetrations: 0
+      const layout = computeLayout();
+      const depth = STAND_DEPTH * STUD_DEP_D;
+      testBounds = {
+        minX: layout.standBounds[0].minX,
+        maxX: layout.standBounds[layout.standBounds.length - 1].maxX,
+        minZ: STUD_DEP_D - depth / 2,
+        maxZ: STUD_DEP_D + depth / 2
       };
 
-      document.getElementById("sim-damage-ticker").textContent = `Cannon fired (110 st/s)! Aim: [${targetPos.x.toFixed(1)}, ${targetPos.y.toFixed(1)}]`;
-    }
+      // Tables (fixed). The gaps between stands have no floor.
+      layout.standBounds.forEach(sb => {
+        physWorld.createCollider(R.ColliderDesc.cuboid(sb.w / 2, 0.125, depth / 2).setTranslation(sb.cx, -0.125, STUD_DEP_D).setFriction(0.5));
+        const tableMesh = new THREE.Mesh(new THREE.BoxGeometry(sb.w, 0.25, depth), materialsCache.table);
+        tableMesh.position.set(sb.cx, -0.125, STUD_DEP_D);
+        tableMesh.receiveShadow = true;
+        simGroup.add(tableMesh);
+      });
 
-    function stepLuauPhysics(dt) {
-      const substeps = 6;
-      const subDt = dt / substeps;
+      let uid = 1;
+      layout.entries.forEach(e => {
+        const item = e.item;
+        const pos = { x: e.x, y: e.bottom + e.h / 2, z: e.zPos };
+        const body = physWorld.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(pos.x, pos.y, pos.z).setSleeping(true));
+        let desc;
+        if (item.geom === "cylinder" || item.geom === "jar") desc = R.ColliderDesc.cylinder(e.h / 2, e.w / 2);
+        else if (item.geom === "cone") desc = R.ColliderDesc.cone(e.h / 2, e.w / 2);
+        else desc = R.ColliderDesc.cuboid(e.w / 2, e.h / 2, e.d / 2);
+        desc.setDensity(item.density).setFriction(item.friction).setRestitution(0.2);
+        const collider = physWorld.createCollider(desc, body);
 
-      for (let step = 0; step < substeps; step++) {
-        // 1. Move projectile & continuous collision detection (CCD)
-        if (projectile && projectile.active) {
-          const prevProjPos = projectile.position.clone();
-          projectile.velocity.y -= ROBLOX_GRAVITY * subDt;
-          projectile.position.addScaledVector(projectile.velocity, subDt);
-          projectile.mesh.position.copy(projectile.position);
+        const mesh = createMeshForItem(item.id, false, e);
+        mesh.position.set(pos.x, pos.y, pos.z);
+        simGroup.add(mesh);
 
-          const projSeg = projectile.position.clone().sub(prevProjPos);
-          const segLenSq = projSeg.lengthSq();
+        const sb = {
+          uid: uid++, itemDef: item, count: e.count,
+          sp: item.sp * e.count, maxSp: item.sp * e.count,
+          body, collider, mesh,
+          destroyed: false, dented: false,
+          prevVel: { x: 0, y: 0, z: 0 },
+          hitCooldown: 0, ballHitThisStep: false
+        };
+        colliderOwner.set(collider.handle, sb);
+        simBodies.push(sb);
+      });
 
-          // Swept sphere collision against targets
-          for (let i = 0; i < simBodies.length; i++) {
-            const b = simBodies[i];
-            if (b.destroyed) continue;
+      // Cannon: fixed, centred in front of the booth like the game's booth cannon
+      cannonMesh = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.65, 0.4, 20), materialsCache.table);
+      base.position.y = -0.5;
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.36, 1.9, 20), new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.3 }));
+      barrel.position.y = 0.95;
+      const pivot = new THREE.Group();
+      pivot.add(barrel);
+      pivot.name = "pivot";
+      pivot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1));
+      cannonMesh.add(base, pivot);
+      cannonMesh.position.copy(CANNON_POS);
+      simGroup.add(cannonMesh);
 
-            let closestPt = prevProjPos;
-            if (segLenSq > 0.0001) {
-              const toBody = b.position.clone().sub(prevProjPos);
-              const t = Math.max(0, Math.min(1, toBody.dot(projSeg) / segLenSq));
-              closestPt = prevProjPos.clone().addScaledVector(projSeg, t);
-            }
+      aimMarker = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.85, depthTest: false }));
+      aimMarker.renderOrder = 10;
+      aimMarker.visible = false;
+      simGroup.add(aimMarker);
 
-            const hitDist = closestPt.distanceTo(b.position);
-            const hitThreshold = 0.55 + b.radius;
-
-            if (hitDist <= hitThreshold) {
-              // Direct Hit = 20 Direct SP damage
-              applyDamage(b, 20, "Direct Hit (20 SP)");
-
-              // Dynamic impact momentum transfer:
-              const hitDir = projectile.velocity.clone().normalize();
-              const impulseMag = (25.0 / Math.max(b.mass, 0.4));
-              b.velocity.add(hitDir.multiplyScalar(impulseMag));
-              b.velocity.y += 10.0; // Knock targets upward and back
-
-              // Rotational topple torque
-              const hitOffset = closestPt.clone().sub(b.position);
-              b.rotVelocity.add(new THREE.Vector3(
-                -hitOffset.y * 14 + (Math.random() - 0.5) * 8,
-                (Math.random() - 0.5) * 12,
-                hitOffset.x * 14 + (Math.random() - 0.5) * 8
-              ));
-
-              projectile.penetrations++;
-              if (projectile.penetrations >= 3 || b.itemDef.material === "Stone") {
-                projectile.active = false;
-                simGroup.remove(projectile.mesh);
-                break;
-              } else {
-                projectile.velocity.multiplyScalar(0.7); // decelerate through cans
-              }
-            }
-          }
-
-          if (projectile.position.y < -3 || projectile.position.z < -15) {
-            projectile.active = false;
-            simGroup.remove(projectile.mesh);
-          }
-        }
-
-        // 2. Rigid body motion & integration
-        for (let i = 0; i < simBodies.length; i++) {
-          const b = simBodies[i];
-          if (b.destroyed) continue;
-
-          // Apply Gravity
-          b.velocity.y -= ROBLOX_GRAVITY * subDt;
-
-          // Air Damping
-          b.velocity.multiplyScalar(0.998);
-          b.rotVelocity.multiplyScalar(0.995);
-
-          // Update position
-          b.position.addScaledVector(b.velocity, subDt);
-
-          // Quaternion Rotation integration (avoids gimbal lock)
-          const rotSpeed = b.rotVelocity.length();
-          if (rotSpeed > 0.001) {
-            const rotAxis = b.rotVelocity.clone().normalize();
-            const deltaQ = new THREE.Quaternion().setFromAxisAngle(rotAxis, rotSpeed * subDt);
-            b.mesh.quaternion.premultiply(deltaQ);
-          }
-
-          // SYNCHRONIZE 3D MESH POSITION
-          b.mesh.position.copy(b.position);
-
-          // Table Pedestal Collision & Fall Off Edge
-          const onTablePerimeter = (
-            b.position.x >= (b.tableBound.minX - 0.15) && b.position.x <= (b.tableBound.maxX + 0.15) &&
-            b.position.z >= (b.tableBound.minZ - 0.15) && b.position.z <= (b.tableBound.maxZ + 0.15)
-          );
-
-          if (onTablePerimeter) {
-            // Resting on table surface (Y = 0)
-            if (b.position.y <= b.halfHeight) {
-              b.position.y = b.halfHeight;
-              b.mesh.position.y = b.halfHeight;
-
-              if (b.velocity.y < 0) {
-                b.velocity.y = -b.velocity.y * 0.22; // restitution
-              }
-
-              // Surface friction
-              const f = 1 - Math.min(b.itemDef.friction * 0.25, 0.9);
-              b.velocity.x *= f;
-              b.velocity.z *= f;
-              b.rotVelocity.multiplyScalar(0.92);
-            }
-          } else {
-            // Fell off table edge into abyss
-            if (b.position.y < -20) {
-              b.velocity.set(0, 0, 0);
-              b.rotVelocity.set(0, 0, 0);
-            }
-          }
-        }
-
-        // 3. Inter-item collisions & momentum transfer
-        for (let i = 0; i < simBodies.length; i++) {
-          const b1 = simBodies[i];
-          if (b1.destroyed) continue;
-
-          for (let j = i + 1; j < simBodies.length; j++) {
-            const b2 = simBodies[j];
-            if (b2.destroyed) continue;
-
-            const delta = b1.position.clone().sub(b2.position);
-            const dist = delta.length();
-            const minDist = b1.radius + b2.radius;
-
-            if (dist < minDist && dist > 0.0001) {
-              const normal = delta.clone().divideScalar(dist);
-              const overlap = minDist - dist;
-
-              // Position separation
-              b1.position.addScaledVector(normal, overlap * 0.5);
-              b2.position.addScaledVector(normal, -overlap * 0.5);
-              b1.mesh.position.copy(b1.position);
-              b2.mesh.position.copy(b2.position);
-
-              // Relative velocity
-              const relVel = b1.velocity.clone().sub(b2.velocity);
-              const normVel = relVel.dot(normal);
-
-              if (normVel < 0) {
-                const restitution = 0.35;
-                const impulse = -(1 + restitution) * normVel / (1 / b1.mass + 1 / b2.mass);
-
-                b1.velocity.addScaledVector(normal, impulse / b1.mass);
-                b2.velocity.addScaledVector(normal, -impulse / b2.mass);
-
-                // Transfer tumbling rotation
-                b1.rotVelocity.add(new THREE.Vector3(normal.z * 5, (Math.random() - 0.5) * 6, -normal.x * 5));
-                b2.rotVelocity.add(new THREE.Vector3(-normal.z * 5, (Math.random() - 0.5) * 6, normal.x * 5));
-
-                // Collision impact damage
-                const impactSpeed = -normVel;
-                if (impactSpeed >= 6.0) {
-                  const dmg = Math.min(20, Math.max(4, Math.floor(impactSpeed * 1.3)));
-                  applyDamage(b1, dmg, `Impact (${dmg} SP)`);
-                  applyDamage(b2, dmg, `Impact (${dmg} SP)`);
-                }
-              }
-            }
-          }
-        }
-      }
-
+      document.getElementById("sim-shots-count").textContent = "Shots: 0";
+      setTicker("Click a target in the 3D view to shoot");
       evaluateWinCondition();
     }
 
-    function applyDamage(body, amount, reason) {
-      if (body.destroyed) return;
-      body.sp -= amount;
-
-      if (body.sp <= 0) {
-        body.sp = 0;
-        const mat = body.itemDef.material;
-
-        // Metal items do NOT vanish; remain as physical debris
-        if (mat === "Thin metal" || mat === "Metal") {
-          body.mesh.traverse(child => {
-            if (child.isMesh) child.material = materialsCache.table;
-          });
-          document.getElementById("sim-damage-ticker").textContent = `Dented Metal: ${body.itemDef.name} [0 SP] stays in play!`;
-        } else {
-          // Glass, Ice, Wood, Stone shatter and immediately disappear
-          body.destroyed = true;
-          simGroup.remove(body.mesh);
-
-          // Burst Cascades
-          if (body.itemDef.burst > 0) {
-            triggerBurstCascade(body.position, body.itemDef.burst, body.itemDef.burstRadius, body.uid);
-          }
-        }
-      }
-    }
-
-    function triggerBurstCascade(origin, burstDmg, burstRadius, sourceUid) {
-      if (++cascadeDepth > 40) return;
-
-      document.getElementById("sim-damage-ticker").textContent = `💥 BURST CASCADE: ${burstDmg} SP in ${burstRadius} studs!`;
-
-      simBodies.forEach(target => {
-        if (target.destroyed || target.uid === sourceUid) return;
-
-        const dist = target.position.distanceTo(origin);
-        if (dist <= burstRadius) {
-          applyDamage(target, burstDmg, `Burst (${burstDmg} SP)`);
-
-          const delta = target.position.clone().sub(origin);
-          delta.y += 0.35;
-          delta.normalize();
-
-          const impulse = delta.multiplyScalar(target.mass * 8.5);
-          target.velocity.add(impulse.divideScalar(target.mass));
-          target.rotVelocity.set((Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15);
-        }
-      });
-
-      cascadeDepth--;
-    }
-
-    function evaluateWinCondition() {
-      let standingCount = 0;
-      let totalTargets = simBodies.length;
-
-      simBodies.forEach(b => {
-        if (b.destroyed) return;
-
-        // Standing rule:
-        // 1. Must be above table base (Y > -0.05)
-        // 2. Must be inside table bounds
-        // 3. Must be upright (up-vector Y > 0.68)
-        const isAboveTable = b.position.y > -0.05;
-        const isInsidePerimeter = (
-          b.position.x >= (b.tableBound.minX - 0.2) && b.position.x <= (b.tableBound.maxX + 0.2) &&
-          b.position.z >= (b.tableBound.minZ - 0.2) && b.position.z <= (b.tableBound.maxZ + 0.2)
-        );
-
-        const upVec = new THREE.Vector3(0, 1, 0).applyQuaternion(b.mesh.quaternion);
-        const isUpright = upVec.y > 0.68; // Within ~47 degrees of vertical
-
-        if (isAboveTable && isInsidePerimeter && isUpright) {
-          standingCount++;
-        }
-      });
-
-      const countEl = document.getElementById("sim-standing-count");
-      if (standingCount === 0 && totalTargets > 0) {
-        countEl.innerHTML = `<span style="color:#10b981; font-weight:700;">🏆 BOOTH CLEARED! PERFECT KNOCKDOWN!</span>`;
-      } else {
-        countEl.textContent = `Standing Targets: ${standingCount} / ${totalTargets}`;
-      }
+    function exitTest() {
+      clearTestWorld();
+      isSimulating = false;
+      setTestButton(false);
+      document.getElementById("sim-hud-overlay").classList.remove("active");
+      if (preSimSnapshot) currentStage = JSON.parse(preSimSnapshot);
+      itemsGroup.visible = true;
+      syncAllViews(false);
     }
 
     function resetSimulation() {
-      isSimulating = false;
-      document.getElementById("sim-hud-overlay").classList.remove("active");
-      while (simGroup.children.length > 0) simGroup.remove(simGroup.children[0]);
-      simBodies = [];
-      projectile = null;
+      if (isSimulating && RAPIER) buildTestWorld();
+    }
 
-      if (preSimSnapshot) {
-        currentStage = JSON.parse(preSimSnapshot);
+    // Low ballistic arc at a fixed speed, the same solve as the game's CannonAim.shot
+    function solveAim(origin, target) {
+      const delta = target.clone().sub(origin);
+      const flat = new THREE.Vector3(delta.x, 0, delta.z);
+      const d = flat.length();
+      if (d < 0.1) return null;
+      const g = ROBLOX_GRAVITY, v2 = BALL_SPEED * BALL_SPEED;
+      const disc = v2 * v2 - g * (g * d * d + 2 * delta.y * v2);
+      if (disc < 0) return null;
+      const angle = Math.atan((v2 - Math.sqrt(disc)) / (g * d));
+      return flat.normalize().multiplyScalar(Math.cos(angle)).add(new THREE.Vector3(0, Math.sin(angle), 0));
+    }
+
+    function fireAt(target) {
+      if (!isSimulating || !physWorld) return;
+      const dir = solveAim(CANNON_POS, target);
+      if (!dir) { setTicker("Out of range"); return; }
+      const R = RAPIER;
+      const start = CANNON_POS.clone().addScaledVector(dir, 2.6);
+      const body = physWorld.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(start.x, start.y, start.z).setCcdEnabled(true));
+      body.setLinvel({ x: dir.x * BALL_SPEED, y: dir.y * BALL_SPEED, z: dir.z * BALL_SPEED }, true);
+      const collider = physWorld.createCollider(
+        R.ColliderDesc.ball(BALL_DIAMETER / 2).setDensity(BALL_DENSITY).setFriction(0.4).setRestitution(0.3)
+          .setActiveEvents(R.ActiveEvents.COLLISION_EVENTS), body);
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_DIAMETER / 2, 20, 20), new THREE.MeshStandardMaterial({ color: 0xff4e42, roughness: 0.4 }));
+      mesh.castShadow = true;
+      mesh.position.copy(start);
+      simGroup.add(mesh);
+      balls.push({ body, collider, mesh, born: simTime, isBall: true });
+      colliderOwner.set(collider.handle, balls[balls.length - 1]);
+
+      const pivot = cannonMesh && cannonMesh.getObjectByName("pivot");
+      if (pivot) pivot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+
+      shotsFired++;
+      document.getElementById("sim-shots-count").textContent = `Shots: ${shotsFired}`;
+      setTicker(`Fired at [${target.x.toFixed(1)}, ${target.y.toFixed(1)}]`);
+    }
+
+    function removeTarget(t) {
+      if (t.destroyed) return;
+      t.destroyed = true;
+      simGroup.remove(t.mesh);
+      const p = t.body.translation();
+      colliderOwner.delete(t.collider.handle);
+      physWorld.removeRigidBody(t.body);
+      // wake anything that was resting on or against it
+      simBodies.forEach(o => {
+        if (o.destroyed) return;
+        const q = o.body.translation();
+        if (Math.hypot(q.x - p.x, q.y - p.y, q.z - p.z) < 4) o.body.wakeUp();
+      });
+    }
+
+    function stepTestPhysics() {
+      const pending = [];
+      simBodies.forEach(t => { t.ballHitThisStep = false; });
+      physWorld.step(physEvents);
+      simTime += PHYS_DT;
+
+      physEvents.drainCollisionEvents((h1, h2, started) => {
+        if (!started) return;
+        const a = colliderOwner.get(h1), b = colliderOwner.get(h2);
+        const ball = a && a.isBall ? a : (b && b.isBall ? b : null);
+        const target = ball === a ? b : a;
+        if (ball && target && !target.isBall) {
+          target.ballHitThisStep = true;
+          applyDamage(target, 20, "Direct Hit (20 SP)", pending);
+        }
+      });
+
+      simBodies.forEach(t => {
+        if (t.destroyed) return;
+        const v = t.body.linvel();
+        if (t.hitCooldown > 0) t.hitCooldown -= PHYS_DT;
+        if (!t.body.isSleeping() && !t.ballHitThisStep && t.hitCooldown <= 0) {
+          const dv = Math.hypot(v.x - t.prevVel.x, (v.y - t.prevVel.y) + ROBLOX_GRAVITY * PHYS_DT, v.z - t.prevVel.z);
+          if (dv >= IMPACT_MIN_SPEED) {
+            const dmg = Math.min(20, Math.max(4, Math.floor(dv * 1.3)));
+            t.hitCooldown = 0.08;
+            applyDamage(t, dmg, `Impact (${dmg} SP)`, pending);
+          }
+        }
+        t.prevVel = { x: v.x, y: v.y, z: v.z };
+        if (t.body.translation().y < -30) pending.push(t);
+      });
+
+      pending.forEach(removeTarget);
+
+      balls = balls.filter(b => {
+        if (simTime - b.born > BALL_LIFETIME || b.body.translation().y < -30) {
+          simGroup.remove(b.mesh);
+          colliderOwner.delete(b.collider.handle);
+          physWorld.removeRigidBody(b.body);
+          return false;
+        }
+        return true;
+      });
+    }
+
+    function stepSimulation(dt) {
+      if (!physWorld) return;
+      physAccum += Math.min(dt, 0.05);
+      try {
+        while (physAccum >= PHYS_DT) {
+          stepTestPhysics();
+          physAccum -= PHYS_DT;
+        }
+      } catch (e) {
+        console.error(e);
+        physWorld = null;
+        setTicker("Physics error - press Reset");
+        return;
       }
-      itemsGroup.visible = true;
-      syncAllViews(false);
+      simBodies.forEach(t => {
+        if (t.destroyed) return;
+        const p = t.body.translation(), r = t.body.rotation();
+        t.mesh.position.set(p.x, p.y, p.z);
+        t.mesh.quaternion.set(r.x, r.y, r.z, r.w);
+      });
+      balls.forEach(b => {
+        const p = b.body.translation(), r = b.body.rotation();
+        b.mesh.position.set(p.x, p.y, p.z);
+        b.mesh.quaternion.set(r.x, r.y, r.z, r.w);
+      });
+      evaluateWinCondition();
+    }
+
+    function applyDamage(body, amount, reason, pending) {
+      if (body.destroyed || body.dented) return;
+      body.sp -= amount;
+      if (body.sp > 0) return;
+      body.sp = 0;
+      const mat = body.itemDef.material;
+
+      // Metal items do NOT vanish; they stay in play as dented debris
+      if (mat === "Thin metal" || mat === "Metal") {
+        body.dented = true;
+        body.mesh.traverse(child => { if (child.isMesh) child.material = materialsCache.table; });
+        setTicker(`Dented: ${body.itemDef.name} stays in play`);
+        return;
+      }
+      // Glass, ice, wood and stone shatter and disappear
+      if (!pending.includes(body)) pending.push(body);
+      if (body.itemDef.burst > 0) triggerBurstCascade(body, pending);
+    }
+
+    function triggerBurstCascade(source, pending) {
+      if (++cascadeDepth > 40) { cascadeDepth--; return; }
+      const { burst, burstRadius } = source.itemDef;
+      const o = source.body.translation();
+      setTicker(`Burst: ${burst} SP within ${burstRadius} studs`);
+
+      simBodies.forEach(t => {
+        if (t.destroyed || t === source || pending.includes(t)) return;
+        const p = t.body.translation();
+        const delta = new THREE.Vector3(p.x - o.x, p.y - o.y, p.z - o.z);
+        if (delta.length() > burstRadius) return;
+        delta.y += 0.35;
+        delta.normalize();
+        const m = t.body.mass();
+        t.body.applyImpulse({ x: delta.x * m * 8.5, y: delta.y * m * 8.5, z: delta.z * m * 8.5 }, true);
+        t.body.applyTorqueImpulse({ x: (Math.random() - 0.5) * m, y: (Math.random() - 0.5) * m, z: (Math.random() - 0.5) * m }, true);
+        applyDamage(t, burst, `Burst (${burst} SP)`, pending);
+      });
+      cascadeDepth--;
+    }
+
+    function isStanding(t) {
+      if (t.destroyed) return false;
+      const p = t.body.translation();
+      return p.y > STANDING_ABOVE_TOP
+        && p.x >= testBounds.minX && p.x <= testBounds.maxX
+        && p.z >= testBounds.minZ && p.z <= testBounds.maxZ;
+    }
+
+    function evaluateWinCondition() {
+      let standing = 0, total = 0;
+      simBodies.forEach(t => {
+        total += t.count;
+        if (isStanding(t)) standing += t.count;
+      });
+      const countEl = document.getElementById("sim-standing-count");
+      if (standing === 0 && total > 0) {
+        countEl.innerHTML = `<span style="color:#10b981; font-weight:700;">BOOTH CLEARED in ${shotsFired} shot${shotsFired === 1 ? "" : "s"}!</span>`;
+      } else {
+        countEl.textContent = `Standing: ${standing} / ${total}`;
+      }
+    }
+
+    // Point under the mouse in the 3D view: a target, else the plane through the middle row
+    function raycastAim(clientX, clientY) {
+      const canvas = renderer.domElement;
+      const rect = canvas.getBoundingClientRect();
+      const mouse = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouse, camera);
+      const meshes = simBodies.filter(b => !b.destroyed).map(b => b.mesh);
+      const hits = raycaster.intersectObjects(meshes, true);
+      if (hits.length > 0) return hits[0].point;
+      const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -STUD_DEP_D);
+      const pt = new THREE.Vector3();
+      return raycaster.ray.intersectPlane(plane, pt) ? pt : null;
+    }
+
+    function initTestInput() {
+      const canvas = renderer.domElement;
+      let down = null;
+      canvas.addEventListener("pointerdown", (e) => {
+        down = { x: e.clientX, y: e.clientY, t: performance.now(), button: e.button };
+      });
+      // A click (not an orbit drag) shoots at the point under the mouse
+      canvas.addEventListener("pointerup", (e) => {
+        if (!isSimulating || !down || down.button !== 0) { down = null; return; }
+        const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+        const quick = performance.now() - down.t < 500;
+        down = null;
+        if (moved > 6 || !quick) return;
+        const pt = raycastAim(e.clientX, e.clientY);
+        if (pt) fireAt(pt);
+      });
+      canvas.addEventListener("pointermove", (e) => {
+        if (!isSimulating || !aimMarker) return;
+        if (e.buttons) { aimMarker.visible = false; return; }
+        const pt = raycastAim(e.clientX, e.clientY);
+        aimMarker.visible = !!pt;
+        if (pt) aimMarker.position.copy(pt);
+      });
+      canvas.addEventListener("pointerleave", () => { if (aimMarker) aimMarker.visible = false; });
     }
 
     /* ==========================================================================
@@ -2092,6 +2079,8 @@
        ========================================================================== */
     function generateLuauTableExport() {
       const itemsList = [];
+      const restY = {};
+      computeLayout().entries.forEach(e => e.keys.forEach(k => { restY[(k.gap ? "g" : "s") + k.key] = e.bottom; }));
       const indexMap = {};
       let itemIndex = 1;
 
@@ -2114,7 +2103,7 @@
               if (itemId) {
                 const item = ITEM_CATALOG.find(i => i.id === itemId);
                 const posX = Number((currentX + (x * STUD_COL_W)).toFixed(3));
-                const posY = Number(((y * STUD_ROW_H)).toFixed(3));
+                const posY = Number((restY["s" + key] ?? (y * STUD_ROW_H)).toFixed(3));
                 const posZ = Number(((z - 1) * STUD_DEP_D).toFixed(3));
 
                 indexMap[key] = itemIndex++;
@@ -2142,7 +2131,7 @@
                 if (gItemId) {
                   const item = ITEM_CATALOG.find(i => i.id === gItemId);
                   const posX = Number((currentX + standW + (gx * STUD_COL_W)).toFixed(3));
-                  const posY = Number(((y * STUD_ROW_H)).toFixed(3));
+                  const posY = Number((restY["g" + gKey] ?? (y * STUD_ROW_H)).toFixed(3));
                   const posZ = Number(((z - 1) * STUD_DEP_D).toFixed(3));
 
                   indexMap[gKey] = itemIndex++;
@@ -2174,6 +2163,8 @@
         }
         return `        {
             ["kind"] = "${item.kind}",
+            ["cell"] = "${item.key}",
+            ["gap"] = ${item.isGap ? "true" : "false"},
             ["x"] = ${item.x},
             ["y"] = ${item.y},
             ["z"] = ${item.z},
@@ -2186,6 +2177,8 @@
       return `local Level = {
     ["name"] = "${currentStage.name}",
     ["standsCount"] = ${currentStage.stands.length},
+    ["stands"] = { ${currentStage.stands.map(st => `{ ["gapToNext"] = ${st.gapToNext} }`).join(", ")} },
+    ["bridges"] = { ${(currentStage.bridges || []).map(b => `{ ["fromStand"] = ${b.fromStand}, ["y"] = ${b.y}, ["z"] = ${b.z} }`).join(", ")} },
     ["items"] = {
 ${formattedItems.join(",\n")}
     }
@@ -2218,6 +2211,23 @@ return Level`;
         throw new Error("No target items found in the provided Luau script.");
       }
 
+      // Exact path: files exported by this tool carry every item's cell, the stands and the bridges
+      const standGaps = [...rawText.matchAll(/\["gapToNext"\]\s*=\s*(\d+)/g)].map(m => parseInt(m[1], 10));
+      const cellOf = blk => (blk.match(/\["cell"\]\s*=\s*"(\d+_\d+_\d+_\d+)"/) || [])[1];
+      if (standGaps.length > 0 && itemBlocks.every(cellOf)) {
+        const stands = standGaps.map((g, i) => ({ id: i, gapToNext: i < standGaps.length - 1 ? g : 0 }));
+        const bridges = [...rawText.matchAll(/\["fromStand"\]\s*=\s*(\d+)\s*,\s*\["y"\]\s*=\s*(\d+)\s*,\s*\["z"\]\s*=\s*(\d+)/g)]
+          .map(m => ({ fromStand: parseInt(m[1], 10), y: parseInt(m[2], 10), z: parseInt(m[3], 10) }));
+        const cells = {}, gapCells = {};
+        itemBlocks.forEach(blk => {
+          const kind = (blk.match(/\["kind"\]\s*=\s*"([^"]+)"/) || [null, "can"])[1];
+          const itDef = ITEM_CATALOG.find(i => i.kind === kind) || ITEM_CATALOG[0];
+          const isGap = /\["gap"\]\s*=\s*true/.test(blk);
+          (isGap ? gapCells : cells)[cellOf(blk)] = itDef.id;
+        });
+        return { id: "stage_" + Date.now(), name: stageName, stands, cells, gapCells, bridges };
+      }
+
       const parsedItems = [];
       itemBlocks.forEach(blk => {
         const kind = (blk.match(/\["kind"\]\s*=\s*"([^"]+)"/) || blk.match(/kind\s*=\s*"([^"]+)"/) || [null, "can"])[1];
@@ -2231,7 +2241,8 @@ return Level`;
       const maxX = Math.max(...parsedItems.map(i => i.x));
       const totalSpan = maxX - minX;
 
-      const standCount = Math.max(1, Math.min(4, Math.ceil(totalSpan / (STAND_WIDTH * STUD_COL_W)) || 1));
+      const declaredStands = parseInt((rawText.match(/\["standsCount"\]\s*=\s*(\d+)/) || [])[1], 10);
+      const standCount = Math.max(1, Math.min(4, declaredStands || Math.ceil(totalSpan / (STAND_WIDTH * STUD_COL_W)) || 1));
       const stands = [];
       for (let s = 0; s < standCount; s++) {
         stands.push({ id: s, gapToNext: s < standCount - 1 ? 2 : 0 });
@@ -2951,18 +2962,9 @@ return Level`;
         }
       });
 
-      const gravBtn = document.getElementById("btn-gravity-mode");
-      gravBtn.addEventListener("click", () => {
-        editorState.gravityMode = !editorState.gravityMode;
-        gravBtn.classList.toggle("btn-active", editorState.gravityMode);
-        gravBtn.innerHTML = `<i data-lucide="arrow-down-to-line"></i> Auto-Drop: ${editorState.gravityMode ? "ON" : "OFF"}`;
-        document.getElementById("status-gravity").textContent = `GRAVITY AUTO-DROP: ${editorState.gravityMode ? "ACTIVE" : "OFF"}`;
-        lucide.createIcons();
-      });
-
-      document.getElementById("btn-settle-gravity").addEventListener("click", settleGravity);
       document.getElementById("btn-add-bridge").addEventListener("click", spanSupportedBridge);
-      document.getElementById("btn-test-knockdown").addEventListener("click", startKnockdownSimulation);
+      document.getElementById("btn-test-knockdown").addEventListener("click", toggleTest);
+      document.getElementById("btn-exit-test").addEventListener("click", exitTest);
       document.getElementById("btn-reset-simulation").addEventListener("click", resetSimulation);
       document.getElementById("btn-open-create-item").addEventListener("click", () => openItemModal(null));
 
@@ -3075,6 +3077,7 @@ return Level`;
 
     window.addEventListener("DOMContentLoaded", () => {
       initThree();
+      initTestInput();
       initItemCatalog();
       initVault();
       initUI();
