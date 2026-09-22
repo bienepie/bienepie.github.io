@@ -6,7 +6,7 @@
 
 **4** pages:
 
-- [CAN CANNON](https://bienepie.github.io/CAN CANNON/)
+- [KnockACan_LevelDesigner](https://bienepie.github.io/KnockACan_LevelDesigner/)
 - [PuzzelDrop](https://bienepie.github.io/PuzzelDrop/)
 - [SplitIt](https://bienepie.github.io/SplitIt/)
 - [Ta3reesometer](https://bienepie.github.io/Ta3reesometer/)
