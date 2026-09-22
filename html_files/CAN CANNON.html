@@ -2616,7 +2616,6 @@ return Level`;
     function attachCellEvents(cell, actionCallback) {
       cell.addEventListener("mousedown", (e) => {
         e.preventDefault();
-        editorState.isMouseDown = true;
         if (e.button === 2) {
           const prev = editorState.activeTool;
           editorState.activeTool = "erase";
@@ -2626,14 +2625,8 @@ return Level`;
           actionCallback();
         }
       });
-
-      cell.addEventListener("mouseenter", () => {
-        if (editorState.isMouseDown) actionCallback();
-      });
       cell.addEventListener("contextmenu", (e) => e.preventDefault());
     }
-
-    window.addEventListener("mouseup", () => { editorState.isMouseDown = false; });
 
     function handleCellInteraction(standIdx, x, y, z) {
       pushHistoryState(editorState.activeTool);
