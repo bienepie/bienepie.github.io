@@ -1,0 +1,3094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Can Cannon - Level Architect & Physics Sandbox</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💥</text></svg>">
+  <!-- Three.js and OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --bg-dark: #0c0d12;
+      --bg-panel: #13151f;
+      --bg-card: #1a1c2b;
+      --bg-input: #0e0f17;
+      --border-color: #26293d;
+      --border-focus: #3b82f6;
+      --accent-blue: #3b82f6;
+      --accent-cyan: #06b6d4;
+      --accent-green: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-purple: #8b5cf6;
+      --text-main: #f3f4f6;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --cell-size: 26px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg-dark); }
+    ::-webkit-scrollbar-thumb { background: #2f344d; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3f476a; }
+
+    /* Header */
+    header {
+      height: 52px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      z-index: 20;
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #0284c7, #6366f1);
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      box-shadow: 0 0 14px rgba(2, 132, 199, 0.45);
+    }
+    .brand-text h1 {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .brand-text p {
+      font-size: 10px;
+      color: var(--accent-cyan);
+      font-family: monospace;
+    }
+
+    .header-tools { display: flex; align-items: center; gap: 6px; }
+
+    .btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 5px 9px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .btn:hover:not(:disabled) { background: #25283d; border-color: #4b5275; }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-new { background: #047857; border-color: #10b981; color: #fff; }
+    .btn-new:hover:not(:disabled) { background: #059669; }
+    .btn-primary { background: #2563eb; border-color: #3b82f6; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #1d4ed8; }
+    .btn-warning { background: #b45309; border-color: #f59e0b; color: #fff; }
+    .btn-warning:hover:not(:disabled) { background: #d97706; }
+    .btn-danger { background: #b91c1c; border-color: #ef4444; color: #fff; }
+    .btn-danger:hover:not(:disabled) { background: #dc2626; }
+    .btn-luau { background: #0284c7; border-color: #38bdf8; color: #fff; }
+    .btn-luau:hover:not(:disabled) { background: #0369a1; }
+    .btn-active { background: #1e3a8a; border-color: var(--accent-blue); color: #60a5fa; }
+
+    .divider-vert {
+      width: 1px;
+      height: 18px;
+      background: var(--border-color);
+      margin: 0 2px;
+    }
+
+    /* Warning Banner */
+    .unstable-banner {
+      background: linear-gradient(90deg, rgba(239, 68, 68, 0.28), rgba(185, 28, 28, 0.18));
+      border-bottom: 1px solid #ef4444;
+      padding: 4px 16px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #fca5a5;
+      z-index: 15;
+    }
+    .unstable-banner.active { display: flex; animation: banner-blink 2s infinite ease-in-out; }
+    @keyframes banner-blink {
+      0%, 100% { background-color: rgba(239, 68, 68, 0.22); }
+      50% { background-color: rgba(239, 68, 68, 0.38); }
+    }
+
+    /* Workspace */
+    .workspace { display: flex; flex: 1; overflow: hidden; position: relative; }
+
+    /* Left Sidebar: Item Library & Tool Palette */
+    .sidebar-left {
+      width: 285px;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .panel-header {
+      padding: 10px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .tool-mode-bar {
+      padding: 6px 8px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-card);
+    }
+    .tool-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 2px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      color: var(--text-muted);
+      font-size: 10px;
+      cursor: pointer;
+      gap: 3px;
+    }
+    .tool-btn:hover { background: #1c1e2d; color: #fff; }
+    .tool-btn.active { background: #1e3a8a; border-color: var(--accent-blue); color: #fff; }
+
+    .catalog-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .catalog-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      position: relative;
+    }
+    .catalog-card:hover { border-color: #4b5275; }
+    .catalog-card.active {
+      border-color: var(--accent-blue);
+      background: #172138;
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.25);
+    }
+    .item-swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      flex-shrink: 0;
+      box-shadow: inset 0 0 4px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    .item-meta { flex: 1; min-width: 0; }
+    .item-meta-top { display: flex; align-items: center; justify-content: space-between; }
+    .item-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sp-badge {
+      font-size: 9px;
+      padding: 1px 5px;
+      background: #1e2235;
+      border: 1px solid #374163;
+      border-radius: 8px;
+      font-family: monospace;
+      color: #60a5fa;
+      font-weight: 700;
+    }
+    .item-sub-meta {
+      font-size: 9px;
+      color: var(--text-dim);
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-actions {
+      display: none;
+      gap: 3px;
+    }
+    .catalog-card:hover .card-actions { display: flex; }
+    .btn-card-action {
+      background: rgba(0,0,0,0.45);
+      border: 1px solid #3d4363;
+      color: var(--text-muted);
+      border-radius: 3px;
+      padding: 2px 4px;
+      cursor: pointer;
+    }
+    .btn-card-action:hover { color: #fff; border-color: #60a5fa; }
+
+    /* Center Viewport */
+    .center-viewport {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #090a0f;
+      position: relative;
+    }
+
+    .viewport-controls-bar {
+      height: 40px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      flex-shrink: 0;
+    }
+
+    .view-mode-tabs { display: flex; gap: 4px; }
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .tab-btn:hover { color: #fff; background: var(--bg-card); }
+    .tab-btn.active { color: #fff; background: var(--bg-card); border-color: var(--border-color); }
+
+    .slice-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    .slice-btn-group {
+      display: flex;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .slice-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 3px 7px;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .slice-btn.active { background: #2563eb; color: #fff; }
+
+    /* Simulation HUD */
+    #sim-hud-overlay {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 17, 26, 0.96);
+      border: 1px solid var(--accent-red);
+      padding: 8px 18px;
+      border-radius: 28px;
+      display: none;
+      align-items: center;
+      gap: 14px;
+      z-index: 30;
+      box-shadow: 0 0 30px rgba(239, 68, 68, 0.45);
+    }
+    #sim-hud-overlay.active { display: flex; }
+    .sim-stat-box { font-family: monospace; font-size: 11px; white-space: nowrap; }
+
+    /* Views Layout */
+    .views-container {
+      flex: 1;
+      display: grid;
+      overflow: hidden;
+      position: relative;
+    }
+    .views-container.mode-quad {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+    .views-container.mode-front .view-box:not(#view-front),
+    .views-container.mode-side .view-box:not(#view-side),
+    .views-container.mode-top .view-box:not(#view-top),
+    .views-container.mode-3d .view-box:not(#view-3d) {
+      display: none;
+    }
+
+    .view-box {
+      background: #0d0e14;
+      border: 1px solid #1c1e2d;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .view-box-header {
+      height: 26px;
+      background: rgba(19, 21, 31, 0.96);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      z-index: 5;
+    }
+    .accent-tag { color: var(--accent-cyan); font-family: monospace; font-weight: normal; }
+
+    .view-content {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      position: relative;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.035) 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+
+    /* Grids & Matrices */
+    .blueprint-grid-wrapper { display: flex; flex-direction: column; align-items: center; position: relative; }
+    .grid-stands-row { display: flex; align-items: flex-end; position: relative; }
+    .stand-grid-unit { display: flex; flex-direction: column; align-items: center; }
+    .grid-matrix {
+      display: grid;
+      gap: 2px;
+      background: rgba(15, 17, 24, 0.95);
+      padding: 4px;
+      border: 1px solid #282c42;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    }
+    .grid-cell {
+      width: var(--cell-size);
+      height: var(--cell-size);
+      background: #141622;
+      border: 1px solid #1f2336;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.05s ease;
+    }
+    .grid-cell:hover { border-color: #60a5fa; z-index: 2; transform: scale(1.08); }
+    .grid-cell.empty-stud::after {
+      content: "";
+      width: 4px;
+      height: 4px;
+      background: rgba(255,255,255,0.12);
+      border-radius: 50%;
+    }
+
+    .cell-unstable {
+      border-color: #ef4444 !important;
+      animation: pulse-cell 1s infinite alternate;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.8) !important;
+    }
+    .cell-unstable::before {
+      content: "⚠️";
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      font-size: 9px;
+      z-index: 10;
+    }
+    @keyframes pulse-cell {
+      0% { border-color: #ef4444; }
+      100% { border-color: #facc15; }
+    }
+
+    .gap-spacer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      position: relative;
+      background: repeating-linear-gradient(45deg, rgba(30, 35, 48, 0.25), rgba(30, 35, 48, 0.25) 6px, transparent 6px, transparent 12px);
+      border-bottom: 2px dashed #3b82f6;
+    }
+
+    .table-pedestal {
+      width: 100%;
+      height: 12px;
+      background: linear-gradient(180deg, #475569, #1e293b);
+      border: 1px solid #64748b;
+      margin-top: 3px;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      font-family: monospace;
+      color: #cbd5e1;
+    }
+
+    /* Right Sidebar */
+    .sidebar-right {
+      width: 320px;
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      z-index: 10;
+      overflow-y: auto;
+    }
+    .hud-card { padding: 12px; background: var(--bg-card); border-bottom: 1px solid var(--border-color); }
+    .difficulty-badge {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      border-radius: 5px;
+      font-weight: 700;
+      font-size: 11px;
+      margin-bottom: 10px;
+    }
+    .badge-very-easy { background: rgba(16, 185, 129, 0.15); border: 1px solid var(--accent-green); color: #34d399; }
+    .badge-easy { background: rgba(6, 182, 212, 0.15); border: 1px solid var(--accent-cyan); color: #38bdf8; }
+    .badge-medium { background: rgba(245, 158, 11, 0.15); border: 1px solid var(--accent-amber); color: #fbbf24; }
+    .badge-hard { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--accent-red); color: #f87171; }
+    .badge-nightmare { background: rgba(139, 92, 246, 0.2); border: 1px solid var(--accent-purple); color: #c084fc; }
+
+    .stats-matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .stat-pill { background: var(--bg-input); border: 1px solid var(--border-color); padding: 5px 8px; border-radius: 4px; }
+    .stat-pill-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; }
+    .stat-pill-val { font-size: 13px; font-weight: 700; color: #fff; font-family: monospace; margin-top: 1px; }
+
+    .manager-section { padding: 10px 12px; border-bottom: 1px solid var(--border-color); }
+    .stand-controls-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+    .stand-ctrl-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 8px; }
+    .stand-ctrl-header { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 600; }
+    .gap-slider-row { display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--text-muted); margin-top: 5px; }
+    .gap-slider-row input[type="range"] { flex: 1; accent-color: var(--accent-blue); }
+
+    .saved-stages-section { flex: 1; display: flex; flex-direction: column; padding: 10px 12px; }
+    .stage-list { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; overflow-y: auto; }
+    .stage-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 6px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+    .stage-item:hover { border-color: #4b5275; }
+    .stage-item.active { border-color: var(--accent-blue); background: #172138; }
+    .stage-rank { font-size: 9px; font-weight: 700; color: var(--text-dim); width: 18px; font-family: monospace; }
+    .stage-info { flex: 1; min-width: 0; }
+    .stage-name { font-size: 11px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stage-sub { font-size: 9px; color: var(--text-muted); display: flex; align-items: center; gap: 5px; margin-top: 1px; }
+
+    footer {
+      height: 22px;
+      background: #08090d;
+      border-top: 1px solid #1a1c29;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 10px;
+      font-family: monospace;
+      color: var(--text-dim);
+      z-index: 20;
+    }
+    .status-left, .status-right { display: flex; align-items: center; gap: 12px; }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.78); backdrop-filter: blur(4px);
+      display: none; align-items: center; justify-content: center; z-index: 100;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-window { width: 540px; max-width: 92vw; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; }
+    .modal-header { padding: 10px 14px; background: var(--bg-card); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; font-weight: 600; font-size: 12px; }
+    .modal-body { padding: 14px; display: flex; flex-direction: column; gap: 10px; max-height: 75vh; overflow-y: auto; }
+    .modal-body textarea { width: 100%; height: 220px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 4px; padding: 8px; color: #38bdf8; font-family: monospace; font-size: 11px; }
+    .modal-body input, .modal-body select { width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 8px; color: #fff; font-size: 11px; }
+    .modal-footer { padding: 8px 14px; background: var(--bg-card); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 6px; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .form-group { display: flex; flex-direction: column; gap: 3px; }
+    .form-group label { font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+
+    .tab-export-group { display: flex; gap: 4px; margin-bottom: 8px; }
+    .tab-export-btn {
+      flex: 1; padding: 6px; background: var(--bg-input); border: 1px solid var(--border-color);
+      border-radius: 4px; color: var(--text-muted); font-size: 11px; font-weight: 600; cursor: pointer; text-align: center;
+    }
+    .tab-export-btn.active { background: #2563eb; color: #fff; border-color: #3b82f6; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon"><i data-lucide="crosshair"></i></div>
+      <div class="brand-text">
+        <h1>Can Cannon Target Builder</h1>
+        <p>Roblox Engine Replication • g = 196.2 • Pilots.luau Bridge</p>
+      </div>
+    </div>
+
+    <div class="header-tools">
+      <button class="btn btn-new" id="btn-new-level" title="Create separate new level (preserves current in Vault)">
+        <i data-lucide="file-plus"></i> + New Level
+      </button>
+
+      <div class="divider-vert"></div>
+
+      <button class="btn" id="btn-undo" title="Undo (Ctrl+Z)" disabled><i data-lucide="undo-2"></i></button>
+      <button class="btn" id="btn-redo" title="Redo (Ctrl+Y)" disabled><i data-lucide="redo-2"></i></button>
+
+      <div class="divider-vert"></div>
+
+      <button class="btn btn-active" id="btn-gravity-mode" title="Enforce items dropping to solid support">
+        <i data-lucide="arrow-down-to-line"></i> Auto-Drop: ON
+      </button>
+
+      <button class="btn btn-warning" id="btn-settle-gravity" title="Drop floating items to solid support">
+        <i data-lucide="chevrons-down"></i> Settle
+      </button>
+
+      <button class="btn btn-danger" id="btn-test-knockdown" title="Fire 110 studs/s Cannonball with Dynamic Knockdown Physics">
+        <i data-lucide="flame"></i> Fire Cannon (110 st/s)
+      </button>
+
+      <div class="divider-vert"></div>
+
+      <button class="btn btn-luau" id="btn-import-luau" title="Import Luau table script">
+        <i data-lucide="file-code"></i> Import Luau
+      </button>
+
+      <button class="btn btn-luau" id="btn-export-luau" title="Export directly to Pilots.luau format">
+        <i data-lucide="code-2"></i> Export Luau
+      </button>
+
+      <button class="btn" id="btn-export-json"><i data-lucide="download"></i> JSON</button>
+      <button class="btn" id="btn-import-json"><i data-lucide="upload"></i> JSON</button>
+      <button class="btn btn-primary" id="btn-save-stage"><i data-lucide="bookmark-plus"></i> Save</button>
+    </div>
+  </header>
+
+  <!-- Warning Banner -->
+  <div class="unstable-banner" id="unstable-warning-banner">
+    <div>
+      <strong>⚠️ UNSTABLE / FLOATING ITEMS DETECTED:</strong> 
+      <span id="unstable-count-text">Items violate physical ground support rules.</span>
+    </div>
+    <button class="btn btn-warning" onclick="settleGravity()" style="padding: 2px 8px; font-size: 10px;">
+      <i data-lucide="wrench"></i> Settle Gravity
+    </button>
+  </div>
+
+  <!-- Workspace -->
+  <div class="workspace">
+
+    <!-- Left Sidebar: Palette & Item Manager -->
+    <aside class="sidebar-left">
+      <div class="panel-header">
+        <span>Item Library</span>
+        <button class="btn btn-primary" id="btn-open-create-item" style="padding: 2px 6px; font-size: 10px;">
+          <i data-lucide="plus"></i> Add Item
+        </button>
+      </div>
+
+      <div class="tool-mode-bar">
+        <button class="tool-btn active" data-tool="place" title="Place item"><i data-lucide="pencil"></i><span>Place</span></button>
+        <button class="tool-btn" data-tool="erase" title="Eraser (Right-click)"><i data-lucide="eraser"></i><span>Erase</span></button>
+        <button class="tool-btn" data-tool="fill_layer" title="Fill layer"><i data-lucide="layers"></i><span>Fill</span></button>
+        <button class="tool-btn" data-tool="clear_all" title="Clear all"><i data-lucide="trash-2"></i><span>Clear</span></button>
+      </div>
+
+      <div class="catalog-list" id="catalog-container"></div>
+    </aside>
+
+    <!-- Center Viewport -->
+    <main class="center-viewport">
+      
+      <!-- Viewport Navigation Bar -->
+      <div class="viewport-controls-bar">
+        <div class="view-mode-tabs">
+          <button class="tab-btn active" data-view="quad"><i data-lucide="layout-grid"></i> Quad</button>
+          <button class="tab-btn" data-view="front"><i data-lucide="maximize-2"></i> Front</button>
+          <button class="tab-btn" data-view="side"><i data-lucide="move-horizontal"></i> Side</button>
+          <button class="tab-btn" data-view="top"><i data-lucide="arrow-down-to-line"></i> Top</button>
+          <button class="tab-btn" data-view="3d"><i data-lucide="box"></i> 3D Orbit</button>
+        </div>
+
+        <div class="slice-filter-bar">
+          <span>Depth Slice (Z):</span>
+          <div class="slice-btn-group" id="slice-selector">
+            <button class="slice-btn active" data-slice="all">All</button>
+            <button class="slice-btn" data-slice="2">Front Z:2</button>
+            <button class="slice-btn" data-slice="1">Mid Z:1</button>
+            <button class="slice-btn" data-slice="0">Back Z:0</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Simulation HUD -->
+      <div id="sim-hud-overlay">
+        <span style="color:#ef4444; font-weight:700; font-size:11px;">● SIMULATION RUNNING</span>
+        <div class="sim-stat-box" id="sim-standing-count" style="color:#fff;">Standing Targets: 0 / 0</div>
+        <div class="sim-stat-box" id="sim-damage-ticker" style="color:#38bdf8;">Cannon: 110 studs/sec</div>
+        <button class="btn btn-primary" id="btn-reset-simulation" style="padding: 4px 10px; font-size: 11px;">
+          <i data-lucide="rotate-ccw"></i> Reset Tower / Restore Layout
+        </button>
+      </div>
+
+      <!-- Views Container -->
+      <div class="views-container mode-quad" id="views-container">
+        
+        <div class="view-box" id="view-front">
+          <div class="view-box-header">
+            <span>Front • Cannon Trajectory View</span>
+            <span class="accent-tag">X (Across) × Y (Height 10)</span>
+          </div>
+          <div class="view-content">
+            <div class="blueprint-grid-wrapper">
+              <div class="grid-stands-row" id="front-stands-container"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="view-box" id="view-3d">
+          <div class="view-box-header">
+            <span>3D Engine Inspection</span>
+            <span class="accent-tag">Click Tower to Aim Cannon (During Test)</span>
+          </div>
+          <div class="view-content" style="padding:0; overflow:hidden;">
+            <canvas id="canvas-3d" style="width:100%; height:100%; display:block;"></canvas>
+          </div>
+        </div>
+
+        <div class="view-box" id="view-side">
+          <div class="view-box-header">
+            <span>Side View</span>
+            <span class="accent-tag">Z (3 Deep) × Y (10 High)</span>
+          </div>
+          <div class="view-content">
+            <div class="blueprint-grid-wrapper">
+              <div class="grid-matrix" id="side-grid-matrix" style="grid-template-columns: repeat(3, var(--cell-size));"></div>
+              <div class="table-pedestal" style="width: 100%;">TABLE SURFACE (Y:0)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="view-box" id="view-top">
+          <div class="view-box-header">
+            <span>Top View</span>
+            <span class="accent-tag">X (Across) × Z (3 Deep)</span>
+          </div>
+          <div class="view-content">
+            <div class="blueprint-grid-wrapper">
+              <div class="grid-stands-row" id="top-stands-container"></div>
+              <div style="font-size:9px; font-family:monospace; color:#f59e0b; margin-top:8px;">
+                ▲ CANNON TRAJECTORY (FRONT FACE Z:2)
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- Right Sidebar -->
+    <aside class="sidebar-right">
+      <div class="hud-card">
+        <div class="panel-header" style="padding:0 0 8px 0;">
+          <span>Difficulty Engine</span>
+          <span class="accent-tag">Real-Time SP</span>
+        </div>
+
+        <div class="difficulty-badge badge-very-easy" id="hud-difficulty-badge">
+          <span id="hud-tier-name">VERY EASY</span>
+          <span id="hud-score-val">0 SP</span>
+        </div>
+
+        <div class="stats-matrix">
+          <div class="stat-pill">
+            <div class="stat-pill-label">Total Targets</div>
+            <div class="stat-pill-val" id="stat-total-items">0</div>
+          </div>
+          <div class="stat-pill">
+            <div class="stat-pill-label">Total Durability</div>
+            <div class="stat-pill-val" id="stat-raw-sp">0 SP</div>
+          </div>
+          <div class="stat-pill">
+            <div class="stat-pill-label">Height Weighted</div>
+            <div class="stat-pill-val" id="stat-height-weight">0</div>
+          </div>
+          <div class="stat-pill">
+            <div class="stat-pill-label">Physical Stability</div>
+            <div class="stat-pill-val" id="stat-stability-status" style="color:#10b981; font-size:12px;">STABLE ✓</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="manager-section">
+        <div class="panel-header" style="padding:0 0 8px 0;">
+          <span>Stand Architect</span>
+          <button class="btn btn-primary" id="btn-add-stand" style="padding: 2px 6px; font-size:10px;">
+            <i data-lucide="plus"></i> Add Stand
+          </button>
+        </div>
+        <div class="stand-controls-list" id="stand-manager-list"></div>
+        <div style="margin-top:10px;">
+          <button class="btn" id="btn-add-bridge" style="width:100%; justify-content:center; border-style:dashed;">
+            <i data-lucide="git-commit"></i> Span Supported Bridge
+          </button>
+        </div>
+      </div>
+
+      <div class="saved-stages-section">
+        <div class="panel-header" style="padding:0 0 8px 0;">
+          <span>Stage Vault</span>
+          <span class="accent-tag">Easiest ➔ Hardest</span>
+        </div>
+        <div class="stage-list" id="saved-stages-list"></div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="status-left">
+      <span>GRID: <strong>8×10×3</strong> / STAND</span>
+      <span class="status-coord" id="status-cursor">READY</span>
+      <span>TOOL: <strong id="status-tool" style="color:#60a5fa;">PLACE</strong></span>
+    </div>
+    <div class="status-right">
+      <span id="status-gravity">GRAVITY AUTO-DROP: ACTIVE</span>
+      <span>SHORTCUTS: CTRL+Z | CTRL+Y</span>
+    </div>
+  </footer>
+
+  <!-- Export Modal (Supports both JSON & Luau) -->
+  <div class="modal-overlay" id="modal-export">
+    <div class="modal-window">
+      <div class="modal-header">
+        <span>Level Exporter</span>
+        <button class="btn" onclick="closeModals()" style="padding:2px;"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="tab-export-group">
+          <button class="tab-export-btn active" id="tab-btn-luau" onclick="switchExportTab('luau')">
+            <i data-lucide="code-2"></i> Luau Table (Pilots.luau)
+          </button>
+          <button class="tab-export-btn" id="tab-btn-json" onclick="switchExportTab('json')">
+            <i data-lucide="file-json"></i> Editor JSON
+          </button>
+        </div>
+        <textarea id="export-code-text" readonly></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="btn-copy-export"><i data-lucide="copy"></i> Copy Clipboard</button>
+        <button class="btn btn-primary" id="btn-download-export"><i data-lucide="download"></i> Download File</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Luau Modal -->
+  <div class="modal-overlay" id="modal-import-luau">
+    <div class="modal-window">
+      <div class="modal-header">
+        <span>Import Luau Table Script</span>
+        <button class="btn" onclick="closeModals()" style="padding:2px;"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:11px; color:var(--text-muted);">
+          Upload a <code>.luau</code> file or paste a standard Roblox level table with <code>["name"]</code> and <code>["items"]</code>.
+        </p>
+        <input type="file" id="import-luau-file-input" accept=".luau,.lua,.txt">
+        <textarea id="import-luau-text" placeholder="-- Paste Luau table here...
+[1] = {
+    [&quot;name&quot;] = &quot;Berry Avalanche&quot;,
+    [&quot;items&quot;] = {
+        {
+            [&quot;kind&quot;] = &quot;can&quot;,
+            [&quot;x&quot;] = -1.775,
+            [&quot;z&quot;] = -0.76,
+            [&quot;y&quot;] = 0,
+            [&quot;yaw&quot;] = 0,
+            [&quot;supports&quot;] = {},
+            [&quot;size&quot;] = { 0.664286, 1.035714, 0.664286 },
+        },
+    }
+}"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModals()">Cancel</button>
+        <button class="btn btn-primary" id="btn-apply-import-luau"><i data-lucide="check"></i> Parse & Load Level</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import JSON Modal -->
+  <div class="modal-overlay" id="modal-import">
+    <div class="modal-window">
+      <div class="modal-header">
+        <span>Import JSON Level</span>
+        <button class="btn" onclick="closeModals()" style="padding:2px;"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <input type="file" id="import-file-input" accept=".json">
+        <textarea id="import-json-text" placeholder="Paste Level JSON here..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModals()">Cancel</button>
+        <button class="btn btn-primary" id="btn-apply-import"><i data-lucide="check"></i> Load Level</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Item Manager (Create / Edit Modal) -->
+  <div class="modal-overlay" id="modal-item-editor">
+    <div class="modal-window">
+      <div class="modal-header">
+        <span id="item-modal-title">Add / Edit Library Item</span>
+        <button class="btn" onclick="closeModals()" style="padding:2px;"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Internal Kind / Slug:</label>
+            <input type="text" id="inp-item-kind" placeholder="e.g. can_gold">
+          </div>
+          <div class="form-group">
+            <label>Display Name:</label>
+            <input type="text" id="inp-item-name" placeholder="e.g. Gold Soda Can">
+          </div>
+          <div class="form-group">
+            <label>Material:</label>
+            <select id="inp-item-material">
+              <option value="Thin metal">Thin metal (Indestructible Core)</option>
+              <option value="Metal">Metal (Indestructible Core)</option>
+              <option value="Glass">Glass (Shatters)</option>
+              <option value="Ice">Ice (Shatters)</option>
+              <option value="Wood">Wood</option>
+              <option value="Stone">Stone</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Strength Points (SP):</label>
+            <input type="number" id="inp-item-sp" value="10" min="1">
+          </div>
+          <div class="form-group">
+            <label>Burst Damage (SP):</label>
+            <input type="number" id="inp-item-burst" value="0" min="0">
+          </div>
+          <div class="form-group">
+            <label>Burst Radius (Studs):</label>
+            <input type="number" id="inp-item-radius" value="1.8" step="0.1" min="0">
+          </div>
+          <div class="form-group">
+            <label>Density:</label>
+            <input type="number" id="inp-item-density" value="0.5" step="0.05" min="0.01">
+          </div>
+          <div class="form-group">
+            <label>Friction:</label>
+            <input type="number" id="inp-item-friction" value="0.4" step="0.05" min="0" max="1">
+          </div>
+          <div class="form-group">
+            <label>3D Mesh Hull:</label>
+            <select id="inp-item-geom">
+              <option value="cylinder">Cylinder</option>
+              <option value="cone">Cone</option>
+              <option value="jar">Glass Jar</option>
+              <option value="cube">Box / Block</option>
+              <option value="plank">Flat Plank</option>
+              <option value="pillar">Pillar</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Color Swatch:</label>
+            <input type="color" id="inp-item-color" value="#2563eb" style="height:32px; padding:2px;">
+          </div>
+        </div>
+
+        <div style="font-size:10px; color:var(--text-muted); font-family:monospace; margin-top:4px;">
+          Exact Roblox Dimensions (Studs):
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Width X (Studs):</label>
+            <input type="number" id="inp-item-sx" value="0.664" step="0.001">
+          </div>
+          <div class="form-group">
+            <label>Height Y (Studs):</label>
+            <input type="number" id="inp-item-sy" value="1.036" step="0.001">
+          </div>
+          <div class="form-group">
+            <label>Depth Z (Studs):</label>
+            <input type="number" id="inp-item-sz" value="0.664" step="0.001">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModals()">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-item-modal"><i data-lucide="check"></i> Save Item</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stage Save Modal -->
+  <div class="modal-overlay" id="modal-save">
+    <div class="modal-window">
+      <div class="modal-header">
+        <span>Save Stage to Vault</span>
+        <button class="btn" onclick="closeModals()" style="padding:2px;"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <label style="font-size:11px; color:var(--text-muted);">Stage Display Name:</label>
+        <input type="text" id="save-stage-name">
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModals()">Cancel</button>
+        <button class="btn btn-primary" id="btn-confirm-save"><i data-lucide="save"></i> Save Stage</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       1. EXACT ASSET SPECS & STUD DIMENSIONS (Can Cannon Library)
+       ========================================================================== */
+    const DEFAULT_ITEM_CATALOG = [
+      { id: 1, kind: "can", name: "Blue soda can", material: "Thin metal", sp: 8, density: 0.35, friction: 0.40, burst: 0, burstRadius: 1.8, size: [0.664, 1.036, 0.664], color: "#2563eb", threeColor: 0x2563eb, geom: "cylinder" },
+      { id: 2, kind: "tincan", name: "Tin can", material: "Metal", sp: 10, density: 0.50, friction: 0.40, burst: 0, burstRadius: 1.8, size: [0.900, 1.071, 0.900], color: "#94a3b8", threeColor: 0x94a3b8, geom: "cylinder" },
+      { id: 3, kind: "cone", name: "Cone cap", material: "Metal", sp: 15, density: 0.45, friction: 0.25, burst: 0, burstRadius: 1.8, size: [0.971, 1.214, 0.971], color: "#78716c", threeColor: 0x78716c, geom: "cone" },
+      { id: 4, kind: "jar", name: "Blueberry jar", material: "Glass", sp: 20, density: 0.65, friction: 0.50, burst: 12, burstRadius: 1.8, size: [0.957, 0.979, 1.058], color: "#1d4ed8", threeColor: 0x1d4ed8, geom: "jar" },
+      { id: 5, kind: "jar_grape", name: "Grape jar", material: "Glass", sp: 20, density: 0.65, friction: 0.50, burst: 12, burstRadius: 1.8, size: [0.957, 0.979, 1.058], color: "#7c3aed", threeColor: 0x7c3aed, geom: "jar" },
+      { id: 6, kind: "jar_strawberry", name: "Strawberry jar", material: "Glass", sp: 20, density: 0.65, friction: 0.50, burst: 12, burstRadius: 1.8, size: [0.957, 0.979, 1.058], color: "#dc2626", threeColor: 0xdc2626, geom: "jar" },
+      { id: 7, kind: "jar_orange", name: "Orange jar", material: "Glass", sp: 20, density: 0.65, friction: 0.50, burst: 12, burstRadius: 1.8, size: [0.957, 0.979, 1.058], color: "#ea580c", threeColor: 0xea580c, geom: "jar" },
+      { id: 8, kind: "ice", name: "Ice block", material: "Ice", sp: 35, density: 0.70, friction: 0.22, burst: 18, burstRadius: 1.8, size: [1.529, 1.514, 1.529], color: "#38bdf8", threeColor: 0x38bdf8, geom: "cube" },
+      { id: 9, kind: "plank", name: "Flat wooden plank", material: "Wood", sp: 45, density: 0.60, friction: 0.55, burst: 0, burstRadius: 1.8, size: [3.000, 0.464, 0.796], color: "#b45309", threeColor: 0xb45309, geom: "plank" },
+      { id: 10, kind: "plank_pillar", name: "Plank pillar", material: "Wood", sp: 45, density: 0.60, friction: 0.50, burst: 0, burstRadius: 1.8, size: [0.464, 3.000, 0.796], color: "#92400e", threeColor: 0x92400e, geom: "pillar" },
+      { id: 11, kind: "log", name: "Wooden log", material: "Wood", sp: 55, density: 0.65, friction: 0.30, burst: 0, burstRadius: 1.8, size: [1.243, 1.500, 1.243], color: "#78350f", threeColor: 0x78350f, geom: "cylinder" },
+      { id: 12, kind: "crate", name: "Star crate", material: "Wood", sp: 70, density: 0.75, friction: 0.50, burst: 0, burstRadius: 1.8, size: [1.743, 1.621, 1.743], color: "#ca8a04", threeColor: 0xca8a04, geom: "cube" },
+      { id: 13, kind: "crate_navy", name: "Navy star crate", material: "Wood", sp: 70, density: 0.75, friction: 0.50, burst: 0, burstRadius: 1.8, size: [1.743, 1.621, 1.743], color: "#1e3a8a", threeColor: 0x1e3a8a, geom: "cube" },
+      { id: 14, kind: "stone", name: "Stone block", material: "Stone", sp: 100, density: 1.50, friction: 0.55, burst: 0, burstRadius: 1.8, size: [1.629, 1.521, 1.629], color: "#475569", threeColor: 0x475569, geom: "cube" }
+    ];
+
+    let ITEM_CATALOG = [];
+
+    const STAND_WIDTH = 8;
+    const STAND_HEIGHT = 10;
+    const STAND_DEPTH = 3;
+    const STUD_COL_W = 0.76875; // 6.15 studs / 8 cols
+    const STUD_ROW_H = 1.036;   // Reference height per slot
+    const STUD_DEP_D = 0.7833;  // 2.35 studs / 3 rows
+    const ROBLOX_GRAVITY = 196.2; // 196.2 studs/s^2
+
+    /* ==========================================================================
+       2. STATE & UNDO/REDO ENGINE
+       ========================================================================== */
+    let currentStage = {
+      id: "stage_twin_default",
+      name: "Twin Pillars & Supported Bridge",
+      stands: [
+        { id: 0, gapToNext: 2 },
+        { id: 1, gapToNext: 0 }
+      ],
+      cells: {},
+      gapCells: {},
+      bridges: []
+    };
+
+    let savedStagesVault = [];
+
+    let editorState = {
+      activeTool: "place",
+      selectedItemId: 1,
+      activeSlice: "all",
+      activeStandForSide: 0,
+      gravityMode: true,
+      viewMode: "quad",
+      isMouseDown: false,
+      exportTab: "luau",
+      editingItemId: null
+    };
+
+    const undoStack = [];
+    const redoStack = [];
+
+    function pushHistoryState(actionLabel = "Edit") {
+      undoStack.push(JSON.stringify(currentStage));
+      if (undoStack.length > 50) undoStack.shift();
+      redoStack.length = 0;
+      updateUndoRedoUI();
+    }
+
+    function undo() {
+      if (undoStack.length === 0) return;
+      redoStack.push(JSON.stringify(currentStage));
+      currentStage = JSON.parse(undoStack.pop());
+      syncAllViews(false);
+      updateUndoRedoUI();
+    }
+
+    function redo() {
+      if (redoStack.length === 0) return;
+      undoStack.push(JSON.stringify(currentStage));
+      currentStage = JSON.parse(redoStack.pop());
+      syncAllViews(false);
+      updateUndoRedoUI();
+    }
+
+    function updateUndoRedoUI() {
+      document.getElementById("btn-undo").disabled = (undoStack.length === 0);
+      document.getElementById("btn-redo").disabled = (redoStack.length === 0);
+    }
+
+    /* Automatically commit current level into the Vault */
+    function commitCurrentStageToVault() {
+      const idx = savedStagesVault.findIndex(s => s.id === currentStage.id);
+      const snapshot = JSON.parse(JSON.stringify(currentStage));
+      if (idx >= 0) {
+        savedStagesVault[idx] = snapshot;
+      } else {
+        savedStagesVault.push(snapshot);
+      }
+      localStorage.setItem("canCannon_vault_v5", JSON.stringify(savedStagesVault));
+    }
+
+    /* UX Fix: Creates a separate new level while preserving previous */
+    function createNewLevel() {
+      // 1. Commit existing stage to vault
+      commitCurrentStageToVault();
+
+      // 2. Generate brand-new stage
+      const newId = "stage_" + Date.now();
+      const newName = `Untitled Level ${savedStagesVault.length + 1}`;
+      const newStage = {
+        id: newId,
+        name: newName,
+        stands: [
+          { id: 0, gapToNext: 0 }
+        ],
+        cells: {},
+        gapCells: {},
+        bridges: []
+      };
+
+      // 3. Add to vault and set as current
+      savedStagesVault.push(newStage);
+      localStorage.setItem("canCannon_vault_v5", JSON.stringify(savedStagesVault));
+
+      currentStage = JSON.parse(JSON.stringify(newStage));
+      undoStack.length = 0;
+      redoStack.length = 0;
+      updateUndoRedoUI();
+
+      renderVaultList();
+      syncAllViews(false);
+    }
+
+    /* ==========================================================================
+       3. STRUCTURAL PHYSICS & GRAVITY SUPPORT CHECK
+       ========================================================================== */
+    function computeStructuralStability(stage = currentStage) {
+      const stableCells = new Set();
+      const unstableCells = new Set();
+      const stableGapCells = new Set();
+      const unstableGapCells = new Set();
+
+      // Stand cells bottom-up
+      stage.stands.forEach((stand, sIdx) => {
+        for (let y = 0; y < STAND_HEIGHT; y++) {
+          for (let x = 0; x < STAND_WIDTH; x++) {
+            for (let z = 0; z < STAND_DEPTH; z++) {
+              const key = `${sIdx}_${x}_${y}_${z}`;
+              if (stage.cells[key]) {
+                if (y === 0) {
+                  stableCells.add(key);
+                } else {
+                  const belowKey = `${sIdx}_${x}_${y - 1}_${z}`;
+                  if (stableCells.has(belowKey)) stableCells.add(key);
+                  else unstableCells.add(key);
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Bridges verification: planks must rest on support blocks at same height Y (or on table at Y=0)
+      if (stage.bridges) {
+        stage.bridges.forEach((bridge) => {
+          const { fromStand, y, z } = bridge;
+          const toStand = fromStand + 1;
+          const leftSup = (y === 0) || stableCells.has(`${fromStand}_7_${y - 1}_${z}`) || stableCells.has(`${fromStand}_7_${y}_${z}`);
+          const rightSup = (y === 0) || stableCells.has(`${toStand}_0_${y - 1}_${z}`) || stableCells.has(`${toStand}_0_${y}_${z}`);
+          const isStable = leftSup && rightSup;
+
+          const gapW = stage.stands[fromStand] ? stage.stands[fromStand].gapToNext : 0;
+          for (let gx = 0; gx < gapW; gx++) {
+            const gKey = `${fromStand}_${gx}_${y}_${z}`;
+            if (stage.gapCells[gKey]) {
+              if (isStable) stableGapCells.add(gKey);
+              else unstableGapCells.add(gKey);
+            }
+          }
+        });
+      }
+
+      // Gap items stacked on bridges
+      stage.stands.forEach((stand, sIdx) => {
+        if (sIdx >= stage.stands.length - 1) return;
+        for (let y = 0; y < STAND_HEIGHT; y++) {
+          for (let gx = 0; gx < stand.gapToNext; gx++) {
+            for (let z = 0; z < STAND_DEPTH; z++) {
+              const gKey = `${sIdx}_${gx}_${y}_${z}`;
+              if (stage.gapCells[gKey] && (!stage.bridges || !stage.bridges.some(b => b.fromStand === sIdx && b.y === y && b.z === z))) {
+                if (y > 0 && stableGapCells.has(`${sIdx}_${gx}_${y - 1}_${z}`)) {
+                  stableGapCells.add(gKey);
+                } else {
+                  unstableGapCells.add(gKey);
+                }
+              }
+            }
+          }
+        }
+      });
+
+      return {
+        stableCells, unstableCells, stableGapCells, unstableGapCells,
+        totalUnstable: unstableCells.size + unstableGapCells.size
+      };
+    }
+
+    function settleGravity() {
+      pushHistoryState("Settle Gravity");
+      currentStage.stands.forEach((stand, sIdx) => {
+        for (let x = 0; x < STAND_WIDTH; x++) {
+          for (let z = 0; z < STAND_DEPTH; z++) {
+            const items = [];
+            for (let y = 0; y < STAND_HEIGHT; y++) {
+              const key = `${sIdx}_${x}_${y}_${z}`;
+              if (currentStage.cells[key]) {
+                items.push(currentStage.cells[key]);
+                delete currentStage.cells[key];
+              }
+            }
+            items.forEach((id, newY) => {
+              currentStage.cells[`${sIdx}_${x}_${newY}_${z}`] = id;
+            });
+          }
+        }
+      });
+
+      const stability = computeStructuralStability();
+      stability.unstableGapCells.forEach(k => delete currentStage.gapCells[k]);
+      syncAllViews(false);
+    }
+
+    /* ==========================================================================
+       4. THREE.JS 3D SCENE & ENGINE REPLICATION
+       ========================================================================== */
+    let scene, camera, renderer, controls;
+    let itemsGroup, tablesGroup, simGroup;
+    const cellGeometries = {};
+    const materialsCache = {};
+
+    let isSimulating = false;
+    let simBodies = [];
+    let projectile = null;
+    let preSimSnapshot = null;
+    let cascadeDepth = 0;
+
+    function initThree() {
+      const container = document.getElementById("canvas-3d").parentElement;
+      const canvas = document.getElementById("canvas-3d");
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0a0b10);
+
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+      camera.position.set(0, 8.5, 20);
+
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.target.set(0, 3.5, 0.8);
+
+      // Lights
+      const ambLight = new THREE.AmbientLight(0xffffff, 0.65);
+      scene.add(ambLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
+      dirLight.position.set(12, 22, 16);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 1024;
+      dirLight.shadow.mapSize.height = 1024;
+      scene.add(dirLight);
+
+      // Floor grid
+      const gridHelper = new THREE.GridHelper(50, 50, 0x1e3a8a, 0x161c2e);
+      gridHelper.position.y = -0.05;
+      scene.add(gridHelper);
+
+      tablesGroup = new THREE.Group();
+      itemsGroup = new THREE.Group();
+      simGroup = new THREE.Group();
+      scene.add(tablesGroup);
+      scene.add(itemsGroup);
+      scene.add(simGroup);
+
+      // Geometry library matching real assets
+      cellGeometries.cylinder = new THREE.CylinderGeometry(0.35, 0.35, 1.0, 20);
+      cellGeometries.cone = new THREE.ConeGeometry(0.44, 1.1, 20);
+      cellGeometries.cube = new THREE.BoxGeometry(0.9, 0.9, 0.9);
+      cellGeometries.plank = new THREE.BoxGeometry(2.8, 0.44, 0.78);
+      cellGeometries.pillar = new THREE.BoxGeometry(0.44, 2.8, 0.78);
+      cellGeometries.jarBody = new THREE.CylinderGeometry(0.36, 0.36, 0.82, 16);
+      cellGeometries.jarLid = new THREE.CylinderGeometry(0.38, 0.38, 0.16, 16);
+
+      materialsCache.whiteLid = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+      materialsCache.table = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4, metalness: 0.6 });
+      materialsCache.unstable = new THREE.MeshBasicMaterial({ color: 0xef4444, wireframe: true });
+
+      // Click to aim cannon in 3D during simulation
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+
+      canvas.addEventListener("pointerdown", (e) => {
+        if (!isSimulating) return;
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+
+        const targets = [];
+        simBodies.forEach(b => { if (!b.destroyed && b.mesh) targets.push(b.mesh); });
+        const hits = raycaster.intersectObjects(targets, true);
+        if (hits.length > 0) {
+          launchCannonBall(hits[0].point);
+        } else {
+          // Raycast onto plane at Z = 0.8
+          const targetPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -0.8);
+          const pt = new THREE.Vector3();
+          if (raycaster.ray.intersectPlane(targetPlane, pt)) {
+            launchCannonBall(pt);
+          }
+        }
+      });
+
+      let lastTime = performance.now();
+      function animate() {
+        requestAnimationFrame(animate);
+        const now = performance.now();
+        const dt = Math.min((now - lastTime) / 1000, 0.033);
+        lastTime = now;
+
+        if (isSimulating) {
+          stepLuauPhysics(dt);
+        }
+
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      window.addEventListener("resize", () => {
+        if (container.clientWidth && container.clientHeight) {
+          camera.aspect = container.clientWidth / container.clientHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+      });
+    }
+
+    function refreshMaterialsCache() {
+      ITEM_CATALOG.forEach(item => {
+        materialsCache[item.id] = new THREE.MeshStandardMaterial({
+          color: item.threeColor,
+          roughness: item.material === "Glass" ? 0.15 : (item.material.includes("metal") ? 0.35 : 0.65),
+          metalness: item.material.includes("metal") ? 0.75 : 0.05,
+          transparent: item.material === "Glass" || item.material === "Ice",
+          opacity: item.material === "Ice" ? 0.72 : (item.material === "Glass" ? 0.85 : 1.0)
+        });
+      });
+    }
+
+    function syncThreeScene() {
+      if (!scene || isSimulating) return;
+
+      while (itemsGroup.children.length > 0) itemsGroup.remove(itemsGroup.children[0]);
+      while (tablesGroup.children.length > 0) tablesGroup.remove(tablesGroup.children[0]);
+
+      const stability = computeStructuralStability();
+
+      let totalWidth = 0;
+      currentStage.stands.forEach((st, idx) => {
+        totalWidth += STAND_WIDTH * STUD_COL_W;
+        if (idx < currentStage.stands.length - 1) totalWidth += st.gapToNext * STUD_COL_W;
+      });
+      const startX = -totalWidth / 2 + (STUD_COL_W / 2);
+
+      let currentX = startX;
+      currentStage.stands.forEach((stand, sIdx) => {
+        const standW = STAND_WIDTH * STUD_COL_W;
+        const tableCenter = currentX + (standW / 2) - (STUD_COL_W / 2);
+
+        // Stand Table Pedestal
+        const tableMesh = new THREE.Mesh(new THREE.BoxGeometry(standW, 0.25, STAND_DEPTH * STUD_DEP_D), materialsCache.table);
+        tableMesh.position.set(tableCenter, -0.125, STUD_DEP_D);
+        tableMesh.receiveShadow = true;
+        tablesGroup.add(tableMesh);
+
+        // Placed Stand Items
+        for (let x = 0; x < STAND_WIDTH; x++) {
+          for (let y = 0; y < STAND_HEIGHT; y++) {
+            for (let z = 0; z < STAND_DEPTH; z++) {
+              const key = `${sIdx}_${x}_${y}_${z}`;
+              const itemId = currentStage.cells[key];
+              if (itemId) {
+                const mesh = createMeshForItem(itemId, stability.unstableCells.has(key));
+                mesh.position.set(currentX + (x * STUD_COL_W), (y * STUD_ROW_H) + (STUD_ROW_H / 2), z * STUD_DEP_D);
+                itemsGroup.add(mesh);
+              }
+            }
+          }
+        }
+
+        // Gap Items / Bridging Planks
+        if (sIdx < currentStage.stands.length - 1) {
+          const gapW = stand.gapToNext;
+          for (let gx = 0; gx < gapW; gx++) {
+            for (let y = 0; y < STAND_HEIGHT; y++) {
+              for (let z = 0; z < STAND_DEPTH; z++) {
+                const gKey = `${sIdx}_${gx}_${y}_${z}`;
+                const gItemId = currentStage.gapCells[gKey];
+                if (gItemId) {
+                  const mesh = createMeshForItem(gItemId, stability.unstableGapCells.has(gKey));
+                  mesh.position.set(currentX + standW + (gx * STUD_COL_W), (y * STUD_ROW_H) + (STUD_ROW_H / 2), z * STUD_DEP_D);
+                  itemsGroup.add(mesh);
+                }
+              }
+            }
+          }
+          currentX += standW + (gapW * STUD_COL_W);
+        } else {
+          currentX += standW;
+        }
+      });
+    }
+
+    function createMeshForItem(itemId, isUnstable = false) {
+      const item = ITEM_CATALOG.find(i => i.id === itemId);
+      const group = new THREE.Group();
+      if (!item) return group;
+
+      const mat = isUnstable ? materialsCache.unstable : (materialsCache[item.id] || materialsCache.table);
+
+      if (item.geom === "cylinder") {
+        const m = new THREE.Mesh(cellGeometries.cylinder, mat);
+        m.castShadow = true; m.receiveShadow = true;
+        group.add(m);
+      } else if (item.geom === "cone") {
+        const m = new THREE.Mesh(cellGeometries.cone, mat);
+        m.castShadow = true; m.receiveShadow = true;
+        group.add(m);
+      } else if (item.geom === "jar") {
+        const body = new THREE.Mesh(cellGeometries.jarBody, mat);
+        const lid = new THREE.Mesh(cellGeometries.jarLid, materialsCache.whiteLid);
+        body.castShadow = true; body.receiveShadow = true;
+        lid.position.y = 0.42;
+        group.add(body);
+        group.add(lid);
+      } else if (item.geom === "plank") {
+        const m = new THREE.Mesh(cellGeometries.plank, mat);
+        m.castShadow = true; m.receiveShadow = true;
+        group.add(m);
+      } else if (item.geom === "pillar") {
+        const m = new THREE.Mesh(cellGeometries.pillar, mat);
+        m.castShadow = true; m.receiveShadow = true;
+        group.add(m);
+      } else {
+        const m = new THREE.Mesh(cellGeometries.cube, mat);
+        m.castShadow = true; m.receiveShadow = true;
+        group.add(m);
+      }
+      return group;
+    }
+
+    /* ==========================================================================
+       5. DYNAMIC KNOCKDOWN PHYSICS & SIMULATION ENGINE
+       ========================================================================== */
+    function startKnockdownSimulation() {
+      if (isSimulating) return;
+      isSimulating = true;
+      preSimSnapshot = JSON.stringify(currentStage);
+
+      // Switch to 3D Orbit view
+      const tab3d = document.querySelector('[data-view="3d"]');
+      if (tab3d) tab3d.click();
+
+      document.getElementById("sim-hud-overlay").classList.add("active");
+
+      itemsGroup.visible = false;
+      while (simGroup.children.length > 0) simGroup.remove(simGroup.children[0]);
+      simBodies = [];
+
+      let totalWidth = 0;
+      currentStage.stands.forEach((st, idx) => {
+        totalWidth += STAND_WIDTH * STUD_COL_W;
+        if (idx < currentStage.stands.length - 1) totalWidth += st.gapToNext * STUD_COL_W;
+      });
+      const startX = -totalWidth / 2 + (STUD_COL_W / 2);
+
+      let currentX = startX;
+      let bodyUid = 1;
+
+      currentStage.stands.forEach((stand, sIdx) => {
+        const standW = STAND_WIDTH * STUD_COL_W;
+        const standMinX = currentX - (STUD_COL_W / 2);
+        const standMaxX = standMinX + standW;
+
+        for (let x = 0; x < STAND_WIDTH; x++) {
+          for (let y = 0; y < STAND_HEIGHT; y++) {
+            for (let z = 0; z < STAND_DEPTH; z++) {
+              const key = `${sIdx}_${x}_${y}_${z}`;
+              const itemId = currentStage.cells[key];
+              if (itemId) {
+                const item = ITEM_CATALOG.find(i => i.id === itemId);
+                const halfH = item.size[1] / 2;
+                const pos = new THREE.Vector3(currentX + (x * STUD_COL_W), (y * STUD_ROW_H) + halfH, z * STUD_DEP_D);
+                const mesh = createMeshForItem(itemId, false);
+                mesh.position.copy(pos);
+                simGroup.add(mesh);
+
+                const mass = Math.max((item.size[0] * item.size[1] * item.size[2]) * item.density, 0.25);
+                simBodies.push({
+                  uid: bodyUid++,
+                  itemId: item.id,
+                  itemDef: item,
+                  sp: item.sp,
+                  maxSp: item.sp,
+                  mass: mass,
+                  radius: Math.max(item.size[0], item.size[2]) * 0.45,
+                  halfHeight: halfH,
+                  mesh: mesh,
+                  position: pos.clone(),
+                  velocity: new THREE.Vector3(0, 0, 0),
+                  rotVelocity: new THREE.Vector3(0, 0, 0),
+                  destroyed: false,
+                  tableBound: { minX: standMinX, maxX: standMaxX, minZ: -0.5, maxZ: (STAND_DEPTH * STUD_DEP_D) + 0.3 }
+                });
+              }
+            }
+          }
+        }
+
+        if (sIdx < currentStage.stands.length - 1) {
+          const gapW = stand.gapToNext;
+          const gapMinX = standMaxX;
+          const gapMaxX = gapMinX + (gapW * STUD_COL_W);
+
+          for (let gx = 0; gx < gapW; gx++) {
+            for (let y = 0; y < STAND_HEIGHT; y++) {
+              for (let z = 0; z < STAND_DEPTH; z++) {
+                const gKey = `${sIdx}_${gx}_${y}_${z}`;
+                const gItemId = currentStage.gapCells[gKey];
+                if (gItemId) {
+                  const item = ITEM_CATALOG.find(i => i.id === gItemId);
+                  const halfH = item.size[1] / 2;
+                  const pos = new THREE.Vector3(currentX + standW + (gx * STUD_COL_W), (y * STUD_ROW_H) + halfH, z * STUD_DEP_D);
+                  const mesh = createMeshForItem(gItemId, false);
+                  mesh.position.copy(pos);
+                  simGroup.add(mesh);
+
+                  const mass = Math.max((item.size[0] * item.size[1] * item.size[2]) * item.density, 0.25);
+                  simBodies.push({
+                    uid: bodyUid++,
+                    itemId: item.id,
+                    itemDef: item,
+                    sp: item.sp,
+                    maxSp: item.sp,
+                    mass: mass,
+                    radius: Math.max(item.size[0], item.size[2]) * 0.45,
+                    halfHeight: halfH,
+                    mesh: mesh,
+                    position: pos.clone(),
+                    velocity: new THREE.Vector3(0, 0, 0),
+                    rotVelocity: new THREE.Vector3(0, 0, 0),
+                    destroyed: false,
+                    tableBound: { minX: gapMinX, maxX: gapMaxX, minZ: -0.5, maxZ: (STAND_DEPTH * STUD_DEP_D) + 0.3 }
+                  });
+                }
+              }
+            }
+          }
+          currentX += standW + (gapW * STUD_COL_W);
+        } else {
+          currentX += standW;
+        }
+      });
+
+      evaluateWinCondition();
+
+      // Launch Cannonball towards center of stack
+      let targetCenter = new THREE.Vector3(0, 3.2, 0.8);
+      if (simBodies.length > 0) {
+        let sumX = 0, sumY = 0;
+        simBodies.forEach(b => { sumX += b.position.x; sumY += b.position.y; });
+        targetCenter.x = sumX / simBodies.length;
+        targetCenter.y = Math.min(sumY / simBodies.length, 3.5);
+      }
+      launchCannonBall(targetCenter);
+    }
+
+    function launchCannonBall(targetPos) {
+      if (projectile && projectile.mesh) {
+        simGroup.remove(projectile.mesh);
+      }
+
+      const launchPos = new THREE.Vector3(targetPos.x * 0.35, 4.5, 20); // 20 studs in front
+      const ballGeo = new THREE.SphereGeometry(0.55, 20, 20);
+      const ballMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.95, roughness: 0.2 });
+      const ballMesh = new THREE.Mesh(ballGeo, ballMat);
+      ballMesh.position.copy(launchPos);
+      ballMesh.castShadow = true;
+      simGroup.add(ballMesh);
+
+      // Trajectory calculation: Launch speed = 110 studs/sec, g = 196.2
+      const speed = 110.0;
+      const dx = targetPos.x - launchPos.x;
+      const dz = targetPos.z - launchPos.z;
+      const distHoriz = Math.max(Math.sqrt(dx * dx + dz * dz), 0.1);
+      const timeOfFlight = distHoriz / speed;
+
+      const dy = targetPos.y - launchPos.y;
+      const vy = (dy + 0.5 * ROBLOX_GRAVITY * (timeOfFlight * timeOfFlight)) / timeOfFlight;
+      const vx = (dx / distHoriz) * (distHoriz / timeOfFlight);
+      const vz = (dz / distHoriz) * (distHoriz / timeOfFlight);
+
+      projectile = {
+        mesh: ballMesh,
+        position: ballMesh.position.clone(),
+        velocity: new THREE.Vector3(vx, vy, vz),
+        active: true,
+        penetrations: 0
+      };
+
+      document.getElementById("sim-damage-ticker").textContent = `Cannon fired (110 st/s)! Aim: [${targetPos.x.toFixed(1)}, ${targetPos.y.toFixed(1)}]`;
+    }
+
+    function stepLuauPhysics(dt) {
+      const substeps = 6;
+      const subDt = dt / substeps;
+
+      for (let step = 0; step < substeps; step++) {
+        // 1. Move projectile & continuous collision detection (CCD)
+        if (projectile && projectile.active) {
+          const prevProjPos = projectile.position.clone();
+          projectile.velocity.y -= ROBLOX_GRAVITY * subDt;
+          projectile.position.addScaledVector(projectile.velocity, subDt);
+          projectile.mesh.position.copy(projectile.position);
+
+          const projSeg = projectile.position.clone().sub(prevProjPos);
+          const segLenSq = projSeg.lengthSq();
+
+          // Swept sphere collision against targets
+          for (let i = 0; i < simBodies.length; i++) {
+            const b = simBodies[i];
+            if (b.destroyed) continue;
+
+            let closestPt = prevProjPos;
+            if (segLenSq > 0.0001) {
+              const toBody = b.position.clone().sub(prevProjPos);
+              const t = Math.max(0, Math.min(1, toBody.dot(projSeg) / segLenSq));
+              closestPt = prevProjPos.clone().addScaledVector(projSeg, t);
+            }
+
+            const hitDist = closestPt.distanceTo(b.position);
+            const hitThreshold = 0.55 + b.radius;
+
+            if (hitDist <= hitThreshold) {
+              // Direct Hit = 20 Direct SP damage
+              applyDamage(b, 20, "Direct Hit (20 SP)");
+
+              // Dynamic impact momentum transfer:
+              const hitDir = projectile.velocity.clone().normalize();
+              const impulseMag = (25.0 / Math.max(b.mass, 0.4));
+              b.velocity.add(hitDir.multiplyScalar(impulseMag));
+              b.velocity.y += 10.0; // Knock targets upward and back
+
+              // Rotational topple torque
+              const hitOffset = closestPt.clone().sub(b.position);
+              b.rotVelocity.add(new THREE.Vector3(
+                -hitOffset.y * 14 + (Math.random() - 0.5) * 8,
+                (Math.random() - 0.5) * 12,
+                hitOffset.x * 14 + (Math.random() - 0.5) * 8
+              ));
+
+              projectile.penetrations++;
+              if (projectile.penetrations >= 3 || b.itemDef.material === "Stone") {
+                projectile.active = false;
+                simGroup.remove(projectile.mesh);
+                break;
+              } else {
+                projectile.velocity.multiplyScalar(0.7); // decelerate through cans
+              }
+            }
+          }
+
+          if (projectile.position.y < -3 || projectile.position.z < -15) {
+            projectile.active = false;
+            simGroup.remove(projectile.mesh);
+          }
+        }
+
+        // 2. Rigid body motion & integration
+        for (let i = 0; i < simBodies.length; i++) {
+          const b = simBodies[i];
+          if (b.destroyed) continue;
+
+          // Apply Gravity
+          b.velocity.y -= ROBLOX_GRAVITY * subDt;
+
+          // Air Damping
+          b.velocity.multiplyScalar(0.998);
+          b.rotVelocity.multiplyScalar(0.995);
+
+          // Update position
+          b.position.addScaledVector(b.velocity, subDt);
+
+          // Quaternion Rotation integration (avoids gimbal lock)
+          const rotSpeed = b.rotVelocity.length();
+          if (rotSpeed > 0.001) {
+            const rotAxis = b.rotVelocity.clone().normalize();
+            const deltaQ = new THREE.Quaternion().setFromAxisAngle(rotAxis, rotSpeed * subDt);
+            b.mesh.quaternion.premultiply(deltaQ);
+          }
+
+          // SYNCHRONIZE 3D MESH POSITION
+          b.mesh.position.copy(b.position);
+
+          // Table Pedestal Collision & Fall Off Edge
+          const onTablePerimeter = (
+            b.position.x >= (b.tableBound.minX - 0.15) && b.position.x <= (b.tableBound.maxX + 0.15) &&
+            b.position.z >= (b.tableBound.minZ - 0.15) && b.position.z <= (b.tableBound.maxZ + 0.15)
+          );
+
+          if (onTablePerimeter) {
+            // Resting on table surface (Y = 0)
+            if (b.position.y <= b.halfHeight) {
+              b.position.y = b.halfHeight;
+              b.mesh.position.y = b.halfHeight;
+
+              if (b.velocity.y < 0) {
+                b.velocity.y = -b.velocity.y * 0.22; // restitution
+              }
+
+              // Surface friction
+              const f = 1 - Math.min(b.itemDef.friction * 0.25, 0.9);
+              b.velocity.x *= f;
+              b.velocity.z *= f;
+              b.rotVelocity.multiplyScalar(0.92);
+            }
+          } else {
+            // Fell off table edge into abyss
+            if (b.position.y < -20) {
+              b.velocity.set(0, 0, 0);
+              b.rotVelocity.set(0, 0, 0);
+            }
+          }
+        }
+
+        // 3. Inter-item collisions & momentum transfer
+        for (let i = 0; i < simBodies.length; i++) {
+          const b1 = simBodies[i];
+          if (b1.destroyed) continue;
+
+          for (let j = i + 1; j < simBodies.length; j++) {
+            const b2 = simBodies[j];
+            if (b2.destroyed) continue;
+
+            const delta = b1.position.clone().sub(b2.position);
+            const dist = delta.length();
+            const minDist = b1.radius + b2.radius;
+
+            if (dist < minDist && dist > 0.0001) {
+              const normal = delta.clone().divideScalar(dist);
+              const overlap = minDist - dist;
+
+              // Position separation
+              b1.position.addScaledVector(normal, overlap * 0.5);
+              b2.position.addScaledVector(normal, -overlap * 0.5);
+              b1.mesh.position.copy(b1.position);
+              b2.mesh.position.copy(b2.position);
+
+              // Relative velocity
+              const relVel = b1.velocity.clone().sub(b2.velocity);
+              const normVel = relVel.dot(normal);
+
+              if (normVel < 0) {
+                const restitution = 0.35;
+                const impulse = -(1 + restitution) * normVel / (1 / b1.mass + 1 / b2.mass);
+
+                b1.velocity.addScaledVector(normal, impulse / b1.mass);
+                b2.velocity.addScaledVector(normal, -impulse / b2.mass);
+
+                // Transfer tumbling rotation
+                b1.rotVelocity.add(new THREE.Vector3(normal.z * 5, (Math.random() - 0.5) * 6, -normal.x * 5));
+                b2.rotVelocity.add(new THREE.Vector3(-normal.z * 5, (Math.random() - 0.5) * 6, normal.x * 5));
+
+                // Collision impact damage
+                const impactSpeed = -normVel;
+                if (impactSpeed >= 6.0) {
+                  const dmg = Math.min(20, Math.max(4, Math.floor(impactSpeed * 1.3)));
+                  applyDamage(b1, dmg, `Impact (${dmg} SP)`);
+                  applyDamage(b2, dmg, `Impact (${dmg} SP)`);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      evaluateWinCondition();
+    }
+
+    function applyDamage(body, amount, reason) {
+      if (body.destroyed) return;
+      body.sp -= amount;
+
+      if (body.sp <= 0) {
+        body.sp = 0;
+        const mat = body.itemDef.material;
+
+        // Metal items do NOT vanish; remain as physical debris
+        if (mat === "Thin metal" || mat === "Metal") {
+          body.mesh.traverse(child => {
+            if (child.isMesh) child.material = materialsCache.table;
+          });
+          document.getElementById("sim-damage-ticker").textContent = `Dented Metal: ${body.itemDef.name} [0 SP] stays in play!`;
+        } else {
+          // Glass, Ice, Wood, Stone shatter and immediately disappear
+          body.destroyed = true;
+          simGroup.remove(body.mesh);
+
+          // Burst Cascades
+          if (body.itemDef.burst > 0) {
+            triggerBurstCascade(body.position, body.itemDef.burst, body.itemDef.burstRadius, body.uid);
+          }
+        }
+      }
+    }
+
+    function triggerBurstCascade(origin, burstDmg, burstRadius, sourceUid) {
+      if (++cascadeDepth > 40) return;
+
+      document.getElementById("sim-damage-ticker").textContent = `💥 BURST CASCADE: ${burstDmg} SP in ${burstRadius} studs!`;
+
+      simBodies.forEach(target => {
+        if (target.destroyed || target.uid === sourceUid) return;
+
+        const dist = target.position.distanceTo(origin);
+        if (dist <= burstRadius) {
+          applyDamage(target, burstDmg, `Burst (${burstDmg} SP)`);
+
+          const delta = target.position.clone().sub(origin);
+          delta.y += 0.35;
+          delta.normalize();
+
+          const impulse = delta.multiplyScalar(target.mass * 8.5);
+          target.velocity.add(impulse.divideScalar(target.mass));
+          target.rotVelocity.set((Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15);
+        }
+      });
+
+      cascadeDepth--;
+    }
+
+    function evaluateWinCondition() {
+      let standingCount = 0;
+      let totalTargets = simBodies.length;
+
+      simBodies.forEach(b => {
+        if (b.destroyed) return;
+
+        // Standing rule:
+        // 1. Must be above table base (Y > -0.05)
+        // 2. Must be inside table bounds
+        // 3. Must be upright (up-vector Y > 0.68)
+        const isAboveTable = b.position.y > -0.05;
+        const isInsidePerimeter = (
+          b.position.x >= (b.tableBound.minX - 0.2) && b.position.x <= (b.tableBound.maxX + 0.2) &&
+          b.position.z >= (b.tableBound.minZ - 0.2) && b.position.z <= (b.tableBound.maxZ + 0.2)
+        );
+
+        const upVec = new THREE.Vector3(0, 1, 0).applyQuaternion(b.mesh.quaternion);
+        const isUpright = upVec.y > 0.68; // Within ~47 degrees of vertical
+
+        if (isAboveTable && isInsidePerimeter && isUpright) {
+          standingCount++;
+        }
+      });
+
+      const countEl = document.getElementById("sim-standing-count");
+      if (standingCount === 0 && totalTargets > 0) {
+        countEl.innerHTML = `<span style="color:#10b981; font-weight:700;">🏆 BOOTH CLEARED! PERFECT KNOCKDOWN!</span>`;
+      } else {
+        countEl.textContent = `Standing Targets: ${standingCount} / ${totalTargets}`;
+      }
+    }
+
+    function resetSimulation() {
+      isSimulating = false;
+      document.getElementById("sim-hud-overlay").classList.remove("active");
+      while (simGroup.children.length > 0) simGroup.remove(simGroup.children[0]);
+      simBodies = [];
+      projectile = null;
+
+      if (preSimSnapshot) {
+        currentStage = JSON.parse(preSimSnapshot);
+      }
+      itemsGroup.visible = true;
+      syncAllViews(false);
+    }
+
+    /* ==========================================================================
+       6. DYNAMIC ITEM MANAGER (CRUD)
+       ========================================================================== */
+    function initItemCatalog() {
+      const stored = localStorage.getItem("canCannon_catalog_v5");
+      if (stored) {
+        try { ITEM_CATALOG = JSON.parse(stored); } catch (e) { ITEM_CATALOG = [...DEFAULT_ITEM_CATALOG]; }
+      } else {
+        ITEM_CATALOG = [...DEFAULT_ITEM_CATALOG];
+      }
+      refreshMaterialsCache();
+      renderCatalogUI();
+    }
+
+    function saveCatalogToStorage() {
+      localStorage.setItem("canCannon_catalog_v5", JSON.stringify(ITEM_CATALOG));
+      refreshMaterialsCache();
+      renderCatalogUI();
+      syncAllViews(false);
+    }
+
+    function renderCatalogUI() {
+      const cat = document.getElementById("catalog-container");
+      cat.innerHTML = "";
+
+      ITEM_CATALOG.forEach(item => {
+        const card = document.createElement("div");
+        card.className = `catalog-card ${item.id === editorState.selectedItemId ? "active" : ""}`;
+
+        card.innerHTML = `
+          <div class="item-swatch" style="background:${item.color};">${item.id}</div>
+          <div class="item-meta">
+            <div class="item-meta-top">
+              <span class="item-title">${item.name}</span>
+              <span class="sp-badge">${item.sp} SP</span>
+            </div>
+            <div class="item-sub-meta">
+              <span>${item.material} • [${item.size[0].toFixed(2)}×${item.size[1].toFixed(2)}]</span>
+              <div class="card-actions">
+                <button class="btn-card-action btn-dup" title="Duplicate"><i data-lucide="copy" style="width:11px; height:11px;"></i></button>
+                <button class="btn-card-action btn-edit" title="Edit"><i data-lucide="edit-2" style="width:11px; height:11px;"></i></button>
+                <button class="btn-card-action btn-del" title="Delete"><i data-lucide="trash-2" style="width:11px; height:11px;"></i></button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        card.addEventListener("click", (e) => {
+          if (e.target.closest(".card-actions")) return;
+          editorState.selectedItemId = item.id;
+          editorState.activeTool = "place";
+          updateToolUI();
+          document.querySelectorAll(".catalog-card").forEach(c => c.classList.remove("active"));
+          card.classList.add("active");
+        });
+
+        card.querySelector(".btn-dup").addEventListener("click", (e) => {
+          e.stopPropagation();
+          duplicateItem(item);
+        });
+        card.querySelector(".btn-edit").addEventListener("click", (e) => {
+          e.stopPropagation();
+          openItemModal(item);
+        });
+        card.querySelector(".btn-del").addEventListener("click", (e) => {
+          e.stopPropagation();
+          deleteItem(item.id);
+        });
+
+        cat.appendChild(card);
+      });
+
+      lucide.createIcons();
+    }
+
+    function openItemModal(item = null) {
+      editorState.editingItemId = item ? item.id : null;
+      document.getElementById("item-modal-title").textContent = item ? `Edit Item: ${item.name}` : "Create New Target Item";
+
+      document.getElementById("inp-item-kind").value = item ? item.kind : `item_${Date.now().toString().slice(-4)}`;
+      document.getElementById("inp-item-name").value = item ? item.name : "Custom Can";
+      document.getElementById("inp-item-material").value = item ? item.material : "Thin metal";
+      document.getElementById("inp-item-sp").value = item ? item.sp : 10;
+      document.getElementById("inp-item-burst").value = item ? item.burst : 0;
+      document.getElementById("inp-item-radius").value = item ? item.burstRadius : 1.8;
+      document.getElementById("inp-item-density").value = item ? item.density : 0.5;
+      document.getElementById("inp-item-friction").value = item ? item.friction : 0.4;
+      document.getElementById("inp-item-geom").value = item ? item.geom : "cylinder";
+      document.getElementById("inp-item-color").value = item ? item.color : "#3b82f6";
+      document.getElementById("inp-item-sx").value = item ? item.size[0] : 0.664;
+      document.getElementById("inp-item-sy").value = item ? item.size[1] : 1.036;
+      document.getElementById("inp-item-sz").value = item ? item.size[2] : 0.664;
+
+      document.getElementById("modal-item-editor").classList.add("active");
+    }
+
+    function duplicateItem(item) {
+      const copy = JSON.parse(JSON.stringify(item));
+      copy.id = (Math.max(...ITEM_CATALOG.map(i => i.id)) || 0) + 1;
+      copy.kind += "_copy";
+      copy.name += " (Copy)";
+      ITEM_CATALOG.push(copy);
+      saveCatalogToStorage();
+    }
+
+    function deleteItem(itemId) {
+      if (ITEM_CATALOG.length <= 1) {
+        alert("Must maintain at least 1 library item.");
+        return;
+      }
+      if (confirm("Delete this item from library? Placed instances will remain.")) {
+        ITEM_CATALOG = ITEM_CATALOG.filter(i => i.id !== itemId);
+        if (editorState.selectedItemId === itemId) {
+          editorState.selectedItemId = ITEM_CATALOG[0].id;
+        }
+        saveCatalogToStorage();
+      }
+    }
+
+    document.getElementById("btn-save-item-modal").addEventListener("click", () => {
+      const kind = document.getElementById("inp-item-kind").value.trim() || "custom_item";
+      const name = document.getElementById("inp-item-name").value.trim() || "Untitled Item";
+      const material = document.getElementById("inp-item-material").value;
+      const sp = parseInt(document.getElementById("inp-item-sp").value, 10) || 10;
+      const burst = parseInt(document.getElementById("inp-item-burst").value, 10) || 0;
+      const burstRadius = parseFloat(document.getElementById("inp-item-radius").value) || 1.8;
+      const density = parseFloat(document.getElementById("inp-item-density").value) || 0.5;
+      const friction = parseFloat(document.getElementById("inp-item-friction").value) || 0.4;
+      const geom = document.getElementById("inp-item-geom").value;
+      const color = document.getElementById("inp-item-color").value;
+      const sx = parseFloat(document.getElementById("inp-item-sx").value) || 0.7;
+      const sy = parseFloat(document.getElementById("inp-item-sy").value) || 1.0;
+      const sz = parseFloat(document.getElementById("inp-item-sz").value) || 0.7;
+
+      if (editorState.editingItemId) {
+        const item = ITEM_CATALOG.find(i => i.id === editorState.editingItemId);
+        if (item) {
+          Object.assign(item, { kind, name, material, sp, burst, burstRadius, density, friction, geom, color, threeColor: parseInt(color.replace('#', '0x')), size: [sx, sy, sz] });
+        }
+      } else {
+        const newId = (Math.max(...ITEM_CATALOG.map(i => i.id)) || 0) + 1;
+        ITEM_CATALOG.push({
+          id: newId, kind, name, material, sp, burst, burstRadius, density, friction, geom, color, threeColor: parseInt(color.replace('#', '0x')), size: [sx, sy, sz]
+        });
+      }
+
+      saveCatalogToStorage();
+      closeModals();
+    });
+
+    /* ==========================================================================
+       7. BIDIRECTIONAL LUAU & JSON IMPORT / EXPORT
+       ========================================================================== */
+    function generateLuauTableExport() {
+      const itemsList = [];
+      const indexMap = {};
+      let itemIndex = 1;
+
+      let totalWidth = 0;
+      currentStage.stands.forEach((st, idx) => {
+        totalWidth += STAND_WIDTH * STUD_COL_W;
+        if (idx < currentStage.stands.length - 1) totalWidth += st.gapToNext * STUD_COL_W;
+      });
+      const startX = -totalWidth / 2 + (STUD_COL_W / 2);
+
+      let currentX = startX;
+      currentStage.stands.forEach((stand, sIdx) => {
+        const standW = STAND_WIDTH * STUD_COL_W;
+
+        for (let x = 0; x < STAND_WIDTH; x++) {
+          for (let y = 0; y < STAND_HEIGHT; y++) {
+            for (let z = 0; z < STAND_DEPTH; z++) {
+              const key = `${sIdx}_${x}_${y}_${z}`;
+              const itemId = currentStage.cells[key];
+              if (itemId) {
+                const item = ITEM_CATALOG.find(i => i.id === itemId);
+                const posX = Number((currentX + (x * STUD_COL_W)).toFixed(3));
+                const posY = Number(((y * STUD_ROW_H)).toFixed(3));
+                const posZ = Number(((z - 1) * STUD_DEP_D).toFixed(3));
+
+                indexMap[key] = itemIndex++;
+                itemsList.push({
+                  key,
+                  kind: item ? item.kind : "can",
+                  x: posX,
+                  y: posY,
+                  z: posZ,
+                  yaw: 0,
+                  size: item ? item.size : [0.664, 1.036, 0.664],
+                  stand: sIdx, colX: x, levelY: y, depthZ: z
+                });
+              }
+            }
+          }
+        }
+
+        if (sIdx < currentStage.stands.length - 1) {
+          for (let gx = 0; gx < stand.gapToNext; gx++) {
+            for (let y = 0; y < STAND_HEIGHT; y++) {
+              for (let z = 0; z < STAND_DEPTH; z++) {
+                const gKey = `${sIdx}_${gx}_${y}_${z}`;
+                const gItemId = currentStage.gapCells[gKey];
+                if (gItemId) {
+                  const item = ITEM_CATALOG.find(i => i.id === gItemId);
+                  const posX = Number((currentX + standW + (gx * STUD_COL_W)).toFixed(3));
+                  const posY = Number(((y * STUD_ROW_H)).toFixed(3));
+                  const posZ = Number(((z - 1) * STUD_DEP_D).toFixed(3));
+
+                  indexMap[gKey] = itemIndex++;
+                  itemsList.push({
+                    key: gKey,
+                    kind: item ? item.kind : "plank",
+                    x: posX,
+                    y: posY,
+                    z: posZ,
+                    yaw: (item && item.geom === "plank") ? 90 : 0,
+                    size: item ? item.size : [3.0, 0.464, 0.796],
+                    isGap: true
+                  });
+                }
+              }
+            }
+          }
+          currentX += standW + (stand.gapToNext * STUD_COL_W);
+        } else {
+          currentX += standW;
+        }
+      });
+
+      const formattedItems = itemsList.map(item => {
+        const supports = [];
+        if (!item.isGap && item.levelY > 0) {
+          const belowKey = `${item.stand}_${item.colX}_${item.levelY - 1}_${item.depthZ}`;
+          if (indexMap[belowKey]) supports.push(indexMap[belowKey]);
+        }
+        return `        {
+            ["kind"] = "${item.kind}",
+            ["x"] = ${item.x},
+            ["y"] = ${item.y},
+            ["z"] = ${item.z},
+            ["yaw"] = ${item.yaw},
+            ["supports"] = { ${supports.join(", ")} },
+            ["size"] = { ${item.size.join(", ")} },
+        }`;
+      });
+
+      return `local Level = {
+    ["name"] = "${currentStage.name}",
+    ["standsCount"] = ${currentStage.stands.length},
+    ["items"] = {
+${formattedItems.join(",\n")}
+    }
+}
+
+return Level`;
+    }
+
+    function parseLuauLevelText(rawText) {
+      let stageName = "Imported Luau Level";
+      const nameMatch = rawText.match(/\["name"\]\s*=\s*"([^"]+)"/) || rawText.match(/name\s*=\s*"([^"]+)"/);
+      if (nameMatch) stageName = nameMatch[1];
+
+      const itemBlocks = [];
+      const itemRegex = /\{\s*\["kind"\]\s*=\s*"([^"]+)"[\s\S]*?\["size"\]\s*=\s*\{([^\}]+)\}\s*,?\s*\}/g;
+      let match;
+      while ((match = itemRegex.exec(rawText)) !== null) {
+        itemBlocks.push(match[0]);
+      }
+
+      if (itemBlocks.length === 0) {
+        const looseRegex = /\{[^{}]*kind[^{}]*x[^{}]*y[^{}]*z[^{}]*\}/gi;
+        let m2;
+        while ((m2 = looseRegex.exec(rawText)) !== null) {
+          itemBlocks.push(m2[0]);
+        }
+      }
+
+      if (itemBlocks.length === 0) {
+        throw new Error("No target items found in the provided Luau script.");
+      }
+
+      const parsedItems = [];
+      itemBlocks.forEach(blk => {
+        const kind = (blk.match(/\["kind"\]\s*=\s*"([^"]+)"/) || blk.match(/kind\s*=\s*"([^"]+)"/) || [null, "can"])[1];
+        const x = parseFloat((blk.match(/\["x"\]\s*=\s*([-\d.]+)/) || blk.match(/x\s*=\s*([-\d.]+)/) || [0, 0])[1]);
+        const y = parseFloat((blk.match(/\["y"\]\s*=\s*([-\d.]+)/) || blk.match(/y\s*=\s*([-\d.]+)/) || [0, 0])[1]);
+        const z = parseFloat((blk.match(/\["z"\]\s*=\s*([-\d.]+)/) || blk.match(/z\s*=\s*([-\d.]+)/) || [0, 0])[1]);
+        parsedItems.push({ kind, x, y, z });
+      });
+
+      const minX = Math.min(...parsedItems.map(i => i.x));
+      const maxX = Math.max(...parsedItems.map(i => i.x));
+      const totalSpan = maxX - minX;
+
+      const standCount = Math.max(1, Math.min(4, Math.ceil(totalSpan / (STAND_WIDTH * STUD_COL_W)) || 1));
+      const stands = [];
+      for (let s = 0; s < standCount; s++) {
+        stands.push({ id: s, gapToNext: s < standCount - 1 ? 2 : 0 });
+      }
+
+      const newCells = {};
+      const newGapCells = {};
+
+      let totalWidth = 0;
+      stands.forEach((st, idx) => {
+        totalWidth += STAND_WIDTH * STUD_COL_W;
+        if (idx < stands.length - 1) totalWidth += st.gapToNext * STUD_COL_W;
+      });
+      const startX = -totalWidth / 2 + (STUD_COL_W / 2);
+
+      parsedItems.forEach(item => {
+        let itDef = ITEM_CATALOG.find(i => i.kind === item.kind);
+        if (!itDef) itDef = ITEM_CATALOG[0];
+
+        const gridY = Math.max(0, Math.min(STAND_HEIGHT - 1, Math.round(item.y / STUD_ROW_H)));
+        const gridZ = Math.max(0, Math.min(STAND_DEPTH - 1, Math.round((item.z / STUD_DEP_D) + 1)));
+
+        let placed = false;
+        let runningX = startX;
+        for (let sIdx = 0; sIdx < stands.length; sIdx++) {
+          const standW = STAND_WIDTH * STUD_COL_W;
+          const standLeft = runningX - (STUD_COL_W / 2);
+          const standRight = standLeft + standW;
+
+          if (item.x >= standLeft && item.x <= standRight) {
+            const gridX = Math.max(0, Math.min(STAND_WIDTH - 1, Math.round((item.x - runningX) / STUD_COL_W)));
+            newCells[`${sIdx}_${gridX}_${gridY}_${gridZ}`] = itDef.id;
+            placed = true;
+            break;
+          }
+
+          if (sIdx < stands.length - 1) {
+            const gapW = stands[sIdx].gapToNext;
+            const gapLeft = standRight;
+            const gapRight = gapLeft + (gapW * STUD_COL_W);
+            if (item.x > gapLeft && item.x < gapRight) {
+              const gapX = Math.max(0, Math.min(gapW - 1, Math.round((item.x - gapLeft) / STUD_COL_W)));
+              newGapCells[`${sIdx}_${gapX}_${gridY}_${gridZ}`] = itDef.id;
+              placed = true;
+              break;
+            }
+            runningX += standW + (gapW * STUD_COL_W);
+          } else {
+            runningX += standW;
+          }
+        }
+
+        if (!placed) {
+          newCells[`0_0_${gridY}_${gridZ}`] = itDef.id;
+        }
+      });
+
+      return {
+        id: "stage_" + Date.now(),
+        name: stageName,
+        stands,
+        cells: newCells,
+        gapCells: newGapCells,
+        bridges: []
+      };
+    }
+
+    function switchExportTab(type) {
+      editorState.exportTab = type;
+      document.getElementById("tab-btn-luau").classList.toggle("active", type === "luau");
+      document.getElementById("tab-btn-json").classList.toggle("active", type === "json");
+
+      const txt = document.getElementById("export-code-text");
+      if (type === "luau") {
+        txt.value = generateLuauTableExport();
+      } else {
+        txt.value = JSON.stringify(currentStage, null, 2);
+      }
+    }
+
+    /* ==========================================================================
+       8. 2D VIEWS & STAND ARCHITECT
+       ========================================================================== */
+    function render2DViews() {
+      const stability = computeStructuralStability();
+      updateWarningBanner(stability);
+      renderFrontView(stability);
+      renderSideView(stability);
+      renderTopView();
+      renderStandManager();
+    }
+
+    function updateWarningBanner(stability) {
+      const banner = document.getElementById("unstable-warning-banner");
+      const statElem = document.getElementById("stat-stability-status");
+
+      if (stability.totalUnstable > 0) {
+        banner.classList.add("active");
+        document.getElementById("unstable-count-text").textContent = 
+          `${stability.totalUnstable} target(s) violate Earth gravity (no solid support underneath).`;
+        statElem.textContent = "UNSTABLE ⚠️";
+        statElem.style.color = "var(--accent-red)";
+      } else {
+        banner.classList.remove("active");
+        statElem.textContent = "STABLE ✓";
+        statElem.style.color = "var(--accent-green)";
+      }
+    }
+
+    function renderFrontView(stability) {
+      const container = document.getElementById("front-stands-container");
+      container.innerHTML = "";
+
+      currentStage.stands.forEach((stand, sIdx) => {
+        const unit = document.createElement("div");
+        unit.className = "stand-grid-unit";
+
+        const matrix = document.createElement("div");
+        matrix.className = "grid-matrix";
+        matrix.style.gridTemplateColumns = `repeat(${STAND_WIDTH}, var(--cell-size))`;
+
+        for (let y = STAND_HEIGHT - 1; y >= 0; y--) {
+          for (let x = 0; x < STAND_WIDTH; x++) {
+            const cell = document.createElement("div");
+            cell.className = "grid-cell empty-stud";
+            cell.dataset.stand = sIdx;
+            cell.dataset.x = x;
+            cell.dataset.y = y;
+
+            const item = getActiveFrontItem(sIdx, x, y);
+            if (item) {
+              cell.classList.remove("empty-stud");
+              cell.style.background = item.color;
+              cell.textContent = item.sp;
+
+              const z = getEffectiveSliceZ();
+              const key = `${sIdx}_${x}_${y}_${z}`;
+              if (stability.unstableCells.has(key)) {
+                cell.classList.add("cell-unstable");
+              }
+            }
+
+            attachCellEvents(cell, () => handleCellInteraction(sIdx, x, y, getEffectiveSliceZ()));
+            matrix.appendChild(cell);
+          }
+        }
+
+        const ped = document.createElement("div");
+        ped.className = "table-pedestal";
+        ped.textContent = `STAND #${sIdx + 1} BASE (6.15 ST)`;
+
+        unit.appendChild(matrix);
+        unit.appendChild(ped);
+        container.appendChild(unit);
+
+        if (sIdx < currentStage.stands.length - 1) {
+          const gapW = stand.gapToNext;
+          const spacer = document.createElement("div");
+          spacer.className = "gap-spacer";
+          spacer.style.width = `calc(${gapW} * (var(--cell-size) + 4px))`;
+
+          const gapMatrix = document.createElement("div");
+          gapMatrix.className = "grid-matrix";
+          gapMatrix.style.gridTemplateColumns = `repeat(${gapW}, var(--cell-size))`;
+          gapMatrix.style.background = "transparent";
+          gapMatrix.style.border = "none";
+
+          for (let y = STAND_HEIGHT - 1; y >= 0; y--) {
+            for (let gx = 0; gx < gapW; gx++) {
+              const gCell = document.createElement("div");
+              gCell.className = "grid-cell empty-stud";
+              gCell.dataset.gap = sIdx;
+              gCell.dataset.gx = gx;
+              gCell.dataset.y = y;
+
+              const gItemId = getActiveGapItem(sIdx, gx, y);
+              if (gItemId) {
+                const it = ITEM_CATALOG.find(i => i.id === gItemId);
+                if (it) {
+                  gCell.classList.remove("empty-stud");
+                  gCell.style.background = it.color;
+                  gCell.textContent = it.sp;
+                  if (stability.unstableGapCells.has(`${sIdx}_${gx}_${y}_${getEffectiveSliceZ()}`)) {
+                    gCell.classList.add("cell-unstable");
+                  }
+                }
+              }
+
+              attachCellEvents(gCell, () => handleGapInteraction(sIdx, gx, y, getEffectiveSliceZ()));
+              gapMatrix.appendChild(gCell);
+            }
+          }
+
+          const gapLabel = document.createElement("div");
+          gapLabel.style.fontSize = "8px";
+          gapLabel.style.fontFamily = "monospace";
+          gapLabel.style.color = "#60a5fa";
+          gapLabel.textContent = `GAP: ${gapW}`;
+
+          spacer.appendChild(gapMatrix);
+          spacer.appendChild(gapLabel);
+          container.appendChild(spacer);
+        }
+      });
+    }
+
+    function getEffectiveSliceZ() {
+      return editorState.activeSlice === "all" ? 1 : parseInt(editorState.activeSlice, 10);
+    }
+
+    function getActiveFrontItem(standIdx, x, y) {
+      if (editorState.activeSlice !== "all") {
+        const z = parseInt(editorState.activeSlice, 10);
+        const id = currentStage.cells[`${standIdx}_${x}_${y}_${z}`];
+        return id ? ITEM_CATALOG.find(i => i.id === id) : null;
+      }
+      for (let z = 2; z >= 0; z--) {
+        const id = currentStage.cells[`${standIdx}_${x}_${y}_${z}`];
+        if (id) return ITEM_CATALOG.find(i => i.id === id);
+      }
+      return null;
+    }
+
+    function getActiveGapItem(gapIdx, gx, y) {
+      if (editorState.activeSlice !== "all") {
+        const z = parseInt(editorState.activeSlice, 10);
+        return currentStage.gapCells[`${gapIdx}_${gx}_${y}_${z}`];
+      }
+      for (let z = 2; z >= 0; z--) {
+        const id = currentStage.gapCells[`${gapIdx}_${gx}_${y}_${z}`];
+        if (id) return id;
+      }
+      return null;
+    }
+
+    function renderSideView(stability) {
+      const matrix = document.getElementById("side-grid-matrix");
+      matrix.innerHTML = "";
+      const sIdx = editorState.activeStandForSide;
+
+      for (let y = STAND_HEIGHT - 1; y >= 0; y--) {
+        for (let z = 0; z < STAND_DEPTH; z++) {
+          const cell = document.createElement("div");
+          cell.className = "grid-cell empty-stud";
+
+          let foundId = null;
+          let isUnstable = false;
+          for (let x = 0; x < STAND_WIDTH; x++) {
+            const id = currentStage.cells[`${sIdx}_${x}_${y}_${z}`];
+            if (id) {
+              foundId = id;
+              if (stability.unstableCells.has(`${sIdx}_${x}_${y}_${z}`)) isUnstable = true;
+              break;
+            }
+          }
+
+          if (foundId) {
+            const item = ITEM_CATALOG.find(i => i.id === foundId);
+            if (item) {
+              cell.classList.remove("empty-stud");
+              cell.style.background = item.color;
+              cell.textContent = item.sp;
+              if (isUnstable) cell.classList.add("cell-unstable");
+            }
+          }
+
+          attachCellEvents(cell, () => {
+            for (let x = 0; x < STAND_WIDTH; x++) handleCellInteraction(sIdx, x, y, z);
+          });
+          matrix.appendChild(cell);
+        }
+      }
+    }
+
+    function renderTopView() {
+      const container = document.getElementById("top-stands-container");
+      container.innerHTML = "";
+
+      currentStage.stands.forEach((stand, sIdx) => {
+        const matrix = document.createElement("div");
+        matrix.className = "grid-matrix";
+        matrix.style.gridTemplateColumns = `repeat(${STAND_WIDTH}, var(--cell-size))`;
+
+        for (let z = 0; z < STAND_DEPTH; z++) {
+          for (let x = 0; x < STAND_WIDTH; x++) {
+            const cell = document.createElement("div");
+            cell.className = "grid-cell empty-stud";
+
+            let topItem = null;
+            for (let y = STAND_HEIGHT - 1; y >= 0; y--) {
+              const id = currentStage.cells[`${sIdx}_${x}_${y}_${z}`];
+              if (id) {
+                topItem = ITEM_CATALOG.find(i => i.id === id);
+                break;
+              }
+            }
+
+            if (topItem) {
+              cell.classList.remove("empty-stud");
+              cell.style.background = topItem.color;
+              cell.textContent = topItem.sp;
+            }
+
+            attachCellEvents(cell, () => {
+              let placeY = 0;
+              for (let y = 0; y < STAND_HEIGHT; y++) {
+                if (!currentStage.cells[`${sIdx}_${x}_${y}_${z}`]) {
+                  placeY = y;
+                  break;
+                }
+              }
+              handleCellInteraction(sIdx, x, placeY, z);
+            });
+            matrix.appendChild(cell);
+          }
+        }
+        container.appendChild(matrix);
+      });
+    }
+
+    function renderStandManager() {
+      const list = document.getElementById("stand-manager-list");
+      list.innerHTML = "";
+
+      currentStage.stands.forEach((stand, idx) => {
+        const card = document.createElement("div");
+        card.className = "stand-ctrl-card";
+
+        let gapHTML = "";
+        if (idx < currentStage.stands.length - 1) {
+          gapHTML = `
+            <div class="gap-slider-row">
+              <span>Gap Studs:</span>
+              <input type="range" min="0" max="6" value="${stand.gapToNext}" data-stand-idx="${idx}" class="stand-gap-input">
+              <strong style="color:#60a5fa; font-family:monospace;">${stand.gapToNext}</strong>
+            </div>
+          `;
+        }
+
+        card.innerHTML = `
+          <div class="stand-ctrl-header">
+            <span>Stand #${idx + 1}</span>
+            <div style="display:flex; gap:4px;">
+              <button class="btn btn-clear-stand" data-idx="${idx}" style="padding:2px 5px;"><i data-lucide="rotate-ccw"></i></button>
+              ${currentStage.stands.length > 1 ? `<button class="btn btn-remove-stand" data-idx="${idx}" style="padding:2px 5px;"><i data-lucide="trash-2"></i></button>` : ""}
+            </div>
+          </div>
+          ${gapHTML}
+        `;
+        list.appendChild(card);
+      });
+
+      list.querySelectorAll(".stand-gap-input").forEach(slider => {
+        slider.addEventListener("input", (e) => {
+          pushHistoryState("Change Gap");
+          currentStage.stands[parseInt(e.target.dataset.standIdx, 10)].gapToNext = parseInt(e.target.value, 10);
+          syncAllViews(false);
+        });
+      });
+
+      list.querySelectorAll(".btn-remove-stand").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          pushHistoryState("Remove Stand");
+          removeStand(parseInt(e.currentTarget.dataset.idx, 10));
+        });
+      });
+
+      list.querySelectorAll(".btn-clear-stand").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          pushHistoryState("Clear Stand");
+          const sIdx = parseInt(e.currentTarget.dataset.idx, 10);
+          Object.keys(currentStage.cells).forEach(k => {
+            if (k.startsWith(`${sIdx}_`)) delete currentStage.cells[k];
+          });
+          syncAllViews(false);
+        });
+      });
+
+      lucide.createIcons();
+    }
+
+    function attachCellEvents(cell, actionCallback) {
+      cell.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        editorState.isMouseDown = true;
+        if (e.button === 2) {
+          const prev = editorState.activeTool;
+          editorState.activeTool = "erase";
+          actionCallback();
+          editorState.activeTool = prev;
+        } else {
+          actionCallback();
+        }
+      });
+
+      cell.addEventListener("mouseenter", () => {
+        if (editorState.isMouseDown) actionCallback();
+      });
+      cell.addEventListener("contextmenu", (e) => e.preventDefault());
+    }
+
+    window.addEventListener("mouseup", () => { editorState.isMouseDown = false; });
+
+    function handleCellInteraction(standIdx, x, y, z) {
+      pushHistoryState(editorState.activeTool);
+
+      if (editorState.activeTool === "erase") {
+        delete currentStage.cells[`${standIdx}_${x}_${y}_${z}`];
+        syncAllViews(false);
+        return;
+      }
+
+      if (editorState.activeTool === "fill_layer") {
+        for (let col = 0; col < STAND_WIDTH; col++) {
+          currentStage.cells[`${standIdx}_${col}_${y}_${z}`] = editorState.selectedItemId;
+        }
+        syncAllViews(false);
+        return;
+      }
+
+      let placeY = y;
+      if (editorState.gravityMode) {
+        let lowest = null;
+        for (let checkY = 0; checkY < STAND_HEIGHT; checkY++) {
+          if (!currentStage.cells[`${standIdx}_${x}_${checkY}_${z}`]) {
+            lowest = checkY;
+            break;
+          }
+        }
+        if (lowest === null) return;
+        placeY = lowest;
+      }
+
+      currentStage.cells[`${standIdx}_${x}_${placeY}_${z}`] = editorState.selectedItemId;
+      syncAllViews(false);
+    }
+
+    function handleGapInteraction(gapIdx, gx, y, z) {
+      pushHistoryState(editorState.activeTool);
+      const key = `${gapIdx}_${gx}_${y}_${z}`;
+
+      if (editorState.activeTool === "erase") {
+        delete currentStage.gapCells[key];
+      } else {
+        currentStage.gapCells[key] = editorState.selectedItemId;
+      }
+      syncAllViews(false);
+    }
+
+    function spanSupportedBridge() {
+      if (currentStage.stands.length < 2) {
+        alert("Must have at least 2 target stands.");
+        return;
+      }
+      const bridgeY = 3;
+      const bridgeZ = 1;
+
+      currentStage.stands.forEach((stand, sIdx) => {
+        if (sIdx >= currentStage.stands.length - 1) return;
+
+        for (let y = 0; y < bridgeY; y++) {
+          currentStage.cells[`${sIdx}_7_${y}_${bridgeZ}`] = 12;
+          currentStage.cells[`${sIdx + 1}_0_${y}_${bridgeZ}`] = 12;
+        }
+
+        currentStage.cells[`${sIdx}_7_${bridgeY}_${bridgeZ}`] = 9;
+        currentStage.cells[`${sIdx + 1}_0_${bridgeY}_${bridgeZ}`] = 9;
+
+        if (!currentStage.bridges) currentStage.bridges = [];
+        currentStage.bridges.push({ fromStand: sIdx, y: bridgeY, z: bridgeZ });
+
+        for (let gx = 0; gx < stand.gapToNext; gx++) {
+          currentStage.gapCells[`${sIdx}_${gx}_${bridgeY}_${bridgeZ}`] = 9;
+          currentStage.gapCells[`${sIdx}_${gx}_${bridgeY + 1}_${bridgeZ}`] = 1;
+        }
+      });
+
+      pushHistoryState("Span Bridge");
+      syncAllViews(false);
+    }
+
+    function removeStand(sIdx) {
+      if (currentStage.stands.length <= 1) return;
+      currentStage.stands.splice(sIdx, 1);
+      const newCells = {};
+      Object.keys(currentStage.cells).forEach(k => {
+        const [s, x, y, z] = k.split("_").map(Number);
+        if (s < sIdx) newCells[k] = currentStage.cells[k];
+        else if (s > sIdx) newCells[`${s - 1}_${x}_${y}_${z}`] = currentStage.cells[k];
+      });
+      currentStage.cells = newCells;
+      currentStage.gapCells = {};
+      currentStage.bridges = [];
+      syncAllViews(false);
+    }
+
+    /* ==========================================================================
+       9. DIFFICULTY CALCULATION & STAGE VAULT
+       ========================================================================== */
+    function recalculateDifficulty(stage = currentStage) {
+      let totalItems = 0;
+      let rawSP = 0;
+      let heightWeightedSP = 0;
+
+      function evalItem(id, y) {
+        const it = ITEM_CATALOG.find(i => i.id === id);
+        if (!it) return;
+        totalItems++;
+        rawSP += it.sp;
+        heightWeightedSP += it.sp * (1 + (y * 0.05));
+      }
+
+      Object.keys(stage.cells).forEach(k => evalItem(stage.cells[k], parseInt(k.split("_")[2], 10)));
+      Object.keys(stage.gapCells).forEach(k => evalItem(stage.gapCells[k], parseInt(k.split("_")[2], 10)));
+
+      const bonus = ((stage.bridges ? stage.bridges.length : 0) * 30) + (stage.stands.length * 50);
+      const compositeScore = Math.round(heightWeightedSP + bonus);
+
+      let tierName = "VERY EASY", tierClass = "badge-very-easy";
+      if (compositeScore <= 300) { tierName = "VERY EASY"; tierClass = "badge-very-easy"; }
+      else if (compositeScore <= 800) { tierName = "EASY"; tierClass = "badge-easy"; }
+      else if (compositeScore <= 1800) { tierName = "MEDIUM"; tierClass = "badge-medium"; }
+      else if (compositeScore <= 3500) { tierName = "HARD"; tierClass = "badge-hard"; }
+      else { tierName = "EXPERT / NIGHTMARE"; tierClass = "badge-nightmare"; }
+
+      document.getElementById("hud-tier-name").textContent = tierName;
+      document.getElementById("hud-score-val").textContent = `${compositeScore} SP`;
+      document.getElementById("hud-difficulty-badge").className = `difficulty-badge ${tierClass}`;
+      document.getElementById("stat-total-items").textContent = totalItems;
+      document.getElementById("stat-raw-sp").textContent = `${rawSP} SP`;
+      document.getElementById("stat-height-weight").textContent = Math.round(heightWeightedSP);
+
+      return { compositeScore, tierName, tierClass, totalItems, rawSP };
+    }
+
+    function syncAllViews(saveHistory = true) {
+      if (saveHistory) pushHistoryState();
+      recalculateDifficulty();
+      render2DViews();
+      syncThreeScene();
+    }
+
+    function initVault() {
+      const stored = localStorage.getItem("canCannon_vault_v5");
+      if (stored) {
+        try { savedStagesVault = JSON.parse(stored); } catch (e) { savedStagesVault = []; }
+      }
+      if (savedStagesVault.length === 0) {
+        savedStagesVault = [
+          {
+            id: "stage_twin_pillars",
+            name: "Twin Pillars & Supported Bridge",
+            stands: [{ id: 0, gapToNext: 2 }, { id: 1, gapToNext: 0 }],
+            bridges: [{ fromStand: 0, y: 3, z: 1 }],
+            cells: (() => {
+              const c = {};
+              for (let y = 0; y < 3; y++) {
+                c[`0_7_${y}_1`] = 12; // Star Crate
+                c[`1_0_${y}_1`] = 13; // Navy Crate
+              }
+              c[`0_7_3_1`] = 9; c[`1_0_3_1`] = 9;
+              return c;
+            })(),
+            gapCells: { "0_0_3_1": 9, "0_1_3_1": 9, "0_0_4_1": 1, "0_1_4_1": 2 }
+          },
+          {
+            id: "stage_avalanche",
+            name: "Berry Avalanche",
+            stands: [{ id: 0, gapToNext: 0 }],
+            bridges: [],
+            cells: (() => {
+              const c = {};
+              for (let x = 1; x <= 6; x++) {
+                c[`0_${x}_0_1`] = 1;
+                c[`0_${x}_1_1`] = (x % 2 === 0) ? 4 : 5;
+              }
+              return c;
+            })(),
+            gapCells: {}
+          }
+        ];
+      }
+      renderVaultList();
+    }
+
+    function renderVaultList() {
+      const container = document.getElementById("saved-stages-list");
+      container.innerHTML = "";
+
+      savedStagesVault.forEach(s => s._calc = recalculateDifficulty(s));
+      savedStagesVault.sort((a, b) => a._calc.compositeScore - b._calc.compositeScore);
+
+      savedStagesVault.forEach((stage, idx) => {
+        const item = document.createElement("div");
+        item.className = `stage-item ${stage.id === currentStage.id ? "active" : ""}`;
+        item.innerHTML = `
+          <div class="stage-rank">#${idx + 1}</div>
+          <div class="stage-info">
+            <div class="stage-name">${stage.name}</div>
+            <div class="stage-sub">
+              <span class="sp-badge">${stage._calc.compositeScore} SP</span>
+              <span>•</span>
+              <span>${stage.stands.length} Stand${stage.stands.length > 1 ? 's' : ''}</span>
+            </div>
+          </div>
+          <div style="display:flex; gap:3px;">
+            <button class="btn btn-dup-stage" data-id="${stage.id}" title="Duplicate" style="padding:2px;"><i data-lucide="copy" style="width:11px; height:11px;"></i></button>
+            <button class="btn btn-del-stage" data-id="${stage.id}" title="Delete" style="padding:2px;"><i data-lucide="trash-2" style="width:11px; height:11px;"></i></button>
+          </div>
+        `;
+
+        item.addEventListener("click", (e) => {
+          if (!e.target.closest("button")) {
+            commitCurrentStageToVault(); // Preserve any unsaved edits before switching
+            currentStage = JSON.parse(JSON.stringify(stage));
+            undoStack.length = 0;
+            redoStack.length = 0;
+            updateUndoRedoUI();
+            syncAllViews(false);
+            renderVaultList();
+          }
+        });
+
+        container.appendChild(item);
+      });
+
+      container.querySelectorAll(".btn-del-stage").forEach(b => {
+        b.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (savedStagesVault.length <= 1) {
+            alert("Vault must keep at least 1 stage.");
+            return;
+          }
+          if (confirm("Delete this stage from Vault?")) {
+            savedStagesVault = savedStagesVault.filter(s => s.id !== b.dataset.id);
+            localStorage.setItem("canCannon_vault_v5", JSON.stringify(savedStagesVault));
+            if (currentStage.id === b.dataset.id) {
+              currentStage = JSON.parse(JSON.stringify(savedStagesVault[0]));
+              syncAllViews(false);
+            }
+            renderVaultList();
+          }
+        });
+      });
+
+      container.querySelectorAll(".btn-dup-stage").forEach(b => {
+        b.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const target = savedStagesVault.find(s => s.id === b.dataset.id);
+          if (target) {
+            const dup = JSON.parse(JSON.stringify(target));
+            dup.id = "stage_" + Date.now();
+            dup.name += " (Copy)";
+            savedStagesVault.push(dup);
+            localStorage.setItem("canCannon_vault_v5", JSON.stringify(savedStagesVault));
+            renderVaultList();
+          }
+        });
+      });
+
+      lucide.createIcons();
+    }
+
+    /* ==========================================================================
+       10. UI INITIALIZATION & BINDINGS
+       ========================================================================== */
+    function initUI() {
+      document.getElementById("btn-new-level").addEventListener("click", createNewLevel);
+
+      document.querySelectorAll(".tool-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const t = btn.dataset.tool;
+          if (t === "clear_all") {
+            if (confirm("Clear all targets from active grid?")) {
+              pushHistoryState("Clear All");
+              currentStage.cells = {};
+              currentStage.gapCells = {};
+              syncAllViews(false);
+            }
+            return;
+          }
+          editorState.activeTool = t;
+          updateToolUI();
+        });
+      });
+
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          const v = btn.dataset.view;
+          document.getElementById("views-container").className = `views-container mode-${v}`;
+          editorState.viewMode = v;
+          setTimeout(() => {
+            const c = document.getElementById("canvas-3d").parentElement;
+            if (camera && renderer && c.clientWidth) {
+              camera.aspect = c.clientWidth / c.clientHeight;
+              camera.updateProjectionMatrix();
+              renderer.setSize(c.clientWidth, c.clientHeight);
+            }
+          }, 80);
+        });
+      });
+
+      document.querySelectorAll(".slice-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".slice-btn").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          editorState.activeSlice = btn.dataset.slice;
+          render2DViews();
+        });
+      });
+
+      document.getElementById("btn-undo").addEventListener("click", undo);
+      document.getElementById("btn-redo").addEventListener("click", redo);
+
+      window.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+          e.preventDefault();
+          if (e.shiftKey) redo(); else undo();
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+          e.preventDefault();
+          redo();
+        }
+      });
+
+      const gravBtn = document.getElementById("btn-gravity-mode");
+      gravBtn.addEventListener("click", () => {
+        editorState.gravityMode = !editorState.gravityMode;
+        gravBtn.classList.toggle("btn-active", editorState.gravityMode);
+        gravBtn.innerHTML = `<i data-lucide="arrow-down-to-line"></i> Auto-Drop: ${editorState.gravityMode ? "ON" : "OFF"}`;
+        document.getElementById("status-gravity").textContent = `GRAVITY AUTO-DROP: ${editorState.gravityMode ? "ACTIVE" : "OFF"}`;
+        lucide.createIcons();
+      });
+
+      document.getElementById("btn-settle-gravity").addEventListener("click", settleGravity);
+      document.getElementById("btn-add-bridge").addEventListener("click", spanSupportedBridge);
+      document.getElementById("btn-test-knockdown").addEventListener("click", startKnockdownSimulation);
+      document.getElementById("btn-reset-simulation").addEventListener("click", resetSimulation);
+      document.getElementById("btn-open-create-item").addEventListener("click", () => openItemModal(null));
+
+      // Stand add
+      document.getElementById("btn-add-stand").addEventListener("click", () => {
+        if (currentStage.stands.length >= 4) return alert("Max 4 stands supported.");
+        pushHistoryState("Add Stand");
+        currentStage.stands[currentStage.stands.length - 1].gapToNext = 2;
+        currentStage.stands.push({ id: currentStage.stands.length, gapToNext: 0 });
+        syncAllViews(false);
+      });
+
+      // Luau Import
+      document.getElementById("btn-import-luau").addEventListener("click", () => {
+        document.getElementById("modal-import-luau").classList.add("active");
+      });
+      document.getElementById("btn-apply-import-luau").addEventListener("click", () => {
+        try {
+          const raw = document.getElementById("import-luau-text").value;
+          currentStage = parseLuauLevelText(raw);
+          commitCurrentStageToVault();
+          renderVaultList();
+          syncAllViews(true);
+          closeModals();
+        } catch (e) {
+          alert("Error parsing Luau table: " + e.message);
+        }
+      });
+      document.getElementById("import-luau-file-input").addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const r = new FileReader();
+        r.onload = ev => document.getElementById("import-luau-text").value = ev.target.result;
+        r.readAsText(file);
+      });
+
+      // Luau / JSON Export
+      document.getElementById("btn-export-luau").addEventListener("click", () => {
+        switchExportTab("luau");
+        document.getElementById("modal-export").classList.add("active");
+      });
+      document.getElementById("btn-export-json").addEventListener("click", () => {
+        switchExportTab("json");
+        document.getElementById("modal-export").classList.add("active");
+      });
+
+      document.getElementById("btn-copy-export").addEventListener("click", () => {
+        navigator.clipboard.writeText(document.getElementById("export-code-text").value);
+        alert("Export data copied to clipboard!");
+      });
+
+      document.getElementById("btn-download-export").addEventListener("click", () => {
+        const isLuau = editorState.exportTab === "luau";
+        const text = document.getElementById("export-code-text").value;
+        const blob = new Blob([text], { type: isLuau ? "text/plain" : "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `Stage_${currentStage.name.replace(/\s+/g, '_')}.${isLuau ? "luau" : "json"}`;
+        a.click();
+      });
+
+      // JSON Import
+      document.getElementById("btn-import-json").addEventListener("click", () => {
+        document.getElementById("modal-import").classList.add("active");
+      });
+      document.getElementById("btn-apply-import").addEventListener("click", () => {
+        try {
+          const parsed = JSON.parse(document.getElementById("import-json-text").value);
+          currentStage = parsed.stage || parsed;
+          commitCurrentStageToVault();
+          renderVaultList();
+          syncAllViews(true);
+          closeModals();
+        } catch (e) { alert("Invalid JSON: " + e.message); }
+      });
+      document.getElementById("import-file-input").addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const r = new FileReader();
+        r.onload = ev => document.getElementById("import-json-text").value = ev.target.result;
+        r.readAsText(file);
+      });
+
+      // Save Stage to Vault
+      document.getElementById("btn-save-stage").addEventListener("click", () => {
+        document.getElementById("save-stage-name").value = currentStage.name;
+        document.getElementById("modal-save").classList.add("active");
+      });
+      document.getElementById("btn-confirm-save").addEventListener("click", () => {
+        const name = document.getElementById("save-stage-name").value.trim() || currentStage.name || "Untitled Stage";
+        currentStage.name = name;
+        commitCurrentStageToVault();
+        renderVaultList();
+        closeModals();
+      });
+
+      lucide.createIcons();
+    }
+
+    function updateToolUI() {
+      document.querySelectorAll(".tool-btn").forEach(b => {
+        b.classList.toggle("active", b.dataset.tool === editorState.activeTool);
+      });
+      document.getElementById("status-tool").textContent = editorState.activeTool.toUpperCase();
+    }
+
+    function closeModals() {
+      document.querySelectorAll(".modal-overlay").forEach(m => m.classList.remove("active"));
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      initThree();
+      initItemCatalog();
+      initVault();
+      initUI();
+      currentStage = JSON.parse(JSON.stringify(savedStagesVault[0]));
+      pushHistoryState("Init");
+      syncAllViews(false);
+    });
+  </script>
+</body>
+</html>
