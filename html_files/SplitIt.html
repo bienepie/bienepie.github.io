@@ -1635,7 +1635,7 @@ $('#dupProfile').addEventListener('click', () => {
   const src = prof(); const copy = normProfile({ name: (src.name.trim() || 'حسبة') + ' (نسخة)', date: new Date().toISOString().slice(0,10), data: JSON.parse(JSON.stringify(src.data)) });
   DB.profiles.push(copy); switchProfile(copy.id); toast('تم نسخ الحسبة');
 });
-/* نافذة إعدادات الحسبة (مثل Ta3reesometer: اضغط مرتين على التاب) */
+/* نافذة إعدادات الحسبة (مثل Ratometer: اضغط مرتين على التاب) */
 let editingTabId = null;
 function openTabModal(id){
   editingTabId = id; const pr = DB.profiles.find(p => p.id === id); if (!pr) return;
