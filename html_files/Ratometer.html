@@ -267,6 +267,39 @@
             .levels-heading { padding-top:7px; }
             #ratingEditorForm .modal-actions button { padding:9px; }
         }
+
+        /* First-use guide: a compact introduction, shown once per browser. */
+        #welcomeGuide {
+            box-sizing:border-box; width:min(650px,calc(100% - 28px)); max-width:none;
+            max-height:none; padding:28px; border:1px solid var(--input-border); border-radius:24px;
+            background:var(--container-bg); color:var(--text-color); text-align:right;
+            box-shadow:0 24px 90px rgba(0,0,0,.4); font-family:inherit;
+        }
+        #welcomeGuide::backdrop { background:rgba(5,12,24,.78); backdrop-filter:blur(8px); }
+        .welcome-heading { text-align:center; }
+        .welcome-icon { display:inline-grid; place-items:center; width:64px; height:64px; font-size:38px; border-radius:20px; background:rgba(52,152,219,.13); }
+        #welcomeGuide h2 { margin:12px 0 6px; color:var(--heading-color); font-size:29px; }
+        .welcome-tagline { margin:0; color:#8a97a5; font-size:15px; line-height:1.6; }
+        .welcome-steps { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:22px 0; padding:0; list-style:none; }
+        .welcome-step { padding:16px; border:1px solid var(--border-color); border-radius:14px; background:var(--scale-bg); }
+        .welcome-step-icon { display:block; font-size:25px; margin-bottom:8px; }
+        #welcomeGuide h3 { font-size:15px; margin:0 0 6px; color:var(--heading-color); }
+        .welcome-step p { margin:0; font-size:13px; line-height:1.7; color:var(--text-color); }
+        #welcomeStart { display:block; width:100%; border:0; border-radius:12px; padding:14px; font:700 16px 'Segoe UI',Tahoma,sans-serif; cursor:pointer; background:linear-gradient(110deg,#2879d8,#1b9baa); color:white; }
+        #welcomeStart:hover { filter:brightness(1.1); }
+        #welcomeStart:focus-visible { outline:3px solid #62c4f6; outline-offset:4px; }
+        .welcome-footnote { margin:10px 0 0; text-align:center; color:#8a97a5; font-size:11px; }
+        @media (max-width:540px), (max-height:700px) {
+            #welcomeGuide { padding:20px; border-radius:18px; }
+            .welcome-icon { width:48px; height:48px; font-size:29px; border-radius:14px; }
+            #welcomeGuide h2 { font-size:24px; margin-top:8px; }
+            .welcome-steps { grid-template-columns:minmax(0,1fr); gap:8px; margin:16px 0; }
+            .welcome-step { display:grid; grid-template-columns:32px minmax(0,1fr); gap:9px; padding:10px 12px; }
+            .welcome-step-icon { font-size:23px; margin:0; }
+            #welcomeGuide h3 { margin-bottom:3px; }
+            .welcome-step p { font-size:12px; line-height:1.6; }
+            #welcomeStart { padding:11px; }
+        }
     </style>
 </head>
 <body>
@@ -443,6 +476,23 @@
     <ul id="personList" class="main-list"></ul>
 </div>
 
+
+<dialog id="welcomeGuide" aria-labelledby="welcomeTitle" aria-describedby="welcomeTagline" dir="rtl">
+    <div class="welcome-heading">
+        <span class="welcome-icon" aria-hidden="true">📊</span>
+        <h2 id="welcomeTitle">أهلاً في ريتوميتر!</h2>
+        <p id="welcomeTagline" class="welcome-tagline">إنت بتختار الصفة، وإنت بتحط المقياس.</p>
+    </div>
+    <ol class="welcome-steps">
+        <li class="welcome-step"><span class="welcome-step-icon" aria-hidden="true">📁</span><div><h3>١. ابدأ بمشروع</h3><p>سمّي مشروعك وحدد الصفة اللي بدك تقيّمها. كل تاب جديدة بتضيف صفة ثانية لنفس الأسماء.</p></div></li>
+        <li class="welcome-step"><span class="welcome-step-icon" aria-hidden="true">🏷️</span><div><h3>٢. صمّم تقييمك</h3><p>سمّي المستويات العشرة واللقب النهائي، أو اختار تيمبليت جاهز. إعداداتك بتنحفظ كتيمبليت مستقل وبتقدر تعدّله أو تحذفه.</p></div></li>
+        <li class="welcome-step"><span class="welcome-step-icon" aria-hidden="true">🎯</span><div><h3>٣. أضف الأسماء وقيّم</h3><p>اكتب التقييم من ١ إلى ١٠، أو اترك الاسم بالانتظار واسحبه للمستوى المناسب. بتقدر تعدّل تقييمه بأي وقت.</p></div></li>
+        <li class="welcome-step"><span class="welcome-step-icon" aria-hidden="true">🏆</span><div><h3>٤. شوف النتيجة واحسم اللقب</h3><p>تاب النتيجة النهائية بيجمع تقييمات الصفات. وإذا في أكثر من شخص بتقييم ١٠/١٠، صوّتوا لحسم اللقب!</p></div></li>
+    </ol>
+    <button id="welcomeStart" type="button" autofocus>فهمت، خلّينا نبدأ! ←</button>
+    <p class="welcome-footnote">مشاريعك محفوظة بهالمتصفح. استخدم 💾 لتصدير نسخة احتياطية.</p>
+</dialog>
+
 <script>
     // --- الوظائف المساعدة وتحديد الألوان ---
     function getColor(score) {
@@ -476,7 +526,7 @@
             else { if (enteredPin === savedPin) unlockApp(); else { document.getElementById('lockMsg').textContent = "❌ الرقم السري خاطئ!"; pinBoxes.forEach(b => b.value = ''); pinBoxes[0].focus(); } }
         }
     }
-    function unlockApp() { lockScreen.style.display = 'none'; mainApp.style.display = 'block'; updateUI(); }
+    function unlockApp() { lockScreen.style.display = 'none'; mainApp.style.display = 'block'; updateUI(); showFirstUseGuide(); }
     window.onload = () => pinBoxes[0].focus();
 
     // --- تغيير الرقم السري ---
@@ -1299,6 +1349,18 @@
     }
     // Capture existing user configurations once when upgrading, without recreating deleted templates.
     if(appData?.version!==2){tabs.forEach(t=>t.subtabs.forEach(st=>rememberTemplate(st)));saveData();}
+
+    const welcomeGuide = document.getElementById('welcomeGuide');
+    function showFirstUseGuide() {
+        if (localStorage.getItem('ratometerOnboarded') !== 'true' && !welcomeGuide.open) welcomeGuide.showModal();
+    }
+    function finishWelcomeGuide() {
+        localStorage.setItem('ratometerOnboarded', 'true');
+        welcomeGuide.close();
+        document.querySelector('#mainApp button[onclick="openTabModal(\'new\')"]')?.focus();
+    }
+    document.getElementById('welcomeStart').addEventListener('click', finishWelcomeGuide);
+    welcomeGuide.addEventListener('cancel', event => { event.preventDefault(); finishWelcomeGuide(); });
 
     // تشغيل التطبيق
     saveData();
