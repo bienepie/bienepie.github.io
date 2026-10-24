@@ -300,6 +300,21 @@
             .welcome-step p { font-size:12px; line-height:1.6; }
             #welcomeStart { padding:11px; }
         }
+
+        .transfer-panel { box-sizing:border-box; max-width:520px; max-height:none; overflow:visible; gap:12px; }
+        .transfer-description { margin:0; font-size:13px; line-height:1.7; color:#8a97a5; }
+        .transfer-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12px; }
+        .transfer-toolbar button { padding:6px 10px; background:var(--input-bg); color:var(--text-color); border:1px solid var(--input-border); border-radius:7px; cursor:pointer; }
+        #transferCount { margin-inline-start:auto; }
+        #transferProjects { display:grid; gap:8px; }
+        .transfer-project { display:flex; align-items:center; gap:12px; padding:12px; border:1px solid var(--input-border); border-radius:10px; cursor:pointer; min-width:0; }
+        .transfer-project:has(input:checked) { background:rgba(52,152,219,.1); border-color:#3498db; }
+        .transfer-project input, .transfer-option input { width:18px !important; height:18px; accent-color:#3498db; flex:none; }
+        .transfer-project span { min-width:0; overflow-wrap:anywhere; }
+        .transfer-project small { display:block; color:#8a97a5; margin-top:4px; }
+        .transfer-option { display:flex; align-items:center; gap:8px; font-size:13px; }
+        #transferError { margin:0; font-size:13px; color:#e57373; }
+        #transferSubmit:disabled { opacity:.5; cursor:default; }
     </style>
 </head>
 <body>
@@ -356,14 +371,18 @@
     </div>
 </div>
 
-<!-- نافذة التصدير -->
-<div id="exportModal" class="modal">
-    <div class="modal-content">
-        <h3>تصدير البيانات</h3>
-        <p style="text-align:center; font-size:14px; color:#888; margin:0;">اختر ما تريد تصديره:</p>
-        <select id="exportTabSelect"></select>
+<!-- اختيار مشاريع الاستيراد والتصدير -->
+<div id="exportModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="transferTitle">
+    <div class="modal-content transfer-panel">
+        <h3 id="transferTitle">تصدير المشاريع</h3>
+        <p id="transferDescription" class="transfer-description"></p>
+        <div class="transfer-toolbar"><button type="button" onclick="selectTransferProjects(true)">تحديد الكل</button><button type="button" onclick="selectTransferProjects(false)">إلغاء التحديد</button><span id="transferCount" aria-live="polite"></span></div>
+        <div id="transferProjects"></div>
+        <div id="transferPages" class="transfer-toolbar"></div>
+        <label id="transferTemplatesLabel" class="transfer-option"><input id="transferTemplates" type="checkbox" checked> تضمين التيمبليتات المحفوظة</label>
+        <p id="transferError" role="alert"></p>
         <div class="modal-actions">
-            <button class="btn-save" onclick="executeExport()">تصدير</button>
+            <button id="transferSubmit" class="btn-save" onclick="executeTransfer()">تصدير المحدد</button>
             <button class="btn-cancel" onclick="closeExportModal()">إلغاء</button>
         </div>
     </div>
@@ -872,73 +891,134 @@
 
 
     // --- الاستيراد والتصدير ---
-    window.openExportModal = function() {
-        const select = document.getElementById('exportTabSelect');
-        select.innerHTML = '<option value="ALL">📦 تصدير كل المشاريع (نسخة احتياطية كاملة)</option>';
-        tabs.forEach(t => { select.innerHTML += `<option value="${t.id}">📁 مجموعة: ${t.name}</option>`; });
-        select.value = activeTabId; document.getElementById('exportModal').style.display = 'flex';
-    };
-
-    window.closeExportModal = function() { document.getElementById('exportModal').style.display = 'none'; };
-
-    window.executeExport = function() {
-        const selectedValue = document.getElementById('exportTabSelect').value;
-        saveData();
-        let dataStr = ""; let fileName = "";
-        
-        if (selectedValue === "ALL") {
-            dataStr = JSON.stringify(appData, null, 2); fileName = `Ratometer_All_${new Date().toISOString().split('T')[0]}.json`;
-        } else {
-            const selectedTab = tabs.find(t => t.id === selectedValue);
-            const tabPeople = people.filter(p => p.tabId === selectedValue);
-            const exportObj = { isSingleTab: true, tab: selectedTab, people: tabPeople, templates }; 
-            dataStr = JSON.stringify(exportObj, null, 2); fileName = `Ratometer_${selectedTab.name}_${new Date().toISOString().split('T')[0]}.json`;
+    let transferState = null;
+    function openTransfer(mode, data) {
+        transferState = {mode, data, selected:new Set(), page:0};
+        if (mode === 'export') {
+            const index = data.tabs.findIndex(t => t.id === activeTabId);
+            if (index >= 0) transferState.selected.add(index);
+        } else data.tabs.forEach((_,index) => transferState.selected.add(index));
+        document.getElementById('transferTitle').textContent = mode === 'export' ? 'تصدير المشاريع' : 'استيراد المشاريع';
+        document.getElementById('transferDescription').textContent = mode === 'export'
+            ? 'اختَر مشروعاً أو أكثر لحفظها مع أسمائها وتقييماتها في ملف واحد.'
+            : 'اختَر المشاريع التي تريد إضافتها من الملف. مشاريعك الحالية تبقى محفوظة.';
+        document.getElementById('transferTemplates').checked = true;
+        document.getElementById('transferTemplatesLabel').style.display = data.templates?.length ? 'flex' : 'none';
+        document.getElementById('transferError').textContent = '';
+        document.getElementById('exportModal').style.display = 'flex';
+        renderTransferProjects();
+    }
+    function renderTransferProjects() {
+        const {data,selected,page,mode} = transferState;
+        const list = document.getElementById('transferProjects'); list.replaceChildren();
+        if (!data.tabs.length) list.textContent = 'لا توجد مشاريع في هذه البيانات.';
+        data.tabs.slice(page*4,page*4+4).forEach((project,offset) => {
+            const index=page*4+offset;
+            const label=document.createElement('label');label.className='transfer-project';
+            const check=document.createElement('input');check.type='checkbox';check.checked=selected.has(index);
+            check.onchange=()=>{if(check.checked)selected.add(index);else selected.delete(index);renderTransferProjects();};
+            const name=document.createElement('span');name.textContent=project.name;
+            const info=document.createElement('small');
+            const count=data.people.filter(p=>p.tabId===project.id).length;
+            info.textContent=count+' أسماء · '+(project.subtabs?.length || 1)+' صفات';name.appendChild(info);
+            label.append(check,name);list.appendChild(label);
+        });
+        document.getElementById('transferCount').textContent=selected.size+' / '+data.tabs.length+' محدد';
+        const submit=document.getElementById('transferSubmit');
+        submit.textContent=(mode==='export'?'تصدير المحدد':'استيراد المحدد')+' ('+selected.size+')';
+        submit.disabled=!selected.size && !(data.tabs.length===0 && data.templates?.length && document.getElementById('transferTemplates').checked);
+        const nav=document.getElementById('transferPages');nav.replaceChildren();
+        const pages=Math.ceil(data.tabs.length/4);
+        if(pages>1){
+            const previous=document.createElement('button');previous.textContent='السابق';previous.disabled=page===0;previous.onclick=()=>{transferState.page--;renderTransferProjects();};
+            const next=document.createElement('button');next.textContent='التالي';next.disabled=page===pages-1;next.onclick=()=>{transferState.page++;renderTransferProjects();};
+            const status=document.createElement('span');status.textContent=(page+1)+' / '+pages;
+            nav.append(previous,status,next);
         }
-        
-        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([dataStr], { type: "application/json" }));
-        a.download = fileName; document.body.appendChild(a); a.click(); document.body.removeChild(a); closeExportModal();
+    }
+    function selectTransferProjects(all) {
+        if(!transferState)return;
+        transferState.selected=new Set(all?transferState.data.tabs.map((_,i)=>i):[]);
+        renderTransferProjects();
+    }
+    window.openExportModal=function(){saveData();openTransfer('export',appData);};
+    window.closeExportModal=function(){document.getElementById('exportModal').style.display='none';transferState=null;};
+    document.getElementById('transferTemplates').addEventListener('change',renderTransferProjects);
+    function selectedTransferData() {
+        const {data,selected}=transferState;
+        const picked=data.tabs.filter((_,i)=>selected.has(i));
+        const ids=new Set(picked.map(t=>t.id));
+        return {version:2,tabs:picked,people:data.people.filter(p=>ids.has(p.tabId)),
+            activeTabId:picked[0]?.id || null,activeSubtabId:picked[0]?.subtabs?.[0]?.id || null,
+            templates:document.getElementById('transferTemplates').checked?(data.templates || []):[]};
+    }
+    function validateTransferData(raw) {
+        const data=JSON.parse(JSON.stringify(raw));
+        if(data.isSingleTab){
+            if(!data.tab || !Array.isArray(data.people))throw new Error('ملف المشروع غير مكتمل.');
+            data.tabs=[data.tab];data.people.forEach(p=>p.tabId=data.tab.id);
+        }
+        if(!Array.isArray(data.tabs) || !Array.isArray(data.people))throw new Error('صيغة الملف غير مدعومة.');
+        const ids=new Set();
+        data.tabs.forEach(t=>{
+            if(!t || typeof t.id!=='string' || ids.has(t.id) || typeof t.name!=='string')throw new Error('بيانات المشاريع غير سليمة.');
+            ids.add(t.id);
+            if(t.subtabs!==undefined && (!Array.isArray(t.subtabs) || !t.subtabs.length || t.subtabs.some(st=>!st || typeof st.id!=='string' || typeof st.name!=='string')))throw new Error('بيانات الصفات غير سليمة.');
+            if(t.subtabs?.some(st=>st.ratingLabels!==undefined && !Array.isArray(st.ratingLabels)))throw new Error('أسماء المستويات غير سليمة.');
+        });
+        if(data.people.some(p=>!p || typeof p.name!=='string' || !ids.has(p.tabId)))throw new Error('الأسماء غير مرتبطة بمشاريع سليمة.');
+        if(data.templates!==undefined && !Array.isArray(data.templates))throw new Error('بيانات التيمبليتات غير سليمة.');
+        return data;
+    }
+    function prepareImportedProjects(data) {
+        const copy=JSON.parse(JSON.stringify(data));
+        const mapping=new Map();
+        copy.tabs.forEach(t=>{
+            const id=newId('project');mapping.set(t.id,id);t.id=id;t.name+=' (مستورد)';
+            t.characters=Array.isArray(t.characters)?t.characters:[];
+            t.ratingLabels=Array.isArray(t.ratingLabels)?t.ratingLabels:[...defaultLabels];
+            t.subtabs ||= [{id:'sub_default',name:'',ratingLabels:[...t.ratingLabels]}];
+            t.awardTitle ||= t.subtabs[0]?.awardTitle || t.subtabs[0]?.ratingLabels?.[10] || t.ratingLabels[10] || '';
+            t.subtabs.forEach(st=>{st.ratingLabels ||= [...t.ratingLabels];st.awardTitle ||= t.awardTitle || st.ratingLabels[10] || '';});
+        });
+        copy.people.forEach(p=>{
+            p.id=newId('person');p.tabId=mapping.get(p.tabId);p.scores ||= {'sub_default':p.score || 0};
+            p.votes ||= 0;p.gender ||= 'none';p.reason ||= '';p.avatar ||= '';
+            p.ratingVotes ||= {[copy.tabs.find(t=>t.id===p.tabId).subtabs[0].id]:p.votes};
+        });
+        return copy;
+    }
+    window.executeTransfer=function(){
+        if(!transferState)return;
+        const data=selectedTransferData();
+        if(!data.tabs.length && !(transferState.data.tabs.length===0 && data.templates.length)){
+            document.getElementById('transferError').textContent='اختَر مشروعاً واحداً على الأقل.';return;
+        }
+        if(transferState.mode==='export'){
+            const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+            const link=document.createElement('a');link.href=url;
+            link.download='Ratometer_Projects_'+data.tabs.length+'_'+new Date().toISOString().split('T')[0]+'.json';
+            document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+            closeExportModal();
+        }else{
+            const imported=prepareImportedProjects(data);
+            tabs.push(...imported.tabs);people.push(...imported.people);
+            imported.templates.forEach(t=>{if(validConfig(t))rememberTemplate(t,t.templateName || t.name);});
+            imported.tabs.forEach(t=>t.subtabs.forEach(st=>{if(validConfig(st))rememberTemplate(st);}));
+            if(imported.tabs.length){activeTabId=imported.tabs[0].id;activeSubtabId=imported.tabs[0].subtabs[0].id;}
+            saveData();closeExportModal();updateUI();
+            alert('تم استيراد '+imported.tabs.length+' مشاريع و'+imported.people.length+' أسماء.');
+        }
     };
-
-    window.importData = function(event) {
-        const file = event.target.files[0]; if (!file) return; 
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const importedData = JSON.parse(e.target.result);
-                let addedPeopleCount = 0; let addedTabsCount = 0;
-
-                function normalizeTab(tab) {
-                    if (!tab.characters) tab.characters = [];
-                    tab.awardTitle ||= tab.subtabs?.[0]?.awardTitle || tab.subtabs?.[0]?.ratingLabels?.[10] || tab.ratingLabels?.[10] || ''; 
-                    if (!tab.ratingLabels) tab.ratingLabels = [...defaultLabels];
-                    if (!tab.subtabs) tab.subtabs = [{ id: 'sub_default', name: '', ratingLabels: tab.ratingLabels ? [...tab.ratingLabels] : [...defaultLabels] }];
-                    tab.subtabs.forEach(st => {
-                        if (!st.ratingLabels) st.ratingLabels = tab.ratingLabels ? [...tab.ratingLabels] : [...defaultLabels];
-                    });
-                }
-
-                if (importedData.isSingleTab) {
-                    const newTabId = 'tab_' + Date.now() + Math.random().toString(36).substr(2, 5);
-                    const t = importedData.tab; t.id = newTabId; t.name += ' (مستورد)'; normalizeTab(t); tabs.push(t);
-                    importedData.people.forEach(p => { p.id = 'p_' + Math.random().toString(36).substr(2, 9); p.tabId = newTabId; if(!p.scores) p.scores = {'sub_default': p.score||0}; people.push(p); addedPeopleCount++; });
-                    addedTabsCount = 1; activeTabId = newTabId; activeSubtabId = t.subtabs[0].id;
-                } else if (importedData.tabs && importedData.people) {
-                    const idMapping = {};
-                    importedData.tabs.forEach(oldTab => {
-                        const newTabId = 'tab_' + Date.now() + Math.random().toString(36).substr(2, 5);
-                        idMapping[oldTab.id] = newTabId; 
-                        const t = { ...oldTab, id: newTabId, name: oldTab.name + ' (مستورد)' }; normalizeTab(t); tabs.push(t);
-                        addedTabsCount++;
-                    });
-                    importedData.people.forEach(p => { p.id = 'p_' + Math.random().toString(36).substr(2, 9); p.tabId = idMapping[p.tabId] || tabs[0].id; if(!p.scores) p.scores = {'sub_default': p.score||0}; people.push(p); addedPeopleCount++; });
-                    if (importedData.tabs.length > 0) { activeTabId = idMapping[importedData.tabs[0].id]; activeSubtabId = tabs.find(t=>t.id===activeTabId).subtabs[0].id; }
-                } else { alert("❌ صيغة الملف غير مدعومة بالكامل أو قديمة."); return; }
-                
-                (importedData.templates || []).forEach(t => { if(validConfig(t)) rememberTemplate(t, t.templateName || t.name); });
-                tabs.forEach(t => t.subtabs.forEach(st => { st.awardTitle ||= t.awardTitle || st.ratingLabels[10]; if(validConfig(st)) rememberTemplate(st); }));
-                saveData(); updateUI(); alert(`✅ تم الاستيراد بنجاح! تمت إضافة ${addedTabsCount} مجموعة و ${addedPeopleCount} اسم بدون مسح بياناتك الحالية.`);
-            } catch (error) { alert("❌ حدث خطأ، تأكد من الملف."); console.error(error); }
-        }; reader.readAsText(file); event.target.value = '';
+    window.importData=function(event){
+        const file=event.target.files[0];if(!file)return;
+        const reader=new FileReader();
+        reader.onload=e=>{
+            try{openTransfer('import',validateTransferData(JSON.parse(e.target.result)));}
+            catch(error){alert('تعذّر استيراد الملف: '+(error instanceof SyntaxError?'ملف JSON غير صالح.':error.message));}
+        };
+        reader.onerror=()=>alert('تعذّرت قراءة الملف. حاول مرة أخرى.');
+        reader.readAsText(file);event.target.value='';
     };
 
     function getDisplayIcon(person) {
