@@ -9,4 +9,4 @@
 - [KnockACan_LevelDesigner](https://bienepie.github.io/KnockACan_LevelDesigner/)
 - [PuzzelDrop](https://bienepie.github.io/PuzzelDrop/)
 - [SplitIt](https://bienepie.github.io/SplitIt/)
-- [Ratometer](https://bienepie.github.io/Ta3reesometer/)
+- [Ta3reesometer](https://bienepie.github.io/Ta3reesometer/)
