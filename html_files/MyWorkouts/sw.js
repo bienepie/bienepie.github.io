@@ -1,5 +1,5 @@
 // App assets only. Workout/account data stays in the existing account-scoped stores.
-const BUILD='13fdf12c1ea45c35';
+const BUILD='d6533fa547b91dea';
 const base=new URL('./',self.location.href);
 const CACHE_PREFIX='myworkouts-assets-'+encodeURIComponent(base.pathname)+'-';
 const CACHE=CACHE_PREFIX+BUILD;
